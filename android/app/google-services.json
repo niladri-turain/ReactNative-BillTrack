@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "674379527958",
+    "project_id": "billtrack-676bd",
+    "storage_bucket": "billtrack-676bd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:674379527958:android:5133eaebbf79ae9fd6c237",
+        "android_client_info": {
+          "package_name": "com.billtrack"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDl-sGE5SpfRCfIsQeR4oNm8Utw1Nj8Ybk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
