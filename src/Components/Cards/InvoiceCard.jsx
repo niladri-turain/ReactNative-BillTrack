@@ -204,8 +204,10 @@ const InvoiceCard = ({invoice}) => {
         </View>
         <Text style={[styles.dateText]}>{formatDate(invoice?.createdAt)}</Text>
         <View style={styles.right}>
-          <View style={styles.paidContainer}>
-            <Text style={[styles.paidText]}>{invoice?.status.toUpperCase()}</Text>
+          <View style={invoice?.status?.toLowerCase() === 'paid' ? styles.paidContainer : styles.paidContainerError}>
+            <Text style={[invoice?.status?.toLowerCase() === 'paid' ? styles.paidText : styles.paidTextError]}>
+              {invoice?.status.toUpperCase()}
+            </Text>
           </View>
           <Text style={[styles.priceText]}>₹ {invoice?.totalAmount}</Text>
         </View>
@@ -325,10 +327,23 @@ const styles = StyleSheet.create({
     paddingVertical: padding(3),
     paddingHorizontal: padding(8),
   },
+    paidContainerError: {
+    backgroundColor: colors.error + 30,
+    borderRadius: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: padding(3),
+    paddingHorizontal: padding(8),
+  },
   paidText: {
     fontSize: font(8),
     fontFamily: fonts.inSemiBold,
     color: colors.sucess,
+  },
+   paidTextError: {
+    fontSize: font(8),
+    fontFamily: fonts.inSemiBold,
+    color: colors.error,
   },
   priceText: {
     fontSize: font(14),
