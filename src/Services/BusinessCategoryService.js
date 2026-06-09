@@ -9,12 +9,17 @@ class BusinessCategoryService {
   async getAllBusinessCategory() {
     try {
       const uri = this.baseUrl;
+      console.log('--- getAllBusinessCategory ---');
+      console.log('URL:', uri);
       const response = await axios.get(uri);
-      const data = await response.data?.data;
-      return data;
+      console.log('Response:', response.data);
+      console.log('Status Code:', response.status);
+      return response.data?.data;
     } catch (error) {
-      const data = await error.response.data;
-      return data;
+      console.error('--- getAllBusinessCategory Error ---');
+      console.error('Response Data:', error.response?.data);
+      console.error('Status Code:', error.response?.status);
+      return error.response?.data;
     }
   }
 }

@@ -46,6 +46,7 @@ const InvoiceCard = ({invoice}) => {
   const sentSmsEnabled = useAppSettingsValue('SEND_TO_SMS');
   const [isPrintingLoading, setIsPrintingLoading] = useState(false);
   const [isSmsLoading, setIsSmsLoading] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const navigation = useNavigation();
   const sentToWhatsApp = async () => {
@@ -65,6 +66,49 @@ const InvoiceCard = ({invoice}) => {
       customerNumber: invoice?.customerNumber,
       businessId: business?.id,
     });
+  };
+  const cancelInvoice = async () => {
+    Alert.alert(
+      'Cancel Invoice',
+      `Are you sure you want to cancel this invoice ${invoice?.invoiceNumber}?`,
+      [
+        {
+          text: 'No',
+          style: 'cancel',
+        },
+        {
+          text: 'Yes',
+          onPress: async () => {
+            try {
+              setIsCancelling(true);
+              const data = await invoiceService.cancelInvoiceById(
+                token,
+                invoice.id,
+              );
+              if (data?.status) {
+                ToastAndroid.show(
+                  data?.message || 'Invoice cancelled successfully',
+                  ToastAndroid.SHORT,
+                );
+              } else {
+                ToastAndroid.show(
+                  data?.message || 'Failed to cancel invoice',
+                  ToastAndroid.SHORT,
+                );
+              }
+            } catch (error) {
+              ToastAndroid.show(
+                'An error occurred while cancelling invoice.',
+                ToastAndroid.SHORT,
+              );
+            } finally {
+              setIsCancelling(false);
+            }
+          },
+        },
+      ],
+      {cancelable: false},
+    );
   };
 
   const sentSms = async () => {
@@ -218,6 +262,21 @@ const InvoiceCard = ({invoice}) => {
             Details
           </Text>
         </TouchableOpacity>
+        {invoice?.status?.toLowerCase() === 'paid' && (
+          <TouchableOpacity
+            style={styles.subBottomContainer}
+            onPress={cancelInvoice}
+            disabled={isCancelling}>
+            {isCancelling ? (
+              <ActivityIndicator size={'small'} color="red" />
+            ) : (
+              <Ionicons name="trash-outline" size={icon(18)} color="red" />
+            )}
+            <Text style={[{color: '#e21717'}, styles.subBottomContainerText]}>
+              Cancel
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );

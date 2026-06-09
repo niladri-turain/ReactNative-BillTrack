@@ -29,6 +29,7 @@ import PrinterSetup from './Account/Settings/PrinterSetup';
 import AppSettings from './Account/Settings/AppSettings';
 import ActiveProducts from './Account/ActiveProducts';
 import Transaction from './Account/Transaction';
+import CancelInvoiceList from './Account/CancelInvoiceList';
 
 // PRODUCT
 import Product from './Product/Product';
@@ -64,5 +65,6 @@ export {
   ActiveProducts,
   Business,
   AppSettings,
-  OfflineScreen
+  OfflineScreen,
+  CancelInvoiceList,
 };

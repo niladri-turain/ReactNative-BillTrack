@@ -10,16 +10,21 @@ class ProductService {
   async getProductsSuggestions(token) {
     try {
       const uri = `${this.baseUrl}-suggestion`;
-      const response = await axios.get(uri, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.data;
-      return data;
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
+      console.log('--- getProductsSuggestions ---');
+      console.log('URL:', uri);
+      console.log('Headers:', headers);
+      const response = await axios.get(uri, {headers});
+      console.log('Response:', response.data);
+      console.log('Status Code:', response.status);
+      return response.data;
     } catch (error) {
-      const data = await error.response.data;
-      return data;
+      console.error('--- getProductsSuggestions Error ---');
+      console.error('Response Data:', error.response?.data);
+      console.error('Status Code:', error.response?.status);
+      return error.response?.data;
     }
   }
 
@@ -30,16 +35,22 @@ class ProductService {
       const payload = {
         products: products,
       };
-      const response = await axios.post(uri, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.data;
-      return data;
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
+      console.log('--- createMultipleProduct ---');
+      console.log('URL:', uri);
+      console.log('Headers:', headers);
+      console.log('Body:', payload);
+      const response = await axios.post(uri, payload, {headers});
+      console.log('Response:', response.data);
+      console.log('Status Code:', response.status);
+      return response.data;
     } catch (error) {
-      const data = await error.response.data;
-      return data;
+      console.error('--- createMultipleProduct Error ---');
+      console.error('Response Data:', error.response?.data);
+      console.error('Status Code:', error.response?.status);
+      return error.response?.data;
     }
   }
 
@@ -66,17 +77,23 @@ class ProductService {
       if (productImage) {
         formData.append('logo', productImage);
       }
-      const response = await axios.post(uri, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      const data = await response.data;
-      return data;
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      };
+      console.log('--- createProduct ---');
+      console.log('URL:', uri);
+      console.log('Headers:', headers);
+      console.log('Body (FormData):', formData);
+      const response = await axios.post(uri, formData, {headers});
+      console.log('Response:', response.data);
+      console.log('Status Code:', response.status);
+      return response.data;
     } catch (error) {
-      const data = await error.response.data;
-      return data;
+      console.error('--- createProduct Error ---');
+      console.error('Response Data:', error.response?.data);
+      console.error('Status Code:', error.response?.status);
+      return error.response?.data;
     }
   }
 
@@ -84,17 +101,22 @@ class ProductService {
   async getAllProducts(token) {
     try {
       const uri = `${this.baseUrl}/all`;
-      const response = await axios.get(uri, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      const data = await response.data;
-      return data;
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      };
+      console.log('--- getAllProducts ---');
+      console.log('URL:', uri);
+      console.log('Headers:', headers);
+      const response = await axios.get(uri, {headers});
+      console.log('Response:', response.data);
+      console.log('Status Code:', response.status);
+      return response.data;
     } catch (error) {
-      const data = await error.response.data;
-      return data;
+      console.error('--- getAllProducts Error ---');
+      console.error('Response Data:', error.response?.data);
+      console.error('Status Code:', error.response?.status);
+      return error.response?.data;
     }
   }
 
@@ -102,17 +124,22 @@ class ProductService {
   async getAllActiveInactiveProducts(token) {
     try {
       const uri = `${this.baseUrl}/all-active-inactive`;
-      const response = await axios.get(uri, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      const data = await response.data;
-      return data;
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      };
+      console.log('--- getAllActiveInactiveProducts ---');
+      console.log('URL:', uri);
+      console.log('Headers:', headers);
+      const response = await axios.get(uri, {headers});
+      console.log('Response:', response.data);
+      console.log('Status Code:', response.status);
+      return response.data;
     } catch (error) {
-      const data = await error.response.data;
-      return data;
+      console.error('--- getAllActiveInactiveProducts Error ---');
+      console.error('Response Data:', error.response?.data);
+      console.error('Status Code:', error.response?.status);
+      return error.response?.data;
     }
   }
 
@@ -132,17 +159,23 @@ class ProductService {
       if (productImage) {
         formData.append('logo', productImage);
       }
-      const response = await axios.put(uri, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      const data = await response.data;
-      return data;
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      };
+      console.log('--- updateproduct ---');
+      console.log('URL:', uri);
+      console.log('Headers:', headers);
+      console.log('Body (FormData):', formData);
+      const response = await axios.put(uri, formData, {headers});
+      console.log('Response:', response.data);
+      console.log('Status Code:', response.status);
+      return response.data;
     } catch (error) {
-      const data = await error.response.data;
-      return data;
+      console.error('--- updateproduct Error ---');
+      console.error('Response Data:', error.response?.data);
+      console.error('Status Code:', error.response?.status);
+      return error.response?.data;
     }
   }
 
@@ -150,16 +183,21 @@ class ProductService {
   async deleteProductById(token, id) {
     try {
       const uri = `${this.baseUrl}/${id}`;
-      const response = await axios.delete(uri, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.data;
-      return data;
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
+      console.log('--- deleteProductById ---');
+      console.log('URL:', uri);
+      console.log('Headers:', headers);
+      const response = await axios.delete(uri, {headers});
+      console.log('Response:', response.data);
+      console.log('Status Code:', response.status);
+      return response.data;
     } catch (error) {
-      const data = await error.response.data;
-      return data;
+      console.error('--- deleteProductById Error ---');
+      console.error('Response Data:', error.response?.data);
+      console.error('Status Code:', error.response?.status);
+      return error.response?.data;
     }
   }
 
@@ -170,12 +208,18 @@ class ProductService {
       const payload = {
         products: products,
       };
+      console.log('--- updateProductStatus ---');
+      console.log('URL:', uri);
+      console.log('Body:', payload);
       const response = await axios.put(uri, payload);
-      const data = await response.data;
-      return data;
+      console.log('Response:', response.data);
+      console.log('Status Code:', response.status);
+      return response.data;
     } catch (error) {
-      const data = await error.response.data;
-      return data;
+      console.error('--- updateProductStatus Error ---');
+      console.error('Response Data:', error.response?.data);
+      console.error('Status Code:', error.response?.status);
+      return error.response?.data;
     }
   }
 }

@@ -14,6 +14,7 @@ import {
   Business,
   BusinessSetup,
   BusinessSetup2,
+  CancelInvoiceList,
   CreateBill,
   HelpAndSupport,
   Home,
@@ -162,6 +163,7 @@ const AccountStack = memo(() => {
       <Stack.Screen name="Settings" component={SettingStack} />
       <Stack.Screen name="ActiveProducts" component={ActiveProducts} />
       <Stack.Screen name="Transaction" component={Transaction} />
+       <Stack.Screen name="CancelInvoiceList" component={CancelInvoiceList} />
     </Stack.Navigator>
   );
 });

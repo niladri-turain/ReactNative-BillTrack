@@ -253,6 +253,17 @@ const Account = memo(() => {
             title="About Billtrack"
             onpress={() => handleNavigation({screen: 'About'})}
           />
+           <SettingItemsCard
+            mainIcon={
+              <AntDesign
+                name="minuscircleo"
+                size={icon(22)}
+                color={colors.primary}
+              />
+            }
+            title="Cancel Invoice List"
+            onpress={() => handleNavigation({screen: 'CancelInvoiceList'})}
+          />
           <SettingItemsCard
             mainIcon={
               <MaterialIcons
