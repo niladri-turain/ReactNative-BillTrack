@@ -47,7 +47,7 @@ class InvoiceService {
   // GET - CANCEL INVOICES
   async getCancelInvoices(token, page = 0, limit = 10, sortBy = 'date_desc') {
     try {
-      const uri = `${this.baseUrl}/cancel?page=${page}&limit=${limit}&sortBy=${sortBy}`;
+      const uri = `${this.baseUrl}/canceled/list?page=${page}&limit=${limit}&sortBy=${sortBy}`;
       const headers = {
         Authorization: `Bearer ${token}`,
       };
