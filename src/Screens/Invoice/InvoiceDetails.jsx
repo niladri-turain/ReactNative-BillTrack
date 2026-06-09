@@ -15,7 +15,7 @@ import {useBusiness} from '../../Contexts/AuthContext';
 import {useRoute} from '@react-navigation/native';
 import {invoiceService} from '../../Services/InvoiceService';
 import {API_URL} from '../../utils/config';
-import {icon, font} from '../../utils/responsive';
+import {icon, font, gap, margin} from '../../utils/responsive';
 import {
   calculateInvoiceData,
   formatDate,
@@ -43,6 +43,7 @@ const InvoiceDetails = () => {
   const route = useRoute();
   const {invoice} = route.params;
   const business = useBusiness();
+  console.log("business",business)
   const invoiceData = {
     businessName: 'Turain Software',
     businessPhone: '+91 6290 397200',
@@ -133,10 +134,15 @@ const InvoiceDetails = () => {
         // Call the calculation function
         const result = calculateInvoiceData(data?.items);
         // Update all states with the returned values
+        const sortedItems = [...result.items].sort((a, b) => {
+          const gstA = parseFloat(a.gstPercentage) || 0;
+          const gstB = parseFloat(b.gstPercentage) || 0;
+          return gstA - gstB;
+        });
         setTotalQuantity(result.totalQuantity);
         setSubTotalAmount(result.subTotalAmount);
-        setInvoiceItems(result.items);
-        console.log(JSON.stringify(result));
+        // setInvoiceItems(result.items);
+        setInvoiceItems(sortedItems);
         const grouped = Object.values(
           result.gstListCalculate.reduce((acc, item) => {
             const key = item.gstPercentage;
@@ -163,7 +169,14 @@ const InvoiceDetails = () => {
             return acc;
           }, {}),
         );
-        setGroupedGstList(grouped);
+        const sortedGrouped = grouped.sort(
+          (a, b) => a.gstPercentage - b.gstPercentage,
+        );
+
+        // setGroupedGstList(grouped);
+        setGroupedGstList(sortedGrouped);
+        console.log('invoiceItems ' + JSON.stringify(result.items));
+        console.log('grouped ' + JSON.stringify(grouped));
       }
     } catch (error) {
       // Handle error
@@ -238,7 +251,7 @@ const InvoiceDetails = () => {
                     Phone Numer:{' '}
                   </Text>
                   <Text style={[styles.valueText, {fontSize: font(14)}]}>
-                    {invoiceData.businessPhone}
+                    {business?.phone}
                   </Text>
                 </View>
               )}
@@ -359,7 +372,7 @@ const InvoiceDetails = () => {
                     {width: '40%', fontSize: sizes.invoiceItemFontSize},
                   ]}>
                   {item.name}
-                  {item?.gstPercentage && ` / ${item?.gstPercentage}%`}
+                  {item?.gstPercentage && `(${item?.gstPercentage}%)`}
                 </Text>
                 <Text
                   style={[
@@ -392,7 +405,10 @@ const InvoiceDetails = () => {
                       fontSize: sizes.invoiceTitleFontSize,
                     },
                   ]}>
-                  ₹{(Number(item.originalPrice) * Number(item.quantity)).toFixed(2)}
+                  ₹
+                  {(Number(item.originalPrice) * Number(item.quantity)).toFixed(
+                    2,
+                  )}
                 </Text>
               </View>
             ))}
@@ -459,15 +475,19 @@ const InvoiceDetails = () => {
             <DottedDivider borderWidth={0.8} /> */}
 
             {groupedGstList.map((item, index) => (
-              <View style={{marginBottom: 10}} key={index+"gruped_gst_parent"}>
+              <View
+                style={{marginBottom: 10}}
+                key={index + 'gruped_gst_parent'}>
                 <View
                   style={[
                     styles.secondContainerForGSTPercentage,
-                    {paddingHorizontal: sizes.secondContainerPaddingHorizontal},
+                    {
+                      paddingHorizontal: sizes.secondContainerPaddingHorizontal,
+                    },
                   ]}>
                   <View style={styles.subSecondContainer}>
                     <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                      {item.gstPercentage}% GST Items
+                      {(Number(item.gstPercentage) * 2).toFixed(2)}% GST Items
                     </Text>
                   </View>
                   <View style={styles.subSecondContainer}>
@@ -479,7 +499,10 @@ const InvoiceDetails = () => {
                   key={index + 'gst_list'}
                   style={[
                     styles.secondContainer,
-                    {paddingHorizontal: sizes.secondContainerPaddingHorizontal},
+                    {
+                      paddingHorizontal: sizes.secondContainerPaddingHorizontal,
+                      marginTop: margin(-1),
+                    },
                   ]}>
                   <View style={styles.subSecondContainer}>
                     <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
@@ -492,28 +515,31 @@ const InvoiceDetails = () => {
                     </Text>
                   </View>
                 </View>
-                {item?.items.map((gstitem, i) => (
-                  <View
-                    key={i + 'gst_list'}
-                    style={[
-                      styles.secondContainer,
-                      {
-                        paddingHorizontal:
-                          sizes.secondContainerPaddingHorizontal,
-                      },
-                    ]}>
-                    <View style={styles.subSecondContainer}>
-                      <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                        {gstitem?.gstType} {gstitem?.gstPercentage}%
-                      </Text>
+                <View style={{marginTop: margin(2)}}>
+                  {item?.items.map((gstitem, i) => (
+                    <View
+                      key={i + 'gst_list'}
+                      style={[
+                        styles.secondContainer,
+                        {
+                          paddingHorizontal:
+                            sizes.secondContainerPaddingHorizontal,
+                          marginTop: margin(-2),
+                        },
+                      ]}>
+                      <View style={styles.subSecondContainer}>
+                        <Text style={[styles.gstText, {fontSize: font(14)}]}>
+                          {gstitem?.gstType} {gstitem?.gstPercentage}%
+                        </Text>
+                      </View>
+                      <View style={styles.subSecondContainer}>
+                        <Text style={[styles.gstText, {fontSize: font(14)}]}>
+                          {gstitem?.gstAmount.toFixed(2)}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.subSecondContainer}>
-                      <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                        {gstitem?.gstAmount.toFixed(2)}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
+                  ))}
+                </View>
               </View>
             ))}
 
@@ -621,6 +647,10 @@ const styles = StyleSheet.create({
     color: '#000000',
     textAlign: 'center',
     marginVertical: 10,
+  },
+  gstText: {
+    fontFamily: fonts.inMedium,
+    color: '#000000',
   },
 });
 
