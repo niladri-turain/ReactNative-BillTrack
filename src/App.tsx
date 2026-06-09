@@ -164,6 +164,15 @@ const AccountStack = memo(() => {
       <Stack.Screen name="ActiveProducts" component={ActiveProducts} />
       <Stack.Screen name="Transaction" component={Transaction} />
        <Stack.Screen name="CancelInvoiceList" component={CancelInvoiceList} />
+
+         <Stack.Screen
+        name="InvoiceDetails"
+        component={InvoiceDetails}
+        options={{
+          animation: 'slide_from_bottom',
+          animationDuration: 200,
+        }}
+      />
     </Stack.Navigator>
   );
 });
