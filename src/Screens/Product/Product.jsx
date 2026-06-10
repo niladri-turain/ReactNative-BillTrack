@@ -76,6 +76,7 @@ const Product = () => {
   const [productId, setProductId] = useState(null);
   const [productImage, setProductImage] = useState(null);
   const [productName, setProductName] = useState('');
+  const [productNameError, setProductNameError] = useState('');
   const [productUnit, setProductUnit] = useState('');
   const [productPrice, setProductPrice] = useState('');
   const [hsnCode, setHsnCode] = useState('');
@@ -96,6 +97,7 @@ const Product = () => {
   const setInitialValueOfModal = () => {
     setProductImage(null);
     setProductName('');
+    setProductNameError('');
     setProductUnit('');
     setProductPrice('');
     setHsnCode('');
@@ -192,11 +194,26 @@ const Product = () => {
   };
 
   const handleSave = async () => {
+    setProductNameError('');
     const showError = message =>
       ToastService.show({message, type: 'error', position: 'top'});
 
     if (!productName?.trim() || !validateProductName(productName)) {
       return showError('Please enter a valid name');
+    }
+
+    const trimmedName = productName?.trim().toLowerCase();
+    const trimmedPrice = productPrice?.trim().toLowerCase();
+    const isDuplicate = Products.some(product => {
+      if (!isNewProduct && product.id === productId) {
+        return false;
+      }
+      return product.name?.trim().toLowerCase() === trimmedName || product.price?.toString().trim().toLowerCase() === trimmedPrice  ;
+    });
+
+    if (isDuplicate) {
+      setProductNameError('Product already exists');
+      return;
     }
 
     if (!productUnit) {
@@ -436,10 +453,18 @@ const Product = () => {
                 <SimpleTextInput
                   placeholder={''}
                   value={productName}
-                  setValue={setProductName}
-                  hasError={productName && !validateProductName(productName)}
+                  setValue={(val) => {
+                    setProductName(val);
+                    setProductNameError('');
+                  }}
+                  hasError={(productName && !validateProductName(productName)) || !!productNameError}
                   multiline={true}
                 />
+                {!!productNameError && (
+                  <Text style={{color: colors.error, fontSize: 12, marginTop: -5}}>
+                    {productNameError}
+                  </Text>
+                )}
               </View>
               <View style={[styles.inputDoubleContianer]}>
                 <View style={[styles.inputSubContainer, {width: '45%'}]}>
