@@ -255,11 +255,13 @@ const Account = memo(() => {
           />
            <SettingItemsCard
             mainIcon={
-              <AntDesign
-                name="minuscircleo"
-                size={icon(22)}
-                color={colors.primary}
-              />
+              // <AntDesign
+              //   name="invoice"
+              //   size={icon(22)}
+              //   color={colors.primary}
+              // />
+               <Ionicons name="trash-outline" size={icon(22)} color={colors.primary} />
+               
             }
             title="Cancel Invoice List"
             onpress={() => handleNavigation({screen: 'CancelInvoiceList'})}
