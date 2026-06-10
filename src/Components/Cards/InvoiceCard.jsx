@@ -35,7 +35,7 @@ import {smsService} from '../../Services/SmsService';
 
 // const {width} = Dimensions.get('screen');
 
-const InvoiceCard = ({invoice}) => {
+const InvoiceCard = ({invoice, onRefresh}) => {
   const {setIsLoading} = useAuth();
   const {printer} = usePrinter();
   const business = useBusiness();
@@ -90,6 +90,9 @@ const InvoiceCard = ({invoice}) => {
                   data?.message || 'Invoice cancelled successfully',
                   ToastAndroid.SHORT,
                 );
+                if (onRefresh) {
+                  onRefresh();
+                }
               } else {
                 ToastAndroid.show(
                   data?.message || 'Failed to cancel invoice',
