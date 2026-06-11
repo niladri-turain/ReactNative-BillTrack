@@ -54,6 +54,12 @@ const AuthProvider = ({children}) => {
 
       // if new business details are provided, save them
       if (newBusinessData) {
+        // Add a cache-busting query parameter to the logoUrl to prevent image caching issues
+        if (newBusinessData.logoUrl) {
+          newBusinessData.logoUrl = `${
+            newBusinessData.logoUrl.split('?')[0]
+          }?v=${Date.now()}`;
+        }
         await AsyncStorage.setItem('business', JSON.stringify(newBusinessData));
         setBusiness(newBusinessData);
       } else {
@@ -283,6 +289,25 @@ export const useUpdateUserFields = () => {
     } catch (error) {}
   };
   return updateUserFields;
+};
+
+export const useUpdateBusinessFields = () => {
+  const {business, setBusinessData} = useAuth();
+
+  const updateBusinessFields = async (fields = {}) => {
+    if (!fields) return;
+    try {
+      const updatedBusiness = {...(business || {}), ...fields};
+      // Add a cache-busting query parameter to the logoUrl if it's being updated
+      if (fields.logoUrl) {
+        updatedBusiness.logoUrl = `${
+          fields.logoUrl.split('?')[0]
+        }?v=${Date.now()}`;
+      }
+      await setBusinessData(updatedBusiness);
+    } catch (error) {}
+  };
+  return updateBusinessFields;
 };
 
 export const useGstEnabled = () => {

@@ -27,11 +27,11 @@ import MaterialIcons from '@react-native-vector-icons/material-icons';
 import AntDesign from '@react-native-vector-icons/ant-design';
 import {useNavigation} from '@react-navigation/native';
 import {
-  updateUserFields,
   useAuth,
   useAuthToken,
   useBusiness,
   useUpdateUserFields,
+  useUpdateBusinessFields,
   useUser,
 } from '../../Contexts/AuthContext';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -52,7 +52,8 @@ const Account = memo(() => {
   const logoUrl = useBusiness('logoUrl');
   const token = useAuthToken();
   const {logout, resetBusiness} = useAuth();
-  const updateUserFields = useUpdateUserFields()
+  const updateUserFields = useUpdateUserFields();
+  const updateBusinessFields = useUpdateBusinessFields();
   const {clearAllProducts} = useProduct();
   const {clearPrinter} = usePrinter();
   const {resetSettings} = useAppSettings();
@@ -65,6 +66,7 @@ const Account = memo(() => {
 
   // LOADING STATE
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
+  const [isImageUploading, setIsImageUploading] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
 
   // MODAL STATES
@@ -107,8 +109,44 @@ const Account = memo(() => {
       cropperCircleOverlay: true,
       mediaType: 'photo',
     })
-      .then(image => {
-        setNewImage(image);
+      .then(async image => {
+        setIsImageUploading(true);
+        try {
+          const extension = image.mime.split('/')[1] || 'jpg';
+          const randomString = Math.random().toString(36).substring(2, 9);
+          const newFilename = `${Date.now()}_${randomString}.${extension}`;
+          const profileImagePayload = {
+            uri: image.path,
+            type: image.mime,
+            name: newFilename,
+          };
+          const data = await userService.updateUserProfileImage({
+            profileImage: profileImagePayload,
+            token: token,
+          });
+
+          if (data.status) {
+            ToastAndroid.show(data.message, ToastAndroid.SHORT);
+            if (data.business) {
+              resetBusiness(data.business);
+            } else {
+              updateBusinessFields({logoUrl: data.logoUrl || data.logo || logoUrl});
+            }
+            setNewImage(image);
+          } else {
+            ToastAndroid.show(
+              data.message || 'Failed to upload image',
+              ToastAndroid.SHORT,
+            );
+          }
+        } catch (error) {
+          ToastAndroid.show(
+            'An error occurred during image upload.',
+            ToastAndroid.SHORT,
+          );
+        } finally {
+          setIsImageUploading(false);
+        }
       })
       .catch(err => {
         if (err.code !== 'E_PICKER_CANCELLED') {
@@ -118,7 +156,7 @@ const Account = memo(() => {
   };
 
   const updateDetails = async () => {
-    if (name === userName && userEmail === email && !newImage) {
+    if (name === userName && userEmail === email) {
       ToastService.show({
         message: 'No changes found',
         type: 'info',
@@ -151,13 +189,6 @@ const Account = memo(() => {
         email: email,
         token: token,
       };
-      if (newImage) {
-        payload.avatar = {
-          uri: newImage.path,
-          type: newImage.mime,
-          name: newImage.filename || `profile_${Date.now()}.jpg`,
-        };
-      }
       const data = await userService.updateUser(payload);
       if (data.status) {
         ToastAndroid.show(data.message, ToastAndroid.SHORT, ToastAndroid.TOP);
@@ -336,19 +367,29 @@ const Account = memo(() => {
               </TouchableOpacity>
             </View>
             <View style={styles.imageUploadContainer}>
-              <Image
-                source={
-                  newImage
-                    ? {uri: newImage.path}
-                    : {uri: `${API_URL}files/logo/${logoUrl}`}
-                }
-                style={styles.modalImage}
-              />
+              <View>
+                <Image
+                  source={
+                    newImage
+                      ? {uri: newImage.path}
+                      : {uri: `${API_URL}files/logo/${logoUrl}`}
+                  }
+                  style={styles.modalImage}
+                />
+                {isImageUploading && (
+                  <View style={styles.imageOverlay}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                  </View>
+                )}
+              </View>
               <TouchableOpacity
                 onPress={handleImagePick}
-                style={styles.changeImageButton}>
+                style={styles.changeImageButton}
+                disabled={isImageUploading}>
                 <Text style={styles.changeImageButtonText}>
-                  Change Profile Image
+                  {isImageUploading
+                    ? 'Uploading...'
+                    : 'Change Profile Image'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -485,6 +526,15 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontFamily: fonts.inMedium,
     fontSize: font(12),
+  },
+  imageOverlay: {
+    position: 'absolute',
+    width: icon(100),
+    height: icon(100),
+    borderRadius: icon(50),
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
