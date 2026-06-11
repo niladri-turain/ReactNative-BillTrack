@@ -42,6 +42,8 @@ import {useProduct} from '../../Contexts/ProductContexts';
 import {usePrinter} from '../../Contexts/PrinterContext';
 import {useAppSettings} from '../../Contexts/AppSettingContexts';
 import {useInvoice} from '../../Contexts/InvoiceContext';
+import {API_URL} from '../../utils/config';
+import ImageCropPicker from 'react-native-image-crop-picker';
 
 const Account = memo(() => {
   const userName = useUser('name');
@@ -49,7 +51,8 @@ const Account = memo(() => {
   const userEmail = useUser('email') || '';
   const logoUrl = useBusiness('logoUrl');
   const token = useAuthToken();
-  const updateUserFields = useUpdateUserFields();
+  const {logout, resetBusiness} = useAuth();
+  const updateUserFields = useUpdateUserFields()
   const {clearAllProducts} = useProduct();
   const {clearPrinter} = usePrinter();
   const {resetSettings} = useAppSettings();
@@ -58,6 +61,7 @@ const Account = memo(() => {
   //STATE VARIABLES
   const [name, setName] = useState(userName);
   const [email, setEmail] = useState(userEmail);
+  const [newImage, setNewImage] = useState(null);
 
   // LOADING STATE
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
@@ -67,7 +71,6 @@ const Account = memo(() => {
   const [isModalVisible, setModalVisible] = useState(false);
 
   const navigation = useNavigation();
-  const {logout} = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -91,13 +94,34 @@ const Account = memo(() => {
 
   const handleCloseModal = () => {
     setModalVisible(false);
+    setNewImage(null);
+    setName(userName);
+    setEmail(userEmail);
+  };
+
+  const handleImagePick = () => {
+    ImageCropPicker.openPicker({
+      width: 300,
+      height: 300,
+      cropping: true,
+      cropperCircleOverlay: true,
+      mediaType: 'photo',
+    })
+      .then(image => {
+        setNewImage(image);
+      })
+      .catch(err => {
+        if (err.code !== 'E_PICKER_CANCELLED') {
+          ToastAndroid.show('Could not select image', ToastAndroid.SHORT);
+        }
+      });
   };
 
   const updateDetails = async () => {
-    if (name === userName && userEmail === email) {
+    if (name === userName && userEmail === email && !newImage) {
       ToastService.show({
         message: 'No changes found',
-        type: 'error',
+        type: 'info',
         position: 'top',
       });
       return;
@@ -122,20 +146,26 @@ const Account = memo(() => {
 
     try {
       setIsUpdateLoading(true);
-      const data = await userService.updateUser({
+      const payload = {
         name: name,
         email: email,
         token: token,
-      });
+      };
+      if (newImage) {
+        payload.avatar = {
+          uri: newImage.path,
+          type: newImage.mime,
+          name: newImage.filename || `profile_${Date.now()}.jpg`,
+        };
+      }
+      const data = await userService.updateUser(payload);
       if (data.status) {
-        // ToastService.show({
-        //   message: data.message,
-        //   type: 'success',
-        //   position: 'top',
-        // });
         ToastAndroid.show(data.message, ToastAndroid.SHORT, ToastAndroid.TOP);
         updateUserFields({name: name, email: email});
-        setModalVisible(false);
+        if (data.business) {
+          resetBusiness(data.business);
+        }
+        handleCloseModal();
       } else {
         ToastService.show({
           message: data.message,
@@ -291,7 +321,8 @@ const Account = memo(() => {
       <Modal
         visible={isModalVisible}
         animationType="slide"
-        backdropColor={'#0000005'}>
+        transparent={true}
+        onRequestClose={handleCloseModal}>
         <Pressable onPress={handleCloseModal} style={styles.modalContainer}>
           <Pressable
             onPress={event => event.stopPropagation()}
@@ -302,6 +333,23 @@ const Account = memo(() => {
               </Text>
               <TouchableOpacity onPress={handleCloseModal}>
                 <Ionicons name="close" size={icon(20)} color="#00000090" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.imageUploadContainer}>
+              <Image
+                source={
+                  newImage
+                    ? {uri: newImage.path}
+                    : {uri: `${API_URL}files/logo/${logoUrl}`}
+                }
+                style={styles.modalImage}
+              />
+              <TouchableOpacity
+                onPress={handleImagePick}
+                style={styles.changeImageButton}>
+                <Text style={styles.changeImageButtonText}>
+                  Change Profile Image
+                </Text>
               </TouchableOpacity>
             </View>
             <SimpleTextInput
@@ -386,6 +434,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     paddingHorizontal: padding(16),
   },
   modalContentContainer: {
@@ -414,6 +463,28 @@ const styles = StyleSheet.create({
     fontSize: font(12),
     fontFamily: fonts.inMedium,
     color: '#fff',
+  },
+  imageUploadContainer: {
+    alignItems: 'center',
+    gap: gap(10),
+  },
+  modalImage: {
+    width: icon(100),
+    height: icon(100),
+    borderRadius: icon(50),
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  changeImageButton: {
+    paddingVertical: padding(5),
+    paddingHorizontal: padding(10),
+    backgroundColor: colors.primary + '20',
+    borderRadius: 5,
+  },
+  changeImageButtonText: {
+    color: colors.primary,
+    fontFamily: fonts.inMedium,
+    fontSize: font(12),
   },
 });
 
