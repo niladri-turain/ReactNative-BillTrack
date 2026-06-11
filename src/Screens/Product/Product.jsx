@@ -203,12 +203,11 @@ const Product = () => {
     }
 
     const trimmedName = productName?.trim().toLowerCase();
-    const trimmedPrice = productPrice?.trim().toLowerCase();
     const isDuplicate = Products.some(product => {
       if (!isNewProduct && product.id === productId) {
         return false;
       }
-      return product.name?.trim().toLowerCase() === trimmedName || product.price?.toString().trim().toLowerCase() === trimmedPrice  ;
+      return product.name?.trim().toLowerCase() === trimmedName;
     });
 
     if (isDuplicate) {

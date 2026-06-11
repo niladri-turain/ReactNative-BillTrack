@@ -50,6 +50,7 @@ import {
   useAuthToken,
   useBusiness,
   useSubscription,
+  useGstEnabled,
 } from '../../Contexts/AuthContext';
 import {
   useAppSettings,
@@ -144,6 +145,7 @@ const CreateBill = () => {
     'SEND_WHATSAPP_BILL_ON_CREATE_BILL',
   );
   const isPremiumPlanAndActive = useSubscription('isPremiumPlanAndActive');
+  const isGstEnabled = useGstEnabled();
 
   const product = Products;
 
@@ -193,6 +195,25 @@ const CreateBill = () => {
       });
       return;
     }
+    
+    if (isGstEnabled) {
+      const selectedItemsWithoutHsn = product.filter(
+        item =>
+          item.count > 0 &&
+          (!item.hsn || typeof item.hsn !== 'object' || Object.keys(item.hsn).length === 0)
+      );
+
+      if (selectedItemsWithoutHsn.length > 0) {
+        ToastService.show({
+          message: 'Cannot create bill. HSN code required',
+          type: 'error',
+          position: 'bottom',
+          paddingHorizontal: padding(16),
+        });
+        return;
+      }
+    }
+    
     handleOpenBottomSheet();
   };
 
