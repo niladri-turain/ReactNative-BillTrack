@@ -152,6 +152,9 @@ const CreateBill = () => {
   // STATE VARIABLES
   const [phoneNumber, setPhoneNumber] = useState('');
 
+  // HSN Error State
+  const [productsWithHsnError, setProductsWithHsnError] = useState([]);
+
   // LOADING STATE
   const [isPrintLoading, setIsPrintLoading] = useState(false);
   const [isSendLoading, setIsSendLoading] = useState(false);
@@ -187,6 +190,7 @@ const CreateBill = () => {
   );
 
   const handleSave = () => {
+    setProductsWithHsnError([]);
     if (!quantity) {
       ToastService.show({
         message: 'Please Add Products',
@@ -204,8 +208,9 @@ const CreateBill = () => {
       );
 
       if (selectedItemsWithoutHsn.length > 0) {
+        setProductsWithHsnError(selectedItemsWithoutHsn.map(p => p.id));
         ToastService.show({
-          message: 'Cannot create bill. HSN code required',
+          message: 'Cannot create bill. HSN code required.',
           type: 'error',
           position: 'bottom',
           paddingHorizontal: padding(16),
@@ -296,6 +301,7 @@ const CreateBill = () => {
         setTotalPrice(0);
         setIsDiscountOpen(false);
         resetProductCount();
+        setProductsWithHsnError([]);
         handleCloseBottomSheet();
         const printOnCreateBill = getByKey('PRINT_ON_CREATE_BILL');
         if (printOnCreateBill && isPremiumPlanAndActive) {
@@ -388,6 +394,7 @@ const CreateBill = () => {
         setTotalPrice(0);
         setIsDiscountOpen(false);
         resetProductCount();
+        setProductsWithHsnError([]);
         handleCloseBottomSheet();
         await updateInvoiceNumber(numberOfInvoices);
         if (sentWhatAppEnabled) {
@@ -437,6 +444,7 @@ const CreateBill = () => {
     setTotalPrice(0);
     setIsDiscountOpen(false);
     resetProductCount();
+    setProductsWithHsnError([]);
     handleCloseBottomSheet();
   };
 
@@ -467,6 +475,7 @@ const CreateBill = () => {
                 setQuantity={setQuantity}
                 setTotalPrice={setTotalPrice}
                 key={index + '_bill_card'}
+                hasHsnError={productsWithHsnError.includes(item.id)}
               />
             )}
             numColumns={NUM_COLUMNS}
