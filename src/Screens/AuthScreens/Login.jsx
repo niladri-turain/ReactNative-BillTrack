@@ -120,7 +120,7 @@ const Login = () => {
             </Text>
           </View>
           <View style={styles.bottomContainer}>
-            <Text style={styles.phoneText}>Phone number*</Text>
+            <Text style={styles.phoneText}>Phone Number*</Text>
             <View style={styles.phoneBox}>
               <FontAwesome
                 name="phone"
