@@ -13,15 +13,26 @@ class UserService {
         name: name,
         email: email,
       };
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
 
-      const response = await axios.put(uri, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      console.log('--- updateUser ---');
+      console.log('URL:', uri);
+      console.log('Headers:', headers);
+      console.log('Body:', payload);
+
+      const response = await axios.put(uri, payload, {headers});
+
+      console.log('Response:', response.data);
+      console.log('Status Code:', response.status);
+
       const data = await response.data;
       return data;
     } catch (error) {
+      console.error('--- updateUser Error ---');
+      console.error('Response Data:', error.response?.data);
+      console.error('Status Code:', error.response?.status);
       const data = await error.response.data;
       return data;
     }
