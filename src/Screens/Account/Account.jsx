@@ -63,6 +63,7 @@ const Account = memo(() => {
   const [name, setName] = useState(userName);
   const [email, setEmail] = useState(userEmail);
   const [newImage, setNewImage] = useState(null);
+  const [updateError, setUpdateError] = useState('');
 
   // LOADING STATE
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
@@ -97,8 +98,7 @@ const Account = memo(() => {
   const handleCloseModal = () => {
     setModalVisible(false);
     setNewImage(null);
-    setName(userName);
-    setEmail(userEmail);
+    setUpdateError('');
   };
 
   const handleImagePick = () => {
@@ -156,12 +156,9 @@ const Account = memo(() => {
   };
 
   const updateDetails = async () => {
+    setUpdateError('');
     if (name === userName && userEmail === email) {
-      ToastService.show({
-        message: 'No changes found',
-        type: 'info',
-        position: 'top',
-      });
+      setUpdateError('No changes found');
       return;
     }
     if (!name || !validateName(name)) {
@@ -228,7 +225,12 @@ const Account = memo(() => {
           userName={userName}
           userPhone={userPhone}
           logoUrl={logoUrl}
-          onpressEditBtn={() => setModalVisible(true)}
+          onpressEditBtn={() => {
+            setName(userName);
+            setEmail(userEmail);
+            setUpdateError('');
+            setModalVisible(true);
+          }}
         />
         <View style={styles.container}>
           <Pressable
@@ -405,6 +407,9 @@ const Account = memo(() => {
               setValue={setEmail}
               hasError={email && !validateEmail(email)}
             />
+            {updateError ? (
+              <Text style={styles.errorText}>{updateError}</Text>
+            ) : null}
             <Pressable style={styles.updateBtn} onPress={updateDetails}>
               {isUpdateLoading ? (
                 <ActivityIndicator color={'#fff'} size={'small'} />
@@ -535,6 +540,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: font(12),
+    fontFamily: fonts.inRegular,
+    marginTop: -margin(5),
+    textAlign: 'center',
   },
 });
 
