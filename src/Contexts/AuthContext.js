@@ -16,6 +16,7 @@ const AuthProvider = ({children}) => {
   const [isLoading, setIsLoading] = useState(true);
   const [business, setBusiness] = useState(null);
   const [subscription, setSubscription] = useState(null);
+  const [isLoggedOut, setIsLoggedOut] = useState(false);
 
   const isOnline = useNetworkContext('isOnline');
 
@@ -80,6 +81,7 @@ const AuthProvider = ({children}) => {
       if (data?.status) {
         await AsyncStorage.multiRemove(['token', 'user', 'business']);
         await AsyncStorage.clear();
+        setIsLoggedOut(true);
         setAuthToken(null);
         setUser(null);
         setSubscription(null);
@@ -218,6 +220,7 @@ const AuthProvider = ({children}) => {
   const value = useMemo(() => {
     return {
       authToken,
+      isLoggedOut,
       login,
       logout,
       user,
@@ -229,7 +232,7 @@ const AuthProvider = ({children}) => {
       resetSubscription,
       updateNumberOfInvoices
     };
-  }, [authToken, user, business, subscription]);
+  }, [authToken, isLoggedOut, user, business, subscription]);
 
   if (isLoading) {
     return null;

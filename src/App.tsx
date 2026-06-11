@@ -63,10 +63,10 @@ const icons = {
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const AuthStack = memo(() => {
+const AuthStack = memo(({initialRouteName = 'Onboarding'}) => {
   return (
     <Stack.Navigator
-      initialRouteName="Onboarding"
+      initialRouteName={initialRouteName}
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
@@ -318,7 +318,7 @@ const AppStack = memo(() => {
 });
 
 const AppNav = () => {
-  const { authToken } = useAuth();
+  const { authToken, isLoggedOut } = useAuth();
 
   useEffect(() => {
     if (authToken) {
@@ -335,7 +335,7 @@ const AppNav = () => {
   }, [authToken])
 
   if (!authToken) {
-    return <AuthStack />;
+    return <AuthStack initialRouteName={isLoggedOut ? 'Login' : 'Onboarding'} />;
   }
   return <AppStack />;
 };
