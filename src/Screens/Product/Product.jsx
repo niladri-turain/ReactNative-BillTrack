@@ -465,7 +465,7 @@ const Product = () => {
                   </Text>
                 )}
               </View>
-              <View style={[styles.inputDoubleContianer]}>
+              <View style={[styles.inputDoubleContianer, {marginTop: margin(10)}]}>
                 <View style={[styles.inputSubContainer, {width: '45%'}]}>
                   <Text style={styles.labelText}>Unit</Text>
                   <BottomSheetInput
@@ -489,18 +489,25 @@ const Product = () => {
                 </View>
               </View>
               {isGstEnbaled && (
-                <View style={styles.inputSubContainer}>
-                  <Text style={styles.labelText}>HSN Code</Text>
-                  <BottomSheetInput
-                    label={
-                      hsnCode
-                        ? `${hsnCode.hsnCode} CGST ${hsnCode.cGst}% SGST ${hsnCode.sGst}% IGST ${hsnCode.iGst}%`
-                        : 'Select HSN'
-                    }
-                    onPress={() => {
-                      setHsnModalVisible(true);
-                    }}
-                  />
+                <View style={[styles.inputDoubleContianer, {marginTop: margin(10)}]}>
+                  <View style={[styles.inputSubContainer, {width: '45%'}]}>
+                    <Text style={styles.labelText}>HSN Code</Text>
+                    <BottomSheetInput
+                      label={hsnCode?.hsnCode || 'Select HSN'}
+                      onPress={() => {
+                        setHsnModalVisible(true);
+                      }}
+                    />
+                  </View>
+                  <View style={[styles.inputSubContainer, {width: '45%'}]}>
+                    <Text style={styles.labelText}>GST %</Text>
+                    <SimpleTextInput
+                      placeholder={''}
+                      value={hsnCode ? String(Number(hsnCode.cGst) + Number(hsnCode.sGst)) : ''}
+                      setValue={() => {}}
+                      disabled={true}
+                    />
+                  </View>
                 </View>
               )}
             </View>
@@ -634,7 +641,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: margin(10),
   },
   buttonContainer: {
     flexDirection: 'row',
