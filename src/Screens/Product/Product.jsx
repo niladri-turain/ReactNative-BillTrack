@@ -78,7 +78,9 @@ const Product = () => {
   const [productName, setProductName] = useState('');
   const [productNameError, setProductNameError] = useState('');
   const [productUnit, setProductUnit] = useState('');
+  const [productUnitError, setProductUnitError] = useState('');
   const [productPrice, setProductPrice] = useState('');
+  const [productPriceError, setProductPriceError] = useState('');
   const [hsnCode, setHsnCode] = useState('');
 
 
@@ -99,7 +101,9 @@ const Product = () => {
     setProductName('');
     setProductNameError('');
     setProductUnit('');
+    setProductUnitError('');
     setProductPrice('');
+    setProductPriceError('');
     setHsnCode('');
   };
 
@@ -195,11 +199,14 @@ const Product = () => {
 
   const handleSave = async () => {
     setProductNameError('');
+    setProductUnitError('');
+    setProductPriceError('');
     const showError = message =>
       ToastService.show({message, type: 'error', position: 'top'});
 
     if (!productName?.trim() || !validateProductName(productName)) {
-      return showError('Please enter a valid name');
+      setProductNameError('Please enter a valid name');
+      return;
     }
 
     const trimmedName = productName?.trim().toLowerCase();
@@ -216,11 +223,13 @@ const Product = () => {
     }
 
     if (!productUnit) {
-      return showError('Please select a unit');
+      setProductUnitError('Please select a unit');
+      return;
     }
 
     if (!productPrice || !validatePrice(productPrice)) {
-      return showError('Please enter a valid price');
+      setProductPriceError('Please enter a valid price');
+      return;
     }
     let isImageInserted = false;
 
@@ -472,8 +481,15 @@ const Product = () => {
                     label={productUnit}
                     onPress={() => {
                       setUnitModalVisible(true);
+                      setProductUnitError('');
                     }}
+                    hasError={!!productUnitError}
                   />
+                  {!!productUnitError && (
+                    <Text style={{color: colors.error, fontSize: 12, marginTop: -5}}>
+                      {productUnitError}
+                    </Text>
+                  )}
                 </View>
                 <View style={[styles.inputSubContainer, {width: '45%'}]}>
                   <Text style={styles.labelText}>
@@ -482,10 +498,18 @@ const Product = () => {
                   <SimpleTextInput
                     placeholder={''}
                     value={productPrice}
-                    setValue={setProductPrice}
+                    setValue={(val) => {
+                      setProductPrice(val);
+                      setProductPriceError('');
+                    }}
                     keyboardType="numeric"
-                    hasError={productPrice && !validatePrice(productPrice)}
+                    hasError={(productPrice && !validatePrice(productPrice)) || !!productPriceError}
                   />
+                  {!!productPriceError && (
+                    <Text style={{color: colors.error, fontSize: 12, marginTop: -5}}>
+                      {productPriceError}
+                    </Text>
+                  )}
                 </View>
               </View>
               {isGstEnbaled && (
@@ -541,7 +565,10 @@ const Product = () => {
       <ProductUnitModal
         visible={unitModalVisible}
         value={productUnit}
-        setValue={setProductUnit}
+        setValue={(val) => {
+          setProductUnit(val);
+          setProductUnitError('');
+        }}
         handleCancel={() => setUnitModalVisible(false)}
       />
       <GstSelectModal
