@@ -431,6 +431,7 @@ Proceed only if you have completed the required steps and approvals.`,
             <View style={styles.rowContainer}>
               <Text>Primary Information</Text>
               <View style={styles.primaryInfoContainer}>
+            
                 <NavigationCardWithValue
                   mainIcon={
                     <MaterialIcons
@@ -439,13 +440,13 @@ Proceed only if you have completed the required steps and approvals.`,
                       color={colors.primary}
                     />
                   }
-                  title="Prefix"
-                  onpress={() => handleOpenModal({type: 'Prefix'})}
+                  title="Primary Number"
+                  onpress={() => handleOpenModal({type: 'Phone Number'})}
                   textFontSize={14}
                   disabled={false}
-                  value={prefix}
+                  value={mobileNumber}
                 />
-                <NavigationCardWithValue
+                 <NavigationCardWithValue
                   mainIcon={
                     <MaterialIcons
                       name="phone"
@@ -453,7 +454,7 @@ Proceed only if you have completed the required steps and approvals.`,
                       color={colors.primary}
                     />
                   }
-                  title="Phone Number"
+                  title="WhatsApp Number"
                   onpress={() => handleOpenModal({type: 'Phone Number'})}
                   textFontSize={14}
                   disabled={false}
@@ -500,6 +501,20 @@ Proceed only if you have completed the required steps and approvals.`,
             </View>
             <View style={styles.rowContainer}>
               <Text>Business Information</Text>
+                  <NavigationCardWithValue
+                  mainIcon={
+                    <MaterialIcons
+                      name="label"
+                      size={icon(20)}
+                      color={colors.primary}
+                    />
+                  }
+                  title="Prefix"
+                  onpress={() => handleOpenModal({type: 'Prefix'})}
+                  textFontSize={14}
+                  disabled={false}
+                  value={prefix}
+                />
               <View style={styles.primaryInfoContainer}>
                 <NavigationCardWithValue
                   mainIcon={
@@ -691,7 +706,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   primaryInfoContainer: {
-    marginVertical: gap(10),
+    marginVertical: gap(0),
   },
   modalContainer: {
     padding: padding(16),
