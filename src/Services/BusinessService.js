@@ -79,6 +79,7 @@ class BusinessService {
 
   async updateBusiness({
     token,
+    name,
     gstNumber,
     street,
     city,
@@ -90,6 +91,9 @@ class BusinessService {
   }) {
     const uri = this.baseUrl + '/update';
     const payload = {};
+    if (name) {
+      payload.name = name;
+    }
     if (gstNumber) {
       payload.gstNumber = gstNumber;
     }

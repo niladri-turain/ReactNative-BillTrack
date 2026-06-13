@@ -3,12 +3,10 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import React, {memo} from 'react';
 import LinearGradient from 'react-native-linear-gradient';
-import Octicons from '@react-native-vector-icons/octicons';
 import {fonts} from '../../utils/fonts';
 import {colors} from '../../utils/colors';
 import {
@@ -19,13 +17,13 @@ import {
   padding,
   widthResponsive,
 } from '../../utils/responsive';
-import {useAuth, useBusiness, useUser} from '../../Contexts/AuthContext';
+import {useBusiness} from '../../Contexts/AuthContext';
 import {greeting} from '../../utils/validator';
 import {API_URL} from '../../utils/config';
 import {useNavigation} from '@react-navigation/native';
 
 const PrimaryHeader = memo(() => {
-  const name = useUser('name');
+  const name = useBusiness('name');
   const businessUrl = useBusiness('logoUrl');
   const navigation = useNavigation();
   return (

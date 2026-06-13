@@ -24,7 +24,7 @@ import {
 } from '../../Components';
 import {Layout} from '../Layout';
 import {font, gap, icon, margin, padding} from '../../utils/responsive';
-import {useAuth, useAuthToken, useBusiness} from '../../Contexts/AuthContext';
+import {useAuth, useAuthToken, useBusiness, useUser, useUpdateUserFields} from '../../Contexts/AuthContext';
 import {API_URL} from '../../utils/config';
 import {colors} from '../../utils/colors';
 import MaterialIcons from '@react-native-vector-icons/material-icons';
@@ -48,6 +48,7 @@ const Business = () => {
   const business = useBusiness();
   const token = useAuthToken();
   const {resetBusiness} = useAuth();
+  const userPhone = useUser('phone');
   const [businessCategory, setBusinessCategory] = useState([]);
 
   // MODAL STATES
@@ -55,7 +56,7 @@ const Business = () => {
   const [modalType, setModalType] = useState('Phone Number');
 
   // STATE VARIABLES
-  const [mobileNumber, setMobileNumber] = useState(business?.phone || '');
+  const [mobileNumber, setMobileNumber] = useState(business?.phone || userPhone || '');
   const [email, setEmail] = useState(business?.email || '');
   const [gstNumber, setGstNumber] = useState(business?.gstNumber || '');
   const [street, setStreet] = useState(business?.street || '');
@@ -105,7 +106,7 @@ const Business = () => {
         useNativeDriver: true,
       }).start();
     }
-  }, [isModal]);
+  }, [isModal, fadeAnim]);
 
   const handleSave = async () => {
     if (!isChanged) {
@@ -275,7 +276,7 @@ Proceed only if you have completed the required steps and approvals.`,
       case 'Email Address':
         return (
           <SimpleTextInput
-            placeholder={`Enter Email Address`}
+            placeholder={'Enter Email Address'}
             value={email}
             setValue={setEmail}
             keyboardType="email-address"
@@ -285,7 +286,7 @@ Proceed only if you have completed the required steps and approvals.`,
       case 'GST Number':
         return (
           <SimpleTextInput
-            placeholder={`Enter GST Number`}
+            placeholder={'Enter GST Number'}
             value={gstNumber}
             setValue={setGstNumber}
             keyboardType="default"
@@ -432,7 +433,7 @@ Proceed only if you have completed the required steps and approvals.`,
             <View style={styles.rowContainer}>
               <Text>Primary Information</Text>
               <View style={styles.primaryInfoContainer}>
-            
+
                 <NavigationCardWithValue
                   mainIcon={
                     <MaterialIcons

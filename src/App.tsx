@@ -154,6 +154,7 @@ const AccountStack = memo(() => {
         animation: 'slide_from_right',
       }}>
       <Stack.Screen name="Account" component={Account} />
+      <Stack.Screen name="Business" component={Business} />
       <Stack.Screen name="Subscription" component={Subscription} />
       <Stack.Screen name="HelpAndSupport" component={HelpAndSupport} />
       <Stack.Screen name="About" component={About} />

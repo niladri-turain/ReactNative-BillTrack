@@ -275,7 +275,7 @@ const InvoiceCard = ({invoice, onRefresh}) => {
             {isCancelling ? (
               <ActivityIndicator size={'small'} color="red" />
             ) : (
-              <Ionicons name="trash-outline" size={icon(18)} color="red" />
+              <Ionicons name="close-circle-outline" size={icon(18)} color="red" />
             )}
             <Text style={[{color: '#e21717'}, styles.subBottomContainerText]}>
               Cancel

@@ -38,6 +38,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import {validateEmail, validateName} from '../../utils/validator';
 import ToastService from '../../Components/Toasts/ToastService';
 import {userService} from '../../Services/UserService';
+import {businessService} from '../../Services/BusinessService';
 import {useProduct} from '../../Contexts/ProductContexts';
 import {usePrinter} from '../../Contexts/PrinterContext';
 import {useAppSettings} from '../../Contexts/AppSettingContexts';
@@ -46,9 +47,17 @@ import {API_URL} from '../../utils/config';
 import ImageCropPicker from 'react-native-image-crop-picker';
 
 const Account = memo(() => {
-  const userName = useUser('name');
-  const userPhone = useUser('phone');
-  const userEmail = useUser('email') || '';
+  const businessName = useBusiness('name');
+  const _userName = useUser('name');
+  const userName = businessName || _userName;
+
+  const businessPhone = useBusiness('phone');
+  const _userPhone = useUser('phone');
+  const userPhone = businessPhone || _userPhone;
+
+  const businessEmail = useBusiness('email');
+  const _userEmail = useUser('email');
+  const userEmail = businessEmail || _userEmail || '';
   const logoUrl = useBusiness('logoUrl');
   const token = useAuthToken();
   const {logout, resetBusiness} = useAuth();
@@ -187,12 +196,24 @@ const Account = memo(() => {
         token: token,
       };
       const data = await userService.updateUser(payload);
+
+      // Also update business name
+      const businessPayload = {
+        token: token,
+        name: name,
+      };
+      await businessService.updateBusiness(businessPayload);
+
       if (data.status) {
         ToastAndroid.show(data.message, ToastAndroid.SHORT, ToastAndroid.TOP);
         updateUserFields({name: name, email: email});
+
         if (data.business) {
-          resetBusiness(data.business);
+          resetBusiness({...data.business, name: name});
+        } else {
+          updateBusinessFields({name: name});
         }
+
         handleCloseModal();
       } else {
         ToastService.show({
@@ -256,6 +277,17 @@ const Account = memo(() => {
         </View>
         <View style={styles.settingContainer}>
           <Text style={styles.settingTitleText}>Settings</Text>
+          <SettingItemsCard
+            onpress={() => handleNavigation({screen: 'Business'})}
+            mainIcon={
+              <Lucide
+                name="user"
+                size={icon(22)}
+                color={colors.primary}
+              />
+            }
+            title="Account Profile"
+          />
           <SettingItemsCard
             onpress={() => handleNavigation({screen: 'ItemMaster'})}
             mainIcon={
@@ -323,8 +355,8 @@ const Account = memo(() => {
               //   size={icon(22)}
               //   color={colors.primary}
               // />
-               <Ionicons name="trash-outline" size={icon(22)} color={colors.primary} />
-               
+              <Ionicons name="close-circle-outline" size={icon(28)} color={colors.primary} />
+
             }
             title="Cancel Invoice List"
             onpress={() => handleNavigation({screen: 'CancelInvoiceList'})}
