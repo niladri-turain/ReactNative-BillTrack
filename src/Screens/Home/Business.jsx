@@ -446,6 +446,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   textFontSize={14}
                   disabled={false}
                   value={mobileNumber}
+                  isEdit={true}
                 />
                  {/* <NavigationCardWithValue
                   mainIcon={
@@ -460,6 +461,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   textFontSize={14}
                   disabled={false}
                   value={mobileNumber}
+                  isEdit={true}
                 /> */}
                 <NavigationCardWithValue
                   mainIcon={
@@ -474,6 +476,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   textFontSize={14}
                   disabled={false}
                   value={email}
+                  isEdit={true}
                 />
                 <NavigationCardWithValue
                   mainIcon={
@@ -497,6 +500,7 @@ Proceed only if you have completed the required steps and approvals.`,
                       item => item.id === business?.businessCategoryId,
                     )?.name
                   }
+                  showIcon={false}
                 />
               </View>
             </View>
@@ -515,6 +519,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   textFontSize={14}
                   disabled={false}
                   value={prefix}
+                  isEdit={true}
                 />
               <View style={styles.primaryInfoContainer}>
                 <NavigationCardWithValue
@@ -539,6 +544,8 @@ Proceed only if you have completed the required steps and approvals.`,
                       );
                     }
                   }}
+                  showIcon={!business?.gstNumber}
+                  isEdit={true}
                 />
                 <NavigationCardWithValue
                   mainIcon={
@@ -553,6 +560,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   textFontSize={14}
                   disabled={false}
                   value={street}
+                  isEdit={true}
                 />
                 <NavigationCardWithValue
                   mainIcon={
@@ -567,6 +575,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   textFontSize={14}
                   disabled={false}
                   value={city}
+                  isEdit={true}
                 />
                 <NavigationCardWithValue
                   mainIcon={
@@ -581,6 +590,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   textFontSize={14}
                   disabled={false}
                   value={pincode}
+                  isEdit={true}
                 />
                 <NavigationCardWithValue
                   mainIcon={
@@ -595,6 +605,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   textFontSize={14}
                   disabled={false}
                   value={state}
+                  isEdit={true}
                 />
               </View>
             </View>

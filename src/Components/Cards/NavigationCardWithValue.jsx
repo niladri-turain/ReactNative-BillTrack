@@ -3,6 +3,7 @@ import React from 'react';
 import {font, gap, padding, icon} from '../../utils/responsive';
 import {fonts} from '../../utils/fonts';
 import MaterialIcons from '@react-native-vector-icons/material-icons';
+import AntDesign from '@react-native-vector-icons/ant-design';
 import {colors} from '../../utils/colors';
 
 const NavigationCardWithValue = ({
@@ -14,6 +15,8 @@ const NavigationCardWithValue = ({
   textFontSize = 14,
   disabled = false,
   value = '',
+  showIcon = true,
+  isEdit = false,
 }) => {
   return (
     <TouchableOpacity
@@ -31,11 +34,17 @@ const NavigationCardWithValue = ({
         <Text style={[styles.itemText, {fontSize: font(textFontSize)}]}>
           {value}
         </Text>
-        <MaterialIcons
-          name="arrow-forward-ios"
-          size={icon(16)}
-          color={'#000'}
-        />
+        {showIcon && (
+          isEdit ? (
+            <AntDesign name="edit" size={icon(18)} color={colors.primary} />
+          ) : (
+            <MaterialIcons
+              name="arrow-forward-ios"
+              size={icon(16)}
+              color={'#000'}
+            />
+          )
+        )}
       </View>
     </TouchableOpacity>
   );
