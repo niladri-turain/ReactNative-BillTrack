@@ -217,6 +217,7 @@ const Business = () => {
           });
           const updatedBusiness = data?.business;
           await resetBusiness(updatedBusiness);
+          handleCloseModal();
         }
       } catch (error) {
       } finally {
@@ -224,7 +225,7 @@ const Business = () => {
       }
     };
 
-    if (gstNumber) {
+    if (gstNumber && gstNumber !== initialValues.gstNumber) {
       Alert.alert(
         'GST Number Update',
         `Updating the GST Number will affect:
@@ -446,7 +447,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   disabled={false}
                   value={mobileNumber}
                 />
-                 <NavigationCardWithValue
+                 {/* <NavigationCardWithValue
                   mainIcon={
                     <MaterialIcons
                       name="phone"
@@ -459,7 +460,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   textFontSize={14}
                   disabled={false}
                   value={mobileNumber}
-                />
+                /> */}
                 <NavigationCardWithValue
                   mainIcon={
                     <MaterialIcons
@@ -599,7 +600,7 @@ Proceed only if you have completed the required steps and approvals.`,
             </View>
           </ScrollView>
           {/* {!isModal && ( */}
-          <AnimatedPressable
+          {/* <AnimatedPressable
             style={[styles.saveChangesContainer, {opacity: fadeAnim}]}
             onPress={handleSave}
             disabled={isSaveLoading}>
@@ -608,7 +609,7 @@ Proceed only if you have completed the required steps and approvals.`,
             ) : (
               <Text style={styles.saveChangesText}>SAVE CHANGES</Text>
             )}
-          </AnimatedPressable>
+          </AnimatedPressable> */}
           {/* )} */}
           <CommonModal
             visible={isModal}
@@ -640,9 +641,14 @@ Proceed only if you have completed the required steps and approvals.`,
                 {renderModalContent}
               </View>
               <TouchableOpacity
-                onPress={handleCloseModal}
+                onPress={handleSave}
+                disabled={isSaveLoading}
                 style={styles.submitButton}>
-                <Text style={styles.submitButtonText}>SUBMIT</Text>
+                {isSaveLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.submitButtonText}>SUBMIT</Text>
+                )}
               </TouchableOpacity>
             </View>
           </CommonModal>
