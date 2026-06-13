@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {useContext, useEffect, useState} from 'react';
+import React, {useCallback, useContext, useEffect, useState} from 'react';
 import {Layout} from '../Layout';
 import {
   HomeChartComponent,
@@ -21,7 +21,7 @@ import {
 import {colors} from '../../utils/colors';
 import {fonts} from '../../utils/fonts';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import {useNavigation} from '@react-navigation/native';
+import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import {
   font,
   gap,
@@ -71,9 +71,12 @@ const Home = () => {
     setRefreshing(false);
   };
 
-  useEffect(() => {
-    fetchInvoice();
-  }, [token]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchInvoice();
+      setRefreshTrigger(prev => prev + 1);
+    }, [token]),
+  );
 
   return (
     <Layout>
@@ -94,7 +97,7 @@ const Home = () => {
         {isInitialLoad ? (
           <HomeChartShimmer />
         ) : (
-          <HomeChartComponent refreshTrigger={refreshTrigger} />
+          <HomeChartComponent refreshTrigger={refreshTrigger}  />
         )}
         
         {/* <HomeTopCard /> */}
@@ -118,7 +121,7 @@ const Home = () => {
                   <InvoiceCardShimmer key={'invoiceShimmer' + index} />
                 ))
             : invoices.map((item, index) => (
-                <InvoiceCard invoice={item} key={index + '_invoice_card'} />
+                <InvoiceCard invoice={item} key={index + '_invoice_card'} onRefresh={onRefresh} />
               ))}
         </View>
       </ScrollView>

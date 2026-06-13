@@ -14,6 +14,7 @@ import {
   Business,
   BusinessSetup,
   BusinessSetup2,
+  CancelInvoiceList,
   CreateBill,
   HelpAndSupport,
   Home,
@@ -62,10 +63,10 @@ const icons = {
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const AuthStack = memo(() => {
+const AuthStack = memo(({initialRouteName = 'Onboarding'}) => {
   return (
     <Stack.Navigator
-      initialRouteName="Onboarding"
+      initialRouteName={initialRouteName}
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
@@ -162,6 +163,16 @@ const AccountStack = memo(() => {
       <Stack.Screen name="Settings" component={SettingStack} />
       <Stack.Screen name="ActiveProducts" component={ActiveProducts} />
       <Stack.Screen name="Transaction" component={Transaction} />
+       <Stack.Screen name="CancelInvoiceList" component={CancelInvoiceList} />
+
+         <Stack.Screen
+        name="InvoiceDetails"
+        component={InvoiceDetails}
+        options={{
+          animation: 'slide_from_bottom',
+          animationDuration: 200,
+        }}
+      />
     </Stack.Navigator>
   );
 });
@@ -307,7 +318,7 @@ const AppStack = memo(() => {
 });
 
 const AppNav = () => {
-  const { authToken } = useAuth();
+  const { authToken, isLoggedOut } = useAuth();
 
   useEffect(() => {
     if (authToken) {
@@ -324,7 +335,7 @@ const AppNav = () => {
   }, [authToken])
 
   if (!authToken) {
-    return <AuthStack />;
+    return <AuthStack initialRouteName={isLoggedOut ? 'Login' : 'Onboarding'} />;
   }
   return <AppStack />;
 };

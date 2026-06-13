@@ -16,6 +16,7 @@ const AuthProvider = ({children}) => {
   const [isLoading, setIsLoading] = useState(true);
   const [business, setBusiness] = useState(null);
   const [subscription, setSubscription] = useState(null);
+  const [isLoggedOut, setIsLoggedOut] = useState(false);
 
   const isOnline = useNetworkContext('isOnline');
 
@@ -53,6 +54,12 @@ const AuthProvider = ({children}) => {
 
       // if new business details are provided, save them
       if (newBusinessData) {
+        // Add a cache-busting query parameter to the logoUrl to prevent image caching issues
+        if (newBusinessData.logoUrl) {
+          newBusinessData.logoUrl = `${
+            newBusinessData.logoUrl.split('?')[0]
+          }?v=${Date.now()}`;
+        }
         await AsyncStorage.setItem('business', JSON.stringify(newBusinessData));
         setBusiness(newBusinessData);
       } else {
@@ -80,6 +87,7 @@ const AuthProvider = ({children}) => {
       if (data?.status) {
         await AsyncStorage.multiRemove(['token', 'user', 'business']);
         await AsyncStorage.clear();
+        setIsLoggedOut(true);
         setAuthToken(null);
         setUser(null);
         setSubscription(null);
@@ -218,6 +226,7 @@ const AuthProvider = ({children}) => {
   const value = useMemo(() => {
     return {
       authToken,
+      isLoggedOut,
       login,
       logout,
       user,
@@ -229,7 +238,7 @@ const AuthProvider = ({children}) => {
       resetSubscription,
       updateNumberOfInvoices
     };
-  }, [authToken, user, business, subscription]);
+  }, [authToken, isLoggedOut, user, business, subscription]);
 
   if (isLoading) {
     return null;
@@ -280,6 +289,25 @@ export const useUpdateUserFields = () => {
     } catch (error) {}
   };
   return updateUserFields;
+};
+
+export const useUpdateBusinessFields = () => {
+  const {business, setBusinessData} = useAuth();
+
+  const updateBusinessFields = async (fields = {}) => {
+    if (!fields) return;
+    try {
+      const updatedBusiness = {...(business || {}), ...fields};
+      // Add a cache-busting query parameter to the logoUrl if it's being updated
+      if (fields.logoUrl) {
+        updatedBusiness.logoUrl = `${
+          fields.logoUrl.split('?')[0]
+        }?v=${Date.now()}`;
+      }
+      await setBusinessData(updatedBusiness);
+    } catch (error) {}
+  };
+  return updateBusinessFields;
 };
 
 export const useGstEnabled = () => {

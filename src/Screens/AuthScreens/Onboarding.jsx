@@ -147,6 +147,12 @@ const Onboarding = () => {
               : 'GET STARTED'}
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.skipButton}
+          onPress={() => navigation.dispatch(StackActions.replace('Login'))}
+        >
+          <Text style={styles.skipButtonText}>SKIP</Text>
+        </TouchableOpacity>
       </View>
     </AuthLayout>
   );
@@ -230,6 +236,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.onBold,
     color: '#fff',
+  },
+  skipButton: {
+    padding: 5,
+    marginTop: -15,
+  },
+  skipButtonText: {
+    fontSize: 16,
+    fontFamily: fonts.onSemiBold,
+    color: '#00000060',
   },
 });
 

@@ -52,6 +52,7 @@ Warm regards,
 Team ${businessName}`;
 
   console.log(message);
+  console.log(`https://bill.billtrack.co.in/invoice-details/${invoiceNumber}9876543210/${businessId}1234567890`);
 
   const whatsappUrl = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(
     message,

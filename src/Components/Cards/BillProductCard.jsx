@@ -15,7 +15,7 @@ import {API_URL} from '../../utils/config';
 import {font, gap} from '../../utils/responsive';
 
 const BillProductCard = memo(
-  ({width = 113, item, setQuantity, setTotalPrice}) => {
+  ({width = 113, item, setQuantity, setTotalPrice, hasHsnError = false}) => {
     const PADDING = 8;
     const [count, setCount] = useState(item?.count || 0);
 
@@ -64,7 +64,12 @@ const BillProductCard = memo(
     }, [item?.count]);
 
     return (
-      <View style={[styles.container, {width: width}]}>
+      <View
+        style={[
+          styles.container,
+          {width: width},
+          hasHsnError && styles.errorBorder,
+        ]}>
         <TouchableOpacity
           style={{width: '100%'}}
           onPress={() => increaseDecrease('increase')}
@@ -118,7 +123,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: 8,
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
+  },
+  errorBorder: {
+    borderWidth: 1.5,
+    borderColor: colors.error,
   },
   image: {
     width: '100%',

@@ -13,11 +13,24 @@ class AuthService {
       const payload = {
         phone: mobile,
       };
+      
+      console.log('--- AuthService: login ---');
+      console.log('URL:', uri);
+      console.log('Payload/Body:', payload);
+      
       const response = await axios.post(uri, payload);
+      
+      console.log('Status Code:', response.status);
+      
       const data = await response.data;
+      console.log('Response Data:', data);
+      
       return data;
     } catch (error) {
-      const data = await error.response.data;
+      console.log('Error in login:');
+      console.log('Error Status Code:', error.response?.status);
+      console.log('Error Response Data:', error.response?.data);
+      const data = await error.response?.data;
       return data;
     }
   }
@@ -31,11 +44,24 @@ class AuthService {
         otp: otp,
         ...deviceInfo,
       };
+      
+      console.log('--- AuthService: validateOtp ---');
+      console.log('URL:', uri);
+      console.log('Payload/Body:', payload);
+      
       const response = await axios.post(uri, payload);
+      
+      console.log('Status Code:', response.status);
+      
       const data = await response.data;
+      console.log('Response Data:', data);
+      
       return data;
     } catch (error) {
-      const data = await error.response.data;
+      console.log('Error in validateOtp:');
+      console.log('Error Status Code:', error.response?.status);
+      console.log('Error Response Data:', error.response?.data);
+      const data = await error.response?.data;
       return data;
     }
   }
@@ -58,11 +84,24 @@ class AuthService {
         deviceUniqueKey,
         phone,
       };
+      
+      console.log('--- AuthService: removeDeviceAndRelogin ---');
+      console.log('URL:', uri);
+      console.log('Payload/Body:', payload);
+      
       const response = await axios.post(uri, payload);
+      
+      console.log('Status Code:', response.status);
+      
       const data = await response.data;
+      console.log('Response Data:', data);
+      
       return data;
     } catch (error) {
-      const data = await error.response.data;
+      console.log('Error in removeDeviceAndRelogin:');
+      console.log('Error Status Code:', error.response?.status);
+      console.log('Error Response Data:', error.response?.data);
+      const data = await error.response?.data;
       return data;
     }
   }

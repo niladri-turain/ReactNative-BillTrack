@@ -206,9 +206,9 @@ const Invoice = () => {
       typeof item === 'number' ? (
         <InvoiceCardShimmer />
       ) : (
-        <InvoiceCard invoice={item} />
+        <InvoiceCard invoice={item} onRefresh={onRefresh} />
       ),
-    [],
+    [onRefresh],
   );
 
   const renderSortOption = useCallback(

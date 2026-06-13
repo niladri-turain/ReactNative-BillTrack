@@ -76,8 +76,11 @@ const Product = () => {
   const [productId, setProductId] = useState(null);
   const [productImage, setProductImage] = useState(null);
   const [productName, setProductName] = useState('');
+  const [productNameError, setProductNameError] = useState('');
   const [productUnit, setProductUnit] = useState('');
+  const [productUnitError, setProductUnitError] = useState('');
   const [productPrice, setProductPrice] = useState('');
+  const [productPriceError, setProductPriceError] = useState('');
   const [hsnCode, setHsnCode] = useState('');
 
 
@@ -96,8 +99,11 @@ const Product = () => {
   const setInitialValueOfModal = () => {
     setProductImage(null);
     setProductName('');
+    setProductNameError('');
     setProductUnit('');
+    setProductUnitError('');
     setProductPrice('');
+    setProductPriceError('');
     setHsnCode('');
   };
 
@@ -192,19 +198,38 @@ const Product = () => {
   };
 
   const handleSave = async () => {
+    setProductNameError('');
+    setProductUnitError('');
+    setProductPriceError('');
     const showError = message =>
       ToastService.show({message, type: 'error', position: 'top'});
 
     if (!productName?.trim() || !validateProductName(productName)) {
-      return showError('Please enter a valid name');
+      setProductNameError('Please enter a valid name');
+      return;
+    }
+
+    const trimmedName = productName?.trim().toLowerCase();
+    const isDuplicate = Products.some(product => {
+      if (!isNewProduct && product.id === productId) {
+        return false;
+      }
+      return product.name?.trim().toLowerCase() === trimmedName;
+    });
+
+    if (isDuplicate) {
+      setProductNameError('Product already exists');
+      return;
     }
 
     if (!productUnit) {
-      return showError('Please select a unit');
+      setProductUnitError('Please select a unit');
+      return;
     }
 
     if (!productPrice || !validatePrice(productPrice)) {
-      return showError('Please enter a valid price');
+      setProductPriceError('Please enter a valid price');
+      return;
     }
     let isImageInserted = false;
 
@@ -436,20 +461,35 @@ const Product = () => {
                 <SimpleTextInput
                   placeholder={''}
                   value={productName}
-                  setValue={setProductName}
-                  hasError={productName && !validateProductName(productName)}
+                  setValue={(val) => {
+                    setProductName(val);
+                    setProductNameError('');
+                  }}
+                  hasError={(productName && !validateProductName(productName)) || !!productNameError}
                   multiline={true}
                 />
+                {!!productNameError && (
+                  <Text style={{color: colors.error, fontSize: 12, marginTop: -5}}>
+                    {productNameError}
+                  </Text>
+                )}
               </View>
-              <View style={[styles.inputDoubleContianer]}>
+              <View style={[styles.inputDoubleContianer, {marginTop: margin(10)}]}>
                 <View style={[styles.inputSubContainer, {width: '45%'}]}>
                   <Text style={styles.labelText}>Unit</Text>
                   <BottomSheetInput
                     label={productUnit}
                     onPress={() => {
                       setUnitModalVisible(true);
+                      setProductUnitError('');
                     }}
+                    hasError={!!productUnitError}
                   />
+                  {!!productUnitError && (
+                    <Text style={{color: colors.error, fontSize: 12, marginTop: -5}}>
+                      {productUnitError}
+                    </Text>
+                  )}
                 </View>
                 <View style={[styles.inputSubContainer, {width: '45%'}]}>
                   <Text style={styles.labelText}>
@@ -458,25 +498,40 @@ const Product = () => {
                   <SimpleTextInput
                     placeholder={''}
                     value={productPrice}
-                    setValue={setProductPrice}
+                    setValue={(val) => {
+                      setProductPrice(val);
+                      setProductPriceError('');
+                    }}
                     keyboardType="numeric"
-                    hasError={productPrice && !validatePrice(productPrice)}
+                    hasError={(productPrice && !validatePrice(productPrice)) || !!productPriceError}
                   />
+                  {!!productPriceError && (
+                    <Text style={{color: colors.error, fontSize: 12, marginTop: -5}}>
+                      {productPriceError}
+                    </Text>
+                  )}
                 </View>
               </View>
               {isGstEnbaled && (
-                <View style={styles.inputSubContainer}>
-                  <Text style={styles.labelText}>HSN Code</Text>
-                  <BottomSheetInput
-                    label={
-                      hsnCode
-                        ? `${hsnCode.hsnCode} CGST ${hsnCode.cGst}% SGST ${hsnCode.sGst}% IGST ${hsnCode.iGst}%`
-                        : 'Select HSN'
-                    }
-                    onPress={() => {
-                      setHsnModalVisible(true);
-                    }}
-                  />
+                <View style={[styles.inputDoubleContianer, {marginTop: margin(10)}]}>
+                  <View style={[styles.inputSubContainer, {width: '45%'}]}>
+                    <Text style={styles.labelText}>HSN Code</Text>
+                    <BottomSheetInput
+                      label={hsnCode?.hsnCode || 'Select HSN'}
+                      onPress={() => {
+                        setHsnModalVisible(true);
+                      }}
+                    />
+                  </View>
+                  <View style={[styles.inputSubContainer, {width: '45%'}]}>
+                    <Text style={styles.labelText}>GST %</Text>
+                    <SimpleTextInput
+                      placeholder={''}
+                      value={hsnCode ? String(Number(hsnCode.cGst) + Number(hsnCode.sGst)) : ''}
+                      setValue={() => {}}
+                      disabled={true}
+                    />
+                  </View>
                 </View>
               )}
             </View>
@@ -510,7 +565,10 @@ const Product = () => {
       <ProductUnitModal
         visible={unitModalVisible}
         value={productUnit}
-        setValue={setProductUnit}
+        setValue={(val) => {
+          setProductUnit(val);
+          setProductUnitError('');
+        }}
         handleCancel={() => setUnitModalVisible(false)}
       />
       <GstSelectModal
@@ -610,7 +668,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: margin(10),
   },
   buttonContainer: {
     flexDirection: 'row',

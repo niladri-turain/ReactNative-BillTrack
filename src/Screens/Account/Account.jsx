@@ -27,11 +27,11 @@ import MaterialIcons from '@react-native-vector-icons/material-icons';
 import AntDesign from '@react-native-vector-icons/ant-design';
 import {useNavigation} from '@react-navigation/native';
 import {
-  updateUserFields,
   useAuth,
   useAuthToken,
   useBusiness,
   useUpdateUserFields,
+  useUpdateBusinessFields,
   useUser,
 } from '../../Contexts/AuthContext';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -42,6 +42,8 @@ import {useProduct} from '../../Contexts/ProductContexts';
 import {usePrinter} from '../../Contexts/PrinterContext';
 import {useAppSettings} from '../../Contexts/AppSettingContexts';
 import {useInvoice} from '../../Contexts/InvoiceContext';
+import {API_URL} from '../../utils/config';
+import ImageCropPicker from 'react-native-image-crop-picker';
 
 const Account = memo(() => {
   const userName = useUser('name');
@@ -49,7 +51,9 @@ const Account = memo(() => {
   const userEmail = useUser('email') || '';
   const logoUrl = useBusiness('logoUrl');
   const token = useAuthToken();
+  const {logout, resetBusiness} = useAuth();
   const updateUserFields = useUpdateUserFields();
+  const updateBusinessFields = useUpdateBusinessFields();
   const {clearAllProducts} = useProduct();
   const {clearPrinter} = usePrinter();
   const {resetSettings} = useAppSettings();
@@ -58,16 +62,18 @@ const Account = memo(() => {
   //STATE VARIABLES
   const [name, setName] = useState(userName);
   const [email, setEmail] = useState(userEmail);
+  const [newImage, setNewImage] = useState(null);
+  const [updateError, setUpdateError] = useState('');
 
   // LOADING STATE
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
+  const [isImageUploading, setIsImageUploading] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
 
   // MODAL STATES
   const [isModalVisible, setModalVisible] = useState(false);
 
   const navigation = useNavigation();
-  const {logout} = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -91,15 +97,68 @@ const Account = memo(() => {
 
   const handleCloseModal = () => {
     setModalVisible(false);
+    setNewImage(null);
+    setUpdateError('');
+  };
+
+  const handleImagePick = () => {
+    ImageCropPicker.openPicker({
+      width: 300,
+      height: 300,
+      cropping: true,
+      cropperCircleOverlay: true,
+      mediaType: 'photo',
+    })
+      .then(async image => {
+        setIsImageUploading(true);
+        try {
+          const extension = image.mime.split('/')[1] || 'jpg';
+          const randomString = Math.random().toString(36).substring(2, 9);
+          const newFilename = `${Date.now()}_${randomString}.${extension}`;
+          const profileImagePayload = {
+            uri: image.path,
+            type: image.mime,
+            name: newFilename,
+          };
+          const data = await userService.updateUserProfileImage({
+            profileImage: profileImagePayload,
+            token: token,
+          });
+
+          if (data.status) {
+            ToastAndroid.show(data.message, ToastAndroid.SHORT);
+            if (data.business) {
+              resetBusiness(data.business);
+            } else {
+              updateBusinessFields({logoUrl: data.logoUrl || data.logo || logoUrl});
+            }
+            setNewImage(image);
+          } else {
+            ToastAndroid.show(
+              data.message || 'Failed to upload image',
+              ToastAndroid.SHORT,
+            );
+          }
+        } catch (error) {
+          ToastAndroid.show(
+            'An error occurred during image upload.',
+            ToastAndroid.SHORT,
+          );
+        } finally {
+          setIsImageUploading(false);
+        }
+      })
+      .catch(err => {
+        if (err.code !== 'E_PICKER_CANCELLED') {
+          ToastAndroid.show('Could not select image', ToastAndroid.SHORT);
+        }
+      });
   };
 
   const updateDetails = async () => {
+    setUpdateError('');
     if (name === userName && userEmail === email) {
-      ToastService.show({
-        message: 'No changes found',
-        type: 'error',
-        position: 'top',
-      });
+      setUpdateError('No changes found');
       return;
     }
     if (!name || !validateName(name)) {
@@ -122,20 +181,19 @@ const Account = memo(() => {
 
     try {
       setIsUpdateLoading(true);
-      const data = await userService.updateUser({
+      const payload = {
         name: name,
         email: email,
         token: token,
-      });
+      };
+      const data = await userService.updateUser(payload);
       if (data.status) {
-        // ToastService.show({
-        //   message: data.message,
-        //   type: 'success',
-        //   position: 'top',
-        // });
         ToastAndroid.show(data.message, ToastAndroid.SHORT, ToastAndroid.TOP);
         updateUserFields({name: name, email: email});
-        setModalVisible(false);
+        if (data.business) {
+          resetBusiness(data.business);
+        }
+        handleCloseModal();
       } else {
         ToastService.show({
           message: data.message,
@@ -167,7 +225,12 @@ const Account = memo(() => {
           userName={userName}
           userPhone={userPhone}
           logoUrl={logoUrl}
-          onpressEditBtn={() => setModalVisible(true)}
+          onpressEditBtn={() => {
+            setName(userName);
+            setEmail(userEmail);
+            setUpdateError('');
+            setModalVisible(true);
+          }}
         />
         <View style={styles.container}>
           <Pressable
@@ -253,6 +316,19 @@ const Account = memo(() => {
             title="About Billtrack"
             onpress={() => handleNavigation({screen: 'About'})}
           />
+           <SettingItemsCard
+            mainIcon={
+              // <AntDesign
+              //   name="invoice"
+              //   size={icon(22)}
+              //   color={colors.primary}
+              // />
+               <Ionicons name="trash-outline" size={icon(22)} color={colors.primary} />
+               
+            }
+            title="Cancel Invoice List"
+            onpress={() => handleNavigation({screen: 'CancelInvoiceList'})}
+          />
           <SettingItemsCard
             mainIcon={
               <MaterialIcons
@@ -278,7 +354,8 @@ const Account = memo(() => {
       <Modal
         visible={isModalVisible}
         animationType="slide"
-        backdropColor={'#0000005'}>
+        transparent={true}
+        onRequestClose={handleCloseModal}>
         <Pressable onPress={handleCloseModal} style={styles.modalContainer}>
           <Pressable
             onPress={event => event.stopPropagation()}
@@ -289,6 +366,33 @@ const Account = memo(() => {
               </Text>
               <TouchableOpacity onPress={handleCloseModal}>
                 <Ionicons name="close" size={icon(20)} color="#00000090" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.imageUploadContainer}>
+              <View>
+                <Image
+                  source={
+                    newImage
+                      ? {uri: newImage.path}
+                      : {uri: `${API_URL}files/logo/${logoUrl}`}
+                  }
+                  style={styles.modalImage}
+                />
+                {isImageUploading && (
+                  <View style={styles.imageOverlay}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                  </View>
+                )}
+              </View>
+              <TouchableOpacity
+                onPress={handleImagePick}
+                style={styles.changeImageButton}
+                disabled={isImageUploading}>
+                <Text style={styles.changeImageButtonText}>
+                  {isImageUploading
+                    ? 'Uploading...'
+                    : 'Change Profile Image'}
+                </Text>
               </TouchableOpacity>
             </View>
             <SimpleTextInput
@@ -303,6 +407,9 @@ const Account = memo(() => {
               setValue={setEmail}
               hasError={email && !validateEmail(email)}
             />
+            {updateError ? (
+              <Text style={styles.errorText}>{updateError}</Text>
+            ) : null}
             <Pressable style={styles.updateBtn} onPress={updateDetails}>
               {isUpdateLoading ? (
                 <ActivityIndicator color={'#fff'} size={'small'} />
@@ -373,6 +480,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     paddingHorizontal: padding(16),
   },
   modalContentContainer: {
@@ -401,6 +509,44 @@ const styles = StyleSheet.create({
     fontSize: font(12),
     fontFamily: fonts.inMedium,
     color: '#fff',
+  },
+  imageUploadContainer: {
+    alignItems: 'center',
+    gap: gap(10),
+  },
+  modalImage: {
+    width: icon(100),
+    height: icon(100),
+    borderRadius: icon(50),
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  changeImageButton: {
+    paddingVertical: padding(5),
+    paddingHorizontal: padding(10),
+    backgroundColor: colors.primary + '20',
+    borderRadius: 5,
+  },
+  changeImageButtonText: {
+    color: colors.primary,
+    fontFamily: fonts.inMedium,
+    fontSize: font(12),
+  },
+  imageOverlay: {
+    position: 'absolute',
+    width: icon(100),
+    height: icon(100),
+    borderRadius: icon(50),
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: font(12),
+    fontFamily: fonts.inRegular,
+    marginTop: -margin(5),
+    textAlign: 'center',
   },
 });
 

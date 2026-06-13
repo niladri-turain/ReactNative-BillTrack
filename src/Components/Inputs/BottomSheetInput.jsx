@@ -18,6 +18,7 @@ const BottomSheetInput = ({
   backgroundColor = '#fff',
   label = 'Bottom Sheet Input',
   onPress = () => {},
+  hasError = false,
 }) => {
   return (
     <Pressable
@@ -27,7 +28,7 @@ const BottomSheetInput = ({
         {width: width, height: height, backgroundColor: backgroundColor},
         isBorder && {
           borderWidth: 1,
-          borderColor: colors.border,
+          borderColor: hasError ? colors.error : colors.border,
           borderRadius: 5,
         },
       ]}>
