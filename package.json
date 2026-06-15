@@ -1,6 +1,6 @@
 {
   "name": "BillTrack",
-  "version": "0.0.1",
+  "version": "1.13",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
@@ -46,6 +46,7 @@
     "react-native-splash-screen": "^3.3.0",
     "react-native-svg": "^15.14.0",
     "react-native-thermal-receipt-printer": "^1.2.0-rc.2",
+    "react-native-version-check": "^3.5.0",
     "react-native-webview": "^13.16.0",
     "socket.io-client": "^4.8.3"
   },

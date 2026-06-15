@@ -39,7 +39,7 @@ import { memo, useCallback, useEffect, useMemo } from 'react';
 import { font, icon, margin, padding } from './utils/responsive';
 import AuthProvider, { useAuth, useUser } from './Contexts/AuthContext';
 import ProductProvider from './Contexts/ProductContexts';
-import { ToastContainer } from './Components';
+import { AppUpdateModal, ToastContainer } from './Components';
 import PrinterProvider from './Contexts/PrinterContext';
 import { requestNotificationPermission } from './utils/permissionHelper';
 import { notificationService } from './utils/NotificationService';
@@ -353,6 +353,7 @@ const App = () => {
                     <NavigationContainer>
                       <AppNav />
                       <ToastContainer />
+                      <AppUpdateModal />
                     </NavigationContainer>
                   </SafeAreaProvider>
                 </SocketProvider>
