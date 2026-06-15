@@ -7,119 +7,58 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {useRef, useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {font, icon, margin, padding} from '../../utils/responsive';
 import {fonts} from '../../utils/fonts';
 import {colors} from '../../utils/colors';
 import Octicons from '@react-native-vector-icons/octicons';
 import DottedDivider from '../Dividers/DottedDivider';
-import ToastContainer from '../Toasts/ToastContainer';
-
-const MAIN_UNITS = [
-  // Most commonly used weight/volume units in Indian retail, grocery, wholesale, FMCG, and pharma
-  {label: 'KG', value: 'kg'}, // Universal for groceries, produce, bulk
-  {label: 'KILOGRAMS', value: 'kgs'}, // Common variant
-  {label: 'G', value: 'g'}, // Spices, small quantities, pharma
-  {label: 'GRAM', value: 'gm'}, // Alternative for grams
-  {label: 'MG', value: 'mg'}, // Milligrams - essential for pharmaceuticals
-  {label: 'QUINTAL', value: 'quintal'}, // Wholesale agriculture (100 kg)
-  {label: 'LITRE', value: 'ltr'}, // Oils, milk, liquids
-  {label: 'ML', value: 'ml'}, // Millilitres - pharma, small volumes
-  {label: 'TON', value: 'ton'}, // Bulk trade
-  {label: 'TONNE', value: 'tonne'}, // Metric ton
-
-  // Counting and packaging units (retail, e-commerce, FMCG, wholesale)
-  {label: 'PCS', value: 'pcs'}, // Pieces - most common for individual items
-  {label: 'PACK', value: 'pack'}, // Biscuits, soaps, etc.
-  {label: 'BOX', value: 'box'},
-  {label: 'CARTON', value: 'carton'}, // Wholesale packs
-  {label: 'BOTTLE', value: 'bottle'},
-  {label: 'POUCH', value: 'pouch'}, // Very popular in modern FMCG (spices, snacks)
-  {label: 'BAG', value: 'bag'},
-  {label: 'DOZEN', value: 'dozen'},
-  {label: 'BUNDLE', value: 'bundle'}, // Vegetables, construction rods
-  {label: 'CASE', value: 'case'}, // Wholesale/FMCG packaging
-  {label: 'TRAY', value: 'tray'}, // Eggs, fruits
-
-  // Other common packaging (FMCG, chemicals, industrial)
-  {label: 'CAN', value: 'can'},
-  {label: 'TIN', value: 'tin'},
-  {label: 'TUBE', value: 'tube'}, // Creams, pharma
-  {label: 'JAR', value: 'jar'},
-  {label: 'BAG-IN-BOX', value: 'bag_in_box'},
-  {label: 'DRUM', value: 'drum'}, // Chemicals, industrial
-  {label: 'BARREL', value: 'barrel'}, // Oils, chemicals
-
-  // Length and fabric units (textiles, construction, retail)
-  {label: 'METER', value: 'mtr'}, // Fabrics, pipes, construction
-  {label: 'YDS', value: 'yds'}, // Yards for fabrics
-  {label: 'KM', value: 'km'},
-
-  // Area units (real estate, construction, land)
-  {label: 'SQUARE FEET', value: 'sqft'}, // Dominant for built-up area, apartments
-  {label: 'SQUARE YARD', value: 'sqyd'},
-  {label: 'GAJ', value: 'gaj'}, // Common synonym for sqyd in North India
-  {label: 'SQUARE METER', value: 'sqm'}, // Official metric
-
-  // Land measurement units (agriculture, real estate)
-  {label: 'ACRE', value: 'acre'},
-  {label: 'HECTARE', value: 'hectare'},
-  {label: 'BIGHAA', value: 'bigha'},
-  {label: 'CENT', value: 'cent'},
-  {label: 'GUNTHA', value: 'guntha'},
-  {label: 'GUNTI', value: 'gunti'},
-  {label: 'GROUND', value: 'ground'},
-  {label: 'KATHA', value: 'katha'},
-  {label: 'ANKANAM', value: 'ankanam'},
-  {label: 'MARLA', value: 'marla'},
-  {label: 'KANAL', value: 'kanal'},
-  {label: 'BISWA', value: 'biswa'},
-  {label: 'DHUR', value: 'dhur'},
-
-  // Construction-specific bulk units
-  {label: 'CUBIC METER', value: 'cum'}, // Concrete, sand
-  {label: 'CFT', value: 'cft'}, // Cubic feet - common for aggregates
-  {label: 'BRASS', value: 'brass'}, // Traditional for sand/aggregates (100 cft)
-
-  // Niche or less common
-  {label: 'POUNDS', value: 'lbs'},
-  {label: 'KILOLITRE', value: 'kl'},
-  {label: 'ROLL', value: 'roll'}, // Fabrics, wires
-  {label: 'BAG (SACK)', value: 'sack'},
-  {label: 'CRATE', value: 'crate'},
-  {label: 'SET', value: 'set'},
-  {label: 'PAIR', value: 'pair'},
-  {label: 'REEL', value: 'reel'},
-  {label: 'COIL', value: 'coil'},
-  {label: 'SHEET', value: 'sheet'},
-];
 
 const ProductUnitModal = ({
   visible = false,
   handleCancel = () => {},
   value,
   setValue,
+  units = [],
 }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
+
+  useEffect(() => {
+    if (visible) {
+      setQuery('');
+      setIsSearchOpen(false);
+    }
+  }, [visible]);
+
   const sortedUnits = React.useMemo(() => {
     if (query) {
-      return MAIN_UNITS.filter(
+      return units.filter(
         u =>
-          u.label.toLowerCase().includes(query.toLowerCase()) ||
-          u.value.toLowerCase().includes(query.toLowerCase()),
+          (u.name && u.name.toLowerCase().includes(query.toLowerCase())) ||
+          (u.shortName && u.shortName.toLowerCase().includes(query.toLowerCase())),
       );
     }
-    if (!value) return MAIN_UNITS;
+    if (!value) return units;
 
-    const selected = MAIN_UNITS.find(u => u.label === value);
-    const rest = MAIN_UNITS.filter(u => u.label !== value);
+    const selected = units.find(u => 
+      (u.name && u.name.toUpperCase() === value.toUpperCase()) || 
+      (u.shortName && u.shortName.toUpperCase() === value.toUpperCase())
+    );
+    const rest = units.filter(u => 
+      !(u.name && u.name.toUpperCase() === value.toUpperCase()) && 
+      !(u.shortName && u.shortName.toUpperCase() === value.toUpperCase())
+    );
 
-    return selected ? [selected, ...rest] : MAIN_UNITS;
-  }, [value, query]);
+    return selected ? [selected, ...rest] : units;
+  }, [value, query, units]);
 
   return (
-    <Modal visible={visible} animationType="slide">
+    <Modal
+      visible={visible}
+      animationType="slide"
+      onRequestClose={handleCancel}
+      >
       <View style={styles.container}>
         <View style={styles.headerContainer}>
           <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
@@ -164,15 +103,16 @@ const ProductUnitModal = ({
           data={sortedUnits}
           keyExtractor={(_, index) => index + 'unit_flatlist'}
           renderItem={({item}) => {
+            const isSelected = value && item.name && item.name.toUpperCase() === value.toUpperCase();
             return (
               <TouchableOpacity
                 style={styles.itemCOntainer}
                 onPress={() => {
-                  setValue(item.label);
+                  setValue(item.name);
                   handleCancel();
                 }}>
-                <Text style={styles.itemText}>{item.label}</Text>
-                {value === item.label && (
+                <Text style={styles.itemText}>{item.name} {item.shortName ? `(${item.shortName})` : ''}</Text>
+                {isSelected && (
                   <Octicons name="check" size={icon(20)} color={'#000'} />
                 )}
               </TouchableOpacity>

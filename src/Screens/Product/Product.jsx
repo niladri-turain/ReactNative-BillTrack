@@ -47,10 +47,11 @@ import {
 } from '../../utils/validator';
 import ToastService from '../../Components/Toasts/ToastService';
 import {productService} from '../../Services/ProductService';
-import {useAuthToken, useGstEnabled} from '../../Contexts/AuthContext';
+import {useAuthToken, useGstEnabled, useBusiness} from '../../Contexts/AuthContext';
 import {API_URL} from '../../utils/config';
 import {useProduct} from '../../Contexts/ProductContexts';
 import {useRoute} from '@react-navigation/native';
+import {unitService} from '../../Services/UnitService';
 
 const {width: screenWidth} = Dimensions.get('window');
 const NUMBER_OF_COLUMNS = isTabletDevice ? 4 : 3;
@@ -69,6 +70,8 @@ const Product = () => {
   const doRefreshPage = route.params?.doRefresh || false;
   const {Products, resetProducts, addProduct, removeProduct} = useProduct();
   const isGstEnbaled = useGstEnabled();
+  const business = useBusiness();
+  const businessCategoryId = business?.businessCategoryId;
   const token = useAuthToken();
   const [showModal, setShowModal] = useState(false);
   const [isNewProduct, setIsNewProduct] = useState(false);
@@ -94,6 +97,7 @@ const Product = () => {
 
   // modal states
   const [unitModalVisible, setUnitModalVisible] = useState(false);
+  const [units, setUnits] = useState([]);
   const [hsnModalVisible, setHsnModalVisible] = useState(false);
 
   const setInitialValueOfModal = () => {
@@ -173,6 +177,20 @@ const Product = () => {
       setIsLoading(false);
     }
   };
+
+  const getUnits = async () => {
+    if (!token || !businessCategoryId) return;
+    try {
+      const data = await unitService.getUnitsByBusinessCategory(token, businessCategoryId);
+      if (data?.status) {
+        setUnits(data?.data || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch units:", error);
+      ToastService.show({message: 'Failed to load units', type: 'error', position: 'top'});
+    }
+  };
+
 
   const handlePickImag = async () => {
     // const hasPermission = await requestPermission();
@@ -364,6 +382,11 @@ const Product = () => {
     if (Products.length === 0 || doRefreshPage) {
       getProducts();
     }
+  }, []);
+
+  useEffect(() => {
+    // Fetch units when component mounts or businessCategoryId/token changes
+    getUnits();
   }, []);
 
   const onRefresh = async () => {
@@ -567,9 +590,11 @@ const Product = () => {
         value={productUnit}
         setValue={(val) => {
           setProductUnit(val);
+          // Assuming val is the name of the unit
           setProductUnitError('');
         }}
         handleCancel={() => setUnitModalVisible(false)}
+        units={units} // Pass the fetched units to the modal
       />
       <GstSelectModal
         visible={hsnModalVisible}
