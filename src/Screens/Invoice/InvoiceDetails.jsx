@@ -193,6 +193,8 @@ const InvoiceDetails = () => {
     fetchInvoices();
   }, [invoice]);
 
+  const hasAnyHsn = invoiceItems.some(item => item?.hsnCode || item?.hsn || (item?.gstPercentage && parseFloat(item?.gstPercentage) > 0));
+
   return (
     <Layout>
       <SecondaryHeader
@@ -327,20 +329,20 @@ const InvoiceDetails = () => {
               <Text
                 style={[
                   styles.invoiceTitle,
-                  {width: '35%', fontSize: sizes.invoiceTitleFontSize},
+                  {width: '40%', fontSize: sizes.invoiceTitleFontSize},
                 ]}>
-                Item/GST
+                {hasAnyHsn ? 'Item/HSN/GST' : 'Item'}
               </Text>
               <Text
                 style={[
                   styles.invoiceTitle,
                   {
                     width: '20%',
-                    textAlign: 'right',
+                    textAlign: 'center',
                     fontSize: sizes.invoiceTitleFontSize,
                   },
                 ]}>
-                Quantity
+                Qty
               </Text>
               <Text
                 style={[
@@ -374,7 +376,8 @@ const InvoiceDetails = () => {
                     {width: '40%', fontSize: sizes.invoiceItemFontSize},
                   ]}>
                   {item.name}
-                  {item?.gstPercentage && `(${item?.gstPercentage}%)`}
+                  {hasAnyHsn && (item?.hsnCode || item?.hsn) ? `/${item.hsnCode || item.hsn}` : ''}
+                  {hasAnyHsn && item?.gstPercentage && parseFloat(item.gstPercentage) > 0 ? `/${item.gstPercentage}%` : ''}
                 </Text>
                 <Text
                   style={[
