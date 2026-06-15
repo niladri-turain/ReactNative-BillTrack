@@ -38,6 +38,7 @@ import {font, margin, padding} from '../../utils/responsive';
 import {invoiceService} from '../../Services/InvoiceService';
 import {useAuthToken, useSubscription} from '../../Contexts/AuthContext';
 
+import {useFocusEffect} from '@react-navigation/native';
 // Constants moved outside component to prevent recreation
 const SNAP_POINTS = ['50%'];
 const SHIMMER_DATA = [1, 2, 3];
@@ -151,17 +152,14 @@ const Invoice = () => {
         setIsLoading(false);
       }
     },
-    [token, isLoading],
+    [token, isLoading, sortBy],
   );
 
-  useEffect(() => {
-    if (pageNumber === 0) {
+  useFocusEffect(
+    useCallback(() => {
       fetchInvoices(0);
-    } else {
-      fetchMore(pageNumber);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageNumber]);
+    }, [fetchInvoices]),
+  );
 
   /* ON REFRESH OPTIMIZATION */
   const onRefresh = useCallback(async () => {
@@ -177,6 +175,13 @@ const Invoice = () => {
       setPageNumber(prev => prev + 1);
     }
   }, [paginationHasNextPage, isLoading, invoices.length]);
+
+  useEffect(() => {
+    if (pageNumber > 0) {
+      fetchMore(pageNumber);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageNumber]);
 
   // Memoized header component
   const ListHeaderComponent = useMemo(

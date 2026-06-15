@@ -305,8 +305,8 @@ const InvoiceDetails = () => {
                   Item
                 </Text>
                 {hasAnyHsn && (
-                  <Text style={[styles.invoiceSubTitle, {fontSize: font(11)}]}>
-                    HSN(GST)
+                  <Text style={[styles.invoiceTitle, {fontSize: 12, marginTop: 2}]}>
+                    HSN (GST)
                   </Text>
                 )}
               </View>
@@ -593,11 +593,6 @@ const styles = StyleSheet.create({
   invoiceTitle: {
     fontFamily: fonts.inBold,
     color: '#000000',
-  },
-  invoiceSubTitle: {
-    fontFamily: fonts.inMedium,
-    color: '#666666',
-    marginTop: 2,
   },
   invoiceItem: {
     fontFamily: fonts.inMedium,

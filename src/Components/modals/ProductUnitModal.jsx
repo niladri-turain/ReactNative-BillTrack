@@ -3,7 +3,6 @@ import {
   Modal,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -13,6 +12,7 @@ import {fonts} from '../../utils/fonts';
 import {colors} from '../../utils/colors';
 import Octicons from '@react-native-vector-icons/octicons';
 import DottedDivider from '../Dividers/DottedDivider';
+import SearchInput from '../Inputs/SearchInput';
 
 const ProductUnitModal = ({
   visible = false,
@@ -21,36 +21,37 @@ const ProductUnitModal = ({
   setValue,
   units = [],
 }) => {
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
 
   useEffect(() => {
     if (visible) {
       setQuery('');
-      setIsSearchOpen(false);
     }
   }, [visible]);
 
   const sortedUnits = React.useMemo(() => {
+    let filteredUnits = units;
+
     if (query) {
-      return units.filter(
+      filteredUnits = units.filter(
         u =>
           (u.name && u.name.toLowerCase().includes(query.toLowerCase())) ||
           (u.shortName && u.shortName.toLowerCase().includes(query.toLowerCase())),
       );
     }
-    if (!value) return units;
 
-    const selected = units.find(u => 
+    if (!value) return filteredUnits;
+
+    const selected = filteredUnits.find(u => 
       (u.name && u.name.toUpperCase() === value.toUpperCase()) || 
       (u.shortName && u.shortName.toUpperCase() === value.toUpperCase())
     );
-    const rest = units.filter(u => 
+    const rest = filteredUnits.filter(u => 
       !(u.name && u.name.toUpperCase() === value.toUpperCase()) && 
       !(u.shortName && u.shortName.toUpperCase() === value.toUpperCase())
     );
 
-    return selected ? [selected, ...rest] : units;
+    return selected ? [selected, ...rest] : filteredUnits;
   }, [value, query, units]);
 
   return (
@@ -64,39 +65,23 @@ const ProductUnitModal = ({
           <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>
-          {!isSearchOpen && (
-            <Text style={styles.headerText}>Select a Unit</Text>
-          )}
-          {!isSearchOpen && (
-            <TouchableOpacity
-              style={styles.searchBtn}
-              onPress={() => {
-                setIsSearchOpen(true);
-              }}>
-              <Octicons name="search" size={icon(20)} color={'#000'} />
-            </TouchableOpacity>
-          )}
-          {isSearchOpen && (
-            <View style={styles.searchContainer}>
-              <TextInput
-                placeholder="Search"
-                placeholderTextColor={colors.border}
-                onChangeText={text => setQuery(text)}
-                value={query}
-                focusable
-              />
-              <TouchableOpacity onPress={() => setIsSearchOpen(false)}>
-                <Text>cancel</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          <Text style={styles.headerText}>Select a Unit</Text>
+          <View style={styles.placeholder} />
         </View>
+
+        <View style={styles.searchContainer}>
+          <SearchInput
+            placeholder="Search"
+            value={query}
+            setValue={setQuery}
+          />
+        </View>
+
         <FlatList
           style={{
-            // flex: 1,
-            backgroundColor: '#EAEAEA',
+            backgroundColor: '#00000003',
             marginVertical: margin(10),
-            borderRadius: icon(10),
+            borderRadius: icon(5),
             marginHorizontal: margin(16),
             paddingBottom: padding(10),
           }}
@@ -113,13 +98,18 @@ const ProductUnitModal = ({
                 }}>
                 <Text style={styles.itemText}>{item.name} {item.shortName ? `(${item.shortName})` : ''}</Text>
                 {isSelected && (
-                  <Octicons name="check" size={icon(20)} color={'#000'} />
+                  <Octicons name="check" size={icon(20)} color={colors.primary} />
                 )}
               </TouchableOpacity>
             );
           }}
           contentContainerStyle={styles.contentContainer}
           ItemSeparatorComponent={() => <DottedDivider marginVertical={0} />}
+          ListEmptyComponent={() => (
+            <Text style={{textAlign: 'center', marginTop: 20, fontFamily: fonts.inRegular, color: '#666'}}>
+              No units found
+            </Text>
+          )}
         />
       </View>
     </Modal>
@@ -136,30 +126,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   cancelBtn: {
-    backgroundColor: '#000',
+    backgroundColor: colors.primary,
     paddingVertical: padding(6),
     paddingHorizontal: padding(10),
     borderRadius: 5,
+    minWidth: 60,
   },
   cancelText: {
     color: '#fff',
     fontFamily: fonts.inMedium,
+    fontSize: font(14),
+    textAlign: 'center',
   },
   headerText: {
     flex: 1,
     textAlign: 'center',
     fontFamily: fonts.inSemiBold,
+    fontSize: font(16),
   },
+  placeholder: {width: 60},
   contentContainer: {
-    marginVertical: margin(10),
+    flexGrow: 1,
   },
   itemCOntainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: padding(10),
+    paddingVertical: padding(15),
     paddingHorizontal: padding(16),
   },
   itemText: {
@@ -167,11 +164,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.inMedium,
   },
   searchContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: margin(20),
+    marginHorizontal: margin(16), 
+    marginBottom: margin(10),
+    marginTop: margin(10),
   },
 });
 
