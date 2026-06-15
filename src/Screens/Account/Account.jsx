@@ -35,7 +35,7 @@ import {
   useUser,
 } from '../../Contexts/AuthContext';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import {validateEmail, validateName} from '../../utils/validator';
+import {validateEmail, validateIndianPhone, validateName} from '../../utils/validator';
 import ToastService from '../../Components/Toasts/ToastService';
 import {userService} from '../../Services/UserService';
 import {businessService} from '../../Services/BusinessService';
@@ -70,6 +70,7 @@ const Account = memo(() => {
 
   //STATE VARIABLES
   const [name, setName] = useState(userName);
+  const [phone, setPhone] = useState(userPhone);
   const [email, setEmail] = useState(userEmail);
   const [newImage, setNewImage] = useState(null);
   const [updateError, setUpdateError] = useState('');
@@ -77,6 +78,10 @@ const Account = memo(() => {
   useEffect(() => {
     setName(userName);
   }, [userName]);
+
+  useEffect(() => {
+    setPhone(userPhone);
+  }, [userPhone]);
 
   useEffect(() => {
     setEmail(userEmail);
@@ -174,13 +179,22 @@ const Account = memo(() => {
 
   const updateDetails = async () => {
     setUpdateError('');
-    if (name === userName && userEmail === email) {
+    if (name === userName && userEmail === email && userPhone === phone) {
       setUpdateError('No changes found');
       return;
     }
     if (!name || !validateName(name)) {
       ToastService.show({
         message: 'Enter a valid name',
+        type: 'error',
+        position: 'top',
+      });
+      return;
+    }
+
+    if (phone && !validateIndianPhone(phone)) {
+      ToastService.show({
+        message: 'Enter a valid phone number',
         type: 'error',
         position: 'top',
       });
@@ -201,6 +215,7 @@ const Account = memo(() => {
       const payload = {
         name: name,
         email: email,
+        phone: phone,
         token: token,
       };
       const data = await userService.updateUser(payload);
@@ -209,17 +224,18 @@ const Account = memo(() => {
       const businessPayload = {
         token: token,
         name: name,
+        phone: phone,
       };
       await businessService.updateBusiness(businessPayload);
 
       if (data.status) {
         ToastAndroid.show(data.message, ToastAndroid.SHORT, ToastAndroid.TOP);
-        updateUserFields({name: name, email: email});
+        updateUserFields({name: name, email: email, phone: phone});
 
         if (data.business) {
-          resetBusiness({...data.business, name: name});
+          resetBusiness({...data.business, name: name, phone: phone});
         } else {
-          updateBusinessFields({name: name});
+          updateBusinessFields({name: name, phone: phone});
         }
 
         handleCloseModal();
@@ -256,6 +272,7 @@ const Account = memo(() => {
           logoUrl={logoUrl}
           onpressEditBtn={() => {
             setName(userName);
+            setPhone(userPhone);
             setEmail(userEmail);
             setUpdateError('');
             setModalVisible(true);
@@ -440,6 +457,14 @@ const Account = memo(() => {
               value={name}
               setValue={setName}
               hasError={name.length > 0 && !validateName(name)}
+            />
+            <SimpleTextInput
+              placeholder="Phone Number"
+              value={phone}
+              setValue={setPhone}
+              keyboardType="number-pad"
+              maxLength={10}
+              hasError={phone && !validateIndianPhone(phone)}
             />
             <SimpleTextInput
               placeholder="Email(optional)"
