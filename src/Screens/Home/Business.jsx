@@ -426,7 +426,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   Business Name <Text style={styles.required}>*</Text>
                 </Text>
                 <View style={styles.businessNameContainer}>
-                  <Text style={styles.businessNameText}>{business?.name}</Text>
+                  <Text style={styles.businessNameText}>{useUser('name') || business?.name}</Text>
                 </View>
               </View>
             </View>

@@ -17,13 +17,15 @@ import {
   padding,
   widthResponsive,
 } from '../../utils/responsive';
-import {useBusiness} from '../../Contexts/AuthContext';
+import {useBusiness, useUser} from '../../Contexts/AuthContext';
 import {greeting} from '../../utils/validator';
 import {API_URL} from '../../utils/config';
 import {useNavigation} from '@react-navigation/native';
 
 const PrimaryHeader = memo(() => {
-  const name = useBusiness('name');
+  const businessName = useBusiness('name');
+  const userName = useUser('name');
+  const name = userName || businessName;
   const businessUrl = useBusiness('logoUrl');
   const navigation = useNavigation();
   return (

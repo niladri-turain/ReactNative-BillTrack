@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {memo, useState} from 'react';
+import React, {memo, useState, useEffect} from 'react';
 import {Layout} from '../Layout';
 import {
   ProfileCard,
@@ -49,15 +49,15 @@ import ImageCropPicker from 'react-native-image-crop-picker';
 const Account = memo(() => {
   const businessName = useBusiness('name');
   const _userName = useUser('name');
-  const userName = businessName || _userName;
+  const userName = _userName || businessName;
 
   const businessPhone = useBusiness('phone');
   const _userPhone = useUser('phone');
-  const userPhone = businessPhone || _userPhone;
+  const userPhone = _userPhone || businessPhone;
 
   const businessEmail = useBusiness('email');
   const _userEmail = useUser('email');
-  const userEmail = businessEmail || _userEmail || '';
+  const userEmail = _userEmail || businessEmail || '';
   const logoUrl = useBusiness('logoUrl');
   const token = useAuthToken();
   const {logout, resetBusiness} = useAuth();
@@ -73,6 +73,14 @@ const Account = memo(() => {
   const [email, setEmail] = useState(userEmail);
   const [newImage, setNewImage] = useState(null);
   const [updateError, setUpdateError] = useState('');
+
+  useEffect(() => {
+    setName(userName);
+  }, [userName]);
+
+  useEffect(() => {
+    setEmail(userEmail);
+  }, [userEmail]);
 
   // LOADING STATE
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
