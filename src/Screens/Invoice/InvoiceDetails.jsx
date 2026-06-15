@@ -11,7 +11,7 @@ import React, {useEffect, useMemo, useState} from 'react';
 import {Layout} from '../Layout';
 import {DottedDivider, SecondaryHeader} from '../../Components';
 import {fonts} from '../../utils/fonts';
-import {useBusiness} from '../../Contexts/AuthContext';
+import {useBusiness, useUser} from '../../Contexts/AuthContext';
 import {useRoute} from '@react-navigation/native';
 import {invoiceService} from '../../Services/InvoiceService';
 import {API_URL} from '../../utils/config';
@@ -43,6 +43,8 @@ const InvoiceDetails = () => {
   const route = useRoute();
   const {invoice} = route.params;
   const business = useBusiness();
+  const _userName = useUser('name');
+  const userName = _userName || business?.name;
   console.log("business",business)
   const invoiceData = {
     businessName: 'Turain Software',
@@ -243,7 +245,7 @@ const InvoiceDetails = () => {
                 resizeMode="contain"
               />
               <Text style={[styles.businessText, {fontSize: font(20)}]}>
-                {business?.name}
+                {userName}
               </Text>
               {business?.phone && (
                 <View style={styles.topKeyValueStyle}>

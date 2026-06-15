@@ -686,20 +686,15 @@ const styles = StyleSheet.create({
   },
   businessNameContainer: {
     width: '100%',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: padding(16),
-    paddingVertical: padding(14),
   },
   profileSubContainer: {
     flex: 1,
     gap: gap(8),
   },
   businessNameText: {
-    color: '#00000090',
-    fontSize: font(14),
-    fontWeight: '500',
+    color: '#000',
+    fontSize: font(18),
+    fontFamily: fonts.inBold,
   },
   required: {
     color: 'red',
