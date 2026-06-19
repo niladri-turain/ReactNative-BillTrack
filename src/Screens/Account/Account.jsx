@@ -85,6 +85,17 @@ const Account = memo(() => {
   const [isVerifyLoading, setIsVerifyLoading] = useState(false);
   const [otpSentMessage, setOtpSentMessage] = useState('');
   const [phoneError, setPhoneError] = useState('');
+  const [timer, setTimer] = useState(60);
+
+  useEffect(() => {
+    let interval;
+    if (showOtpFields && timer > 0) {
+      interval = setInterval(() => {
+        setTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [showOtpFields, timer]);
 
   useEffect(() => {
     setName(userName);
@@ -138,6 +149,7 @@ const Account = memo(() => {
     setOtp(['', '', '', '']);
     setOtpSentMessage('');
     setPhoneError('');
+    setTimer(60);
   };
 
   const handleImagePick = () => {
@@ -291,6 +303,8 @@ const Account = memo(() => {
         setOtpSentMessage(data.message);
         setShowOtpFields(true);
         setPhoneError('');
+        setTimer(60);
+        setOtp(['', '', '', '']);
       } else {
         setPhoneError(data.message || 'Failed to send OTP');
       }
@@ -328,6 +342,7 @@ const Account = memo(() => {
   };
 
   const handleOtpChange = (value, index) => {
+    if (value && !/^\d+$/.test(value)) return;
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
@@ -598,6 +613,11 @@ const Account = memo(() => {
                   />
                 ))}
               </View>
+              {timer > 0 ? (
+                <Text style={styles.timerText}>
+                  Resend OTP in 00:{timer < 10 ? `0${timer}` : timer}
+                </Text>
+              ) : null}
               {phoneError ? (
                 <Text
                   style={[
@@ -607,16 +627,29 @@ const Account = memo(() => {
                   {phoneError}
                 </Text>
               ) : null}
-              <TouchableOpacity
-                style={styles.verifyOtpBtn}
-                onPress={handleVerifyOtp}
-                disabled={isVerifyLoading}>
-                {isVerifyLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.verifyOtpBtnText}>Verify OTP</Text>
-                )}
-              </TouchableOpacity>
+              {timer > 0 ? (
+                <TouchableOpacity
+                  style={styles.verifyOtpBtn}
+                  onPress={handleVerifyOtp}
+                  disabled={isVerifyLoading}>
+                  {isVerifyLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.verifyOtpBtnText}>Verify OTP</Text>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.resendOtpBtn}
+                  onPress={handleSendOtp}
+                  disabled={isVerifyLoading}>
+                  {isVerifyLoading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Text style={styles.resendOtpBtnText}>Resend OTP</Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -819,6 +852,23 @@ const styles = StyleSheet.create({
   },
   verifyOtpBtnText: {
     color: '#fff',
+    fontFamily: fonts.inMedium,
+    fontSize: font(12),
+  },
+  timerText: {
+    fontSize: font(12),
+    fontFamily: fonts.popRegular,
+    color: '#6C6C6C',
+  },
+  resendOtpBtn: {
+    paddingVertical: padding(8),
+    paddingHorizontal: padding(20),
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  resendOtpBtnText: {
+    color: colors.primary,
     fontFamily: fonts.inMedium,
     fontSize: font(12),
   },
