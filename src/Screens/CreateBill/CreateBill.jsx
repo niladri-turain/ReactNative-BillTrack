@@ -591,7 +591,10 @@ const CreateBill = () => {
                   phoneNumber.length > 0 && !validateIndianPhone(phoneNumber)
                 }
                 value={phoneNumber}
-                setValue={setPhoneNumber}
+                setValue={val => {
+                  const cleaned = val.replace(/[^0-9]/g, '');
+                  setPhoneNumber(cleaned);
+                }}
                 keyboardType="phone-pad"
                 placeholder="Customer Phone Number"
                 borderColor="#00000090"
