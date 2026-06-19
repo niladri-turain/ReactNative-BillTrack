@@ -7,17 +7,19 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   ToastAndroid,
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {memo, useState, useEffect} from 'react';
+import React, {memo, useState, useEffect, useRef} from 'react';
 import {Layout} from '../Layout';
 import {
   ProfileCard,
   SecondaryHeader,
   SettingItemsCard,
   SimpleTextInput,
+  CommonModal,
 } from '../../Components';
 import {colors} from '../../utils/colors';
 import {fonts} from '../../utils/fonts';
@@ -38,6 +40,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import {validateEmail, validateIndianPhone, validateName} from '../../utils/validator';
 import ToastService from '../../Components/Toasts/ToastService';
 import {userService} from '../../Services/UserService';
+import {authService} from '../../Services/AuthService';
 import {businessService} from '../../Services/BusinessService';
 import {useProduct} from '../../Contexts/ProductContexts';
 import {usePrinter} from '../../Contexts/PrinterContext';
@@ -58,6 +61,7 @@ const Account = memo(() => {
   const businessEmail = useBusiness('email');
   const _userEmail = useUser('email');
   const userEmail = _userEmail || businessEmail || '';
+  const userId = useUser('id');
   const logoUrl = useBusiness('logoUrl');
   const token = useAuthToken();
   const {logout, resetBusiness} = useAuth();
@@ -74,6 +78,13 @@ const Account = memo(() => {
   const [email, setEmail] = useState(userEmail);
   const [newImage, setNewImage] = useState(null);
   const [updateError, setUpdateError] = useState('');
+
+  // OTP STATES
+  const [otp, setOtp] = useState(['', '', '', '']);
+  const [showOtpFields, setShowOtpFields] = useState(false);
+  const [isVerifyLoading, setIsVerifyLoading] = useState(false);
+  const [otpSentMessage, setOtpSentMessage] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   useEffect(() => {
     setName(userName);
@@ -94,6 +105,8 @@ const Account = memo(() => {
 
   // MODAL STATES
   const [isModalVisible, setModalVisible] = useState(false);
+
+  const otpInputs = [useRef(null), useRef(null), useRef(null), useRef(null)];
 
   const navigation = useNavigation();
 
@@ -121,6 +134,10 @@ const Account = memo(() => {
     setModalVisible(false);
     setNewImage(null);
     setUpdateError('');
+    setShowOtpFields(false);
+    setOtp(['', '', '', '']);
+    setOtpSentMessage('');
+    setPhoneError('');
   };
 
   const handleImagePick = () => {
@@ -254,6 +271,70 @@ const Account = memo(() => {
       });
     } finally {
       setIsUpdateLoading(false);
+    }
+  };
+
+  const handleSendOtp = async () => {
+    if (!phone || !validateIndianPhone(phone)) {
+      ToastService.show({
+        message: 'Enter a valid phone number',
+        type: 'error',
+        position: 'top',
+      });
+      return;
+    }
+
+    try {
+      setIsVerifyLoading(true);
+      const data = await authService.changePhone(userId, phone);
+      if (data.status) {
+        setOtpSentMessage(data.message);
+        setShowOtpFields(true);
+        setPhoneError('');
+      } else {
+        setPhoneError(data.message || 'Failed to send OTP');
+      }
+    } catch (error) {
+      setPhoneError('Something went wrong while sending OTP');
+    } finally {
+      setIsVerifyLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    const enteredOtp = otp.join('');
+    setPhoneError('');
+    if (enteredOtp.length !== 4) {
+      setPhoneError('Enter a valid 4-digit OTP');
+      return;
+    }
+
+    try {
+      setIsVerifyLoading(true);
+      const data = await authService.verifyPhone(userId, enteredOtp);
+      if (data.status) {
+        ToastAndroid.show(data.message, ToastAndroid.SHORT);
+        updateUserFields({phone: phone});
+        updateBusinessFields({phone: phone});
+        handleCloseModal();
+      } else {
+        setPhoneError(data.message || 'OTP verification failed');
+      }
+    } catch (error) {
+      setPhoneError('Something went wrong during verification');
+    } finally {
+      setIsVerifyLoading(false);
+    }
+  };
+
+  const handleOtpChange = (value, index) => {
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+
+    // Auto focus next input
+    if (value && index < 3) {
+      otpInputs[index + 1].current.focus();
     }
   };
 
@@ -408,83 +489,155 @@ const Account = memo(() => {
           <Text style={styles.deleteText}>Delete Account</Text>
         </View> */}
       </ScrollView>
-      <Modal
+      <CommonModal
         visible={isModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={handleCloseModal}>
-        <Pressable onPress={handleCloseModal} style={styles.modalContainer}>
-          <Pressable
-            onPress={event => event.stopPropagation()}
-            style={styles.modalContentContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalHeaderTitleText}>
-                Update Profile Details
-              </Text>
-              <TouchableOpacity onPress={handleCloseModal}>
-                <Ionicons name="close" size={icon(20)} color="#00000090" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.imageUploadContainer}>
-              <View>
-                <Image
-                  source={
-                    newImage
-                      ? {uri: newImage.path}
-                      : {uri: `${API_URL}files/logo/${logoUrl}`}
-                  }
-                  style={styles.modalImage}
-                />
-                {isImageUploading && (
-                  <View style={styles.imageOverlay}>
-                    <ActivityIndicator size="large" color={colors.primary} />
-                  </View>
-                )}
-              </View>
-              <TouchableOpacity
-                onPress={handleImagePick}
-                style={styles.changeImageButton}
-                disabled={isImageUploading}>
-                <Text style={styles.changeImageButtonText}>
-                  {isImageUploading
-                    ? 'Uploading...'
-                    : 'Change Profile Image'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <SimpleTextInput
-              placeholder="Name"
-              value={name}
-              setValue={setName}
-              hasError={name.length > 0 && !validateName(name)}
-            />
-            <SimpleTextInput
-              placeholder="Phone Number"
-              value={phone}
-              setValue={setPhone}
-              keyboardType="number-pad"
-              maxLength={10}
-              hasError={phone && !validateIndianPhone(phone)}
-            />
-            <SimpleTextInput
-              placeholder="Email(optional)"
-              value={email}
-              setValue={setEmail}
-              hasError={email && !validateEmail(email)}
-            />
-            {updateError ? (
-              <Text style={styles.errorText}>{updateError}</Text>
-            ) : null}
-            <Pressable style={styles.updateBtn} onPress={updateDetails}>
-              {isUpdateLoading ? (
-                <ActivityIndicator color={'#fff'} size={'small'} />
-              ) : (
-                <Text style={styles.updateBtnText}>UPDATE</Text>
+        handleClose={handleCloseModal}
+        animationType="slide">
+        <View style={styles.modalContentContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalHeaderTitleText}>
+              Update Profile Details
+            </Text>
+            <TouchableOpacity onPress={handleCloseModal}>
+              <Ionicons name="close" size={icon(24)} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+          <View
+            style={{
+              borderBottomColor: '#ccc',
+              borderBottomWidth: 0.7,
+              marginTop: 10,
+              marginBottom: 10,
+            }}
+          />
+          <View style={styles.imageUploadContainer}>
+            <View>
+              <Image
+                source={
+                  newImage
+                    ? {uri: newImage.path}
+                    : {uri: `${API_URL}files/logo/${logoUrl}`}
+                }
+                style={styles.modalImage}
+              />
+              {isImageUploading && (
+                <View style={styles.imageOverlay}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                </View>
               )}
-            </Pressable>
+            </View>
+            <TouchableOpacity
+              onPress={handleImagePick}
+              style={styles.changeImageButton}
+              disabled={isImageUploading}>
+              <Text style={styles.changeImageButtonText}>
+                {isImageUploading ? 'Uploading...' : 'Change Profile Image'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <SimpleTextInput
+            placeholder="Name"
+            value={name}
+            setValue={setName}
+            hasError={name.length > 0 && !validateName(name)}
+          />
+          <View>
+            <View style={{position: 'relative'}}>
+              <SimpleTextInput
+                placeholder="Phone Number"
+                value={phone}
+                setValue={val => {
+                  setPhone(val);
+                  setPhoneError('');
+                }}
+                keyboardType="number-pad"
+                maxLength={10}
+                hasError={phone && !validateIndianPhone(phone)}
+              />
+              {phone !== userPhone &&
+                validateIndianPhone(phone) &&
+                !showOtpFields && (
+                  <TouchableOpacity
+                    onPress={handleSendOtp}
+                    style={styles.verifyButtonInline}>
+                    {isVerifyLoading ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <Text style={styles.verifyButtonInlineText}>VERIFY</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+            </View>
+            {!showOtpFields && phoneError ? (
+              <Text style={styles.fieldErrorText}>{phoneError}</Text>
+            ) : null}
+          </View>
+
+          {showOtpFields && (
+            <View style={styles.otpSection}>
+              <Text style={styles.otpLabel}>{otpSentMessage}</Text>
+              <View style={styles.otpContainer}>
+                {otp.map((digit, index) => (
+                  <TextInput
+                    key={index}
+                    ref={otpInputs[index]}
+                    style={styles.otpInput}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    value={digit}
+                    onChangeText={value => handleOtpChange(value, index)}
+                    onKeyPress={({nativeEvent}) => {
+                      if (
+                        nativeEvent.key === 'Backspace' &&
+                        !otp[index] &&
+                        index > 0
+                      ) {
+                        otpInputs[index - 1].current.focus();
+                      }
+                    }}
+                  />
+                ))}
+              </View>
+              {phoneError ? (
+                <Text
+                  style={[
+                    styles.fieldErrorText,
+                    {textAlign: 'center', paddingHorizontal: 0},
+                  ]}>
+                  {phoneError}
+                </Text>
+              ) : null}
+              <TouchableOpacity
+                style={styles.verifyOtpBtn}
+                onPress={handleVerifyOtp}
+                disabled={isVerifyLoading}>
+                {isVerifyLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.verifyOtpBtnText}>Verify OTP</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <SimpleTextInput
+            placeholder="Email(optional)"
+            value={email}
+            setValue={setEmail}
+            hasError={email && !validateEmail(email)}
+          />
+          {updateError ? (
+            <Text style={styles.errorText}>{updateError}</Text>
+          ) : null}
+          <Pressable style={styles.updateBtn} onPress={updateDetails}>
+            {isUpdateLoading ? (
+              <ActivityIndicator color={'#fff'} size={'small'} />
+            ) : (
+              <Text style={styles.updateBtnText}>UPDATE</Text>
+            )}
           </Pressable>
-        </Pressable>
-      </Modal>
+        </View>
+      </CommonModal>
     </Layout>
   );
 });
@@ -550,7 +703,7 @@ const styles = StyleSheet.create({
   },
   modalContentContainer: {
     backgroundColor: '#fff',
-    borderRadius: 5,
+    borderRadius: 8,
     padding: padding(16),
     gap: gap(15),
   },
@@ -560,8 +713,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalHeaderTitleText: {
-    fontSize: font(12),
-    fontFamily: fonts.inRegular,
+    fontSize: font(14),
+    fontFamily: fonts.popSemiBold,
+    color: '#000',
   },
   updateBtn: {
     backgroundColor: colors.primary,
@@ -612,6 +766,61 @@ const styles = StyleSheet.create({
     fontFamily: fonts.inRegular,
     marginTop: -margin(5),
     textAlign: 'center',
+  },
+  fieldErrorText: {
+    color: colors.error,
+    fontSize: font(10),
+    fontFamily: fonts.inRegular,
+    paddingHorizontal: padding(16),
+    marginTop: margin(2),
+  },
+  verifyButtonInline: {
+    position: 'absolute',
+    right: 50,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
+  verifyButtonInlineText: {
+    color: colors.primary,
+    fontFamily: fonts.popBold,
+    fontSize: font(12),
+  },
+  otpSection: {
+    gap: gap(10),
+    alignItems: 'center',
+  },
+  otpLabel: {
+    fontSize: font(10),
+    fontFamily: fonts.inRegular,
+    color: colors.sucess,
+  },
+  otpContainer: {
+    flexDirection: 'row',
+    gap: gap(10),
+    justifyContent: 'center',
+  },
+  otpInput: {
+    width: 45,
+    height: 45,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 5,
+    textAlign: 'center',
+    fontSize: font(16),
+    fontFamily: fonts.popSemiBold,
+    color: '#000',
+  },
+  verifyOtpBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: padding(8),
+    paddingHorizontal: padding(20),
+    borderRadius: 5,
+  },
+  verifyOtpBtnText: {
+    color: '#fff',
+    fontFamily: fonts.inMedium,
+    fontSize: font(12),
   },
 });
 

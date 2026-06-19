@@ -105,6 +105,66 @@ class AuthService {
       return data;
     }
   }
+
+  // CHANGE PHONE
+  async changePhone(userId, newPhone) {
+    try {
+      const uri = this.baseUrl + 'change-phone';
+      const payload = {
+        userId: userId,
+        newPhone: newPhone,
+      };
+
+      console.log('--- AuthService: changePhone ---');
+      console.log('URL:', uri);
+      console.log('Payload/Body:', payload);
+
+      const response = await axios.post(uri, payload);
+
+      console.log('Status Code:', response.status);
+
+      const data = await response.data;
+      console.log('Response Data:', data);
+
+      return data;
+    } catch (error) {
+      console.log('Error in changePhone:');
+      console.log('Error Status Code:', error.response?.status);
+      console.log('Error Response Data:', error.response?.data);
+      const data = await error.response?.data;
+      return data;
+    }
+  }
+
+  // VERIFY CHANGE PHONE
+  async verifyPhone(userId, otp) {
+    try {
+      const uri = this.baseUrl + 'verify-change-phone';
+      const payload = {
+        userId: userId,
+        otp: otp,
+      };
+
+      console.log('--- AuthService: verifyChangePhone ---');
+      console.log('URL:', uri);
+      console.log('Payload/Body:', payload);
+
+      const response = await axios.post(uri, payload);
+
+      console.log('Status Code:', response.status);
+
+      const data = await response.data;
+      console.log('Response Data:', data);
+
+      return data;
+    } catch (error) {
+      console.log('Error in verifyChangePhone:');
+      console.log('Error Status Code:', error.response?.status);
+      console.log('Error Response Data:', error.response?.data);
+      const data = await error.response?.data;
+      return data;
+    }
+  }
 }
 
 const authService = new AuthService();
