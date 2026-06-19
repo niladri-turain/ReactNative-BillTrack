@@ -288,7 +288,7 @@ Proceed only if you have completed the required steps and approvals.`,
           <SimpleTextInput
             placeholder={'Enter GST Number'}
             value={gstNumber}
-            setValue={setGstNumber}
+            setValue={val => setGstNumber(val.replace(/[^a-zA-Z0-9]/g, ''))}
             keyboardType="default"
             hasError={gstNumber && !validateIndianGST(gstNumber)}
             upperCase={true}
@@ -443,11 +443,11 @@ Proceed only if you have completed the required steps and approvals.`,
                     />
                   }
                   title="Primary Number"
-                  onpress={() => handleOpenModal({type: 'Phone Number'})}
+                  onpress={() => {}}
                   textFontSize={14}
-                  disabled={false}
+                  disabled={true}
                   value={mobileNumber}
-                  isEdit={true}
+                  showIcon={false}
                 />
                  {/* <NavigationCardWithValue
                   mainIcon={
