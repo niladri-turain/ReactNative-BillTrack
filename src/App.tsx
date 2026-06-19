@@ -241,6 +241,12 @@ const AppStack = memo(() => {
         options={{
           tabBarIcon: renderTabIcon(icons.Home),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('Home', { screen: 'Home' });
+          },
+        })}
       />
       <Tab.Screen
         name="Product"
@@ -248,6 +254,12 @@ const AppStack = memo(() => {
         options={{
           tabBarIcon: renderTabIcon(icons.Product),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('Product');
+          },
+        })}
       />
       <Tab.Screen
         name="Create"
@@ -272,24 +284,18 @@ const AppStack = memo(() => {
       <Tab.Screen
         name="Invoice"
         component={InvoiceStack}
-        // options={({ route }) => {
-        //   const routeName = getFocusedRouteNameFromRoute(route) ?? 'Invoice';
-        //   return {
-        //     tabBarIcon: renderTabIcon(icons.Invoice),
-        //     tabBarStyle:
-        //       routeName === 'InvoiceDetails'
-        //         ? {
-        //           display: 'none',
-        //         }
-        //         : defaultTabBarStyle,
-        //   };
-        // }}
         options={({ route }) => {
           return {
             tabBarIcon: renderTabIcon(icons.Invoice),
             tabBarStyle: defaultTabBarStyle,
           };
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('Invoice', { screen: 'Invoice' });
+          },
+        })}
       />
       <Tab.Screen
         name="Account"
@@ -302,6 +308,12 @@ const AppStack = memo(() => {
               routeName === 'Settings' ? { display: 'none' } : defaultTabBarStyle,
           };
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('Account', { screen: 'Account' });
+          },
+        })}
       />
       <Tab.Screen
         name="BusinessSetup"

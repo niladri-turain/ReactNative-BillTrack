@@ -90,10 +90,14 @@ const SalesReport = memo(() => {
   const fetchGraphData = async () => {
     try {
       setIsLaoding(true);
-      const period =
+      let period =
         selectedPriod === 'Monthly'
           ? 'month'
           : selectedPriod.trim().toLowerCase().replace(/\s+/g, '');
+
+      if (period === '1year') {
+        period = 'year';
+      }
 
       const data = await salesReportService.getSalesReportByPeriod(
         token,
@@ -164,6 +168,13 @@ const SalesReport = memo(() => {
 
       startDate = new Date();
       startDate.setDate(startDate.getDate() - 29);
+      startDate.setHours(0, 0, 0, 0);
+    } else if (selectedDownload === 'Year') {
+      endDate = new Date();
+      endDate.setHours(23, 59, 59, 999);
+
+      startDate = new Date();
+      startDate.setFullYear(startDate.getFullYear() - 1);
       startDate.setHours(0, 0, 0, 0);
     } else {
       setIsModalOpen(true);
@@ -353,30 +364,35 @@ const SalesReport = memo(() => {
             <HomeChartShimmer />
           ) : (
             <View style={styles.container}>
-              <View style={styles.selectableContainer}>
-                {['Monthly', '3 Months', '6 Months'].map(period => (
-                  <TouchableOpacity
-                    key={period}
-                    style={[
-                      styles.selectable,
-                      selectedPriod === period && {
-                        backgroundColor: '#fff',
-                        borderRadius: 5,
-                        borderWidth: 0.5,
-                        borderColor: colors.primary,
-                      },
-                    ]}
-                    onPress={() => setSelectedPriod(period)}>
-                    <Text
+              <View style={{backgroundColor: colors.primaryBackground, borderRadius: 5}}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.selectableContainer}>
+                  {['Monthly', '3 Months', '6 Months', '1 Year'].map(period => (
+                    <TouchableOpacity
+                      key={period}
                       style={[
-                        styles.selectedText,
-                        {fontSize: 12},
-                        selectedPriod === period && {color: colors.primary},
-                      ]}>
-                      {period}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                        styles.selectable,
+                        selectedPriod === period && {
+                          backgroundColor: '#fff',
+                          borderRadius: 5,
+                          borderWidth: 0.5,
+                          borderColor: colors.primary,
+                        },
+                      ]}
+                      onPress={() => setSelectedPriod(period)}>
+                      <Text
+                        style={[
+                          styles.selectedText,
+                          {fontSize: 10},
+                          selectedPriod === period && {color: colors.primary},
+                        ]}>
+                        {period}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
               <View style={{paddingBottom: padding(5)}}>
                 <SalesAreaChart barData={chartData?.data} />
@@ -407,7 +423,7 @@ const SalesReport = memo(() => {
           </View>
           <DottedDivider marginVertical={0} borderWidth={0.8} />
           <View style={styles.bottomSheetSelectedContainer}>
-            {['Today', 'Week', 'Month', 'Custom'].map(item => (
+            {['Today', 'Week', 'Month', 'Year', 'Custom'].map(item => (
               <TouchableOpacity
                 key={item + 'first'}
                 style={[
@@ -600,16 +616,11 @@ const styles = StyleSheet.create({
   },
   selectableContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    // height: 48,
-    backgroundColor: colors.primaryBackground,
     alignItems: 'center',
     padding: padding(9),
-    borderRadius: 5,
+    gap: gap(10),
   },
   selectable: {
-    width: '30%',
-    // height: heightResponsive(30),
     paddingVertical: padding(9),
     paddingHorizontal: padding(20),
     justifyContent: 'center',
