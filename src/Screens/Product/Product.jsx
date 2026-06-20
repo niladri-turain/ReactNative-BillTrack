@@ -50,7 +50,7 @@ import {productService} from '../../Services/ProductService';
 import {useAuthToken, useGstEnabled, useBusiness} from '../../Contexts/AuthContext';
 import {API_URL} from '../../utils/config';
 import {useProduct} from '../../Contexts/ProductContexts';
-import {useRoute} from '@react-navigation/native';
+import {useNavigation, useRoute} from '@react-navigation/native';
 import {unitService} from '../../Services/UnitService';
 
 const {width: screenWidth} = Dimensions.get('window');
@@ -66,6 +66,7 @@ const imageWidth = screenWidth - HORIZONTAL_PADDING * 2;
 const imageHeight = imageWidth * 2;
 
 const Product = () => {
+  const navigation = useNavigation();
   const route = useRoute();
   const doRefreshPage = route.params?.doRefresh || false;
   const {Products, resetProducts, addProduct, removeProduct} = useProduct();
@@ -421,6 +422,9 @@ const Product = () => {
         isQuestion={false}
         isRestart={true}
         handleRestartClick={onRefresh}
+        handleBack={() => {
+          navigation.navigate('Home', { screen: 'Home' });
+        }}
       />
       <FlatList
         key={isColumn ? 'd' : 're'}

@@ -12,7 +12,7 @@ import {Layout} from '../Layout';
 import {DottedDivider, SecondaryHeader} from '../../Components';
 import {fonts} from '../../utils/fonts';
 import {useBusiness, useUser} from '../../Contexts/AuthContext';
-import {useRoute} from '@react-navigation/native';
+import {useNavigation, useRoute} from '@react-navigation/native';
 import {invoiceService} from '../../Services/InvoiceService';
 import {API_URL} from '../../utils/config';
 import {icon, font, gap, margin} from '../../utils/responsive';
@@ -40,6 +40,7 @@ function convertTo12Hour(datetime) {
 
 const InvoiceDetails = () => {
   // ROUTE - NAVIGATION
+  const navigation = useNavigation();
   const route = useRoute();
   const {invoice} = route.params;
   const business = useBusiness();
@@ -171,6 +172,13 @@ const InvoiceDetails = () => {
         isNotification={false}
         isQuestion={false}
         isSearch={false}
+        handleBack={() => {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('Home', { screen: 'Home' });
+          }
+        }}
       />
       {isLoading ? (
         <View

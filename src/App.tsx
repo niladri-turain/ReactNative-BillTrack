@@ -216,8 +216,6 @@ const AppStack = memo(() => {
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
-        lazy: true,
-        animation: 'shift',
         tabBarStyle: defaultTabBarStyle,
         tabBarLabelStyle: {
           fontSize: font(12),
@@ -240,6 +238,7 @@ const AppStack = memo(() => {
         component={HomeStack}
         options={{
           tabBarIcon: renderTabIcon(icons.Home),
+          unmountOnBlur: true,
         }}
         listeners={({ navigation }) => ({
           tabPress: (e) => {
@@ -253,6 +252,7 @@ const AppStack = memo(() => {
         component={Product}
         options={{
           tabBarIcon: renderTabIcon(icons.Product),
+          unmountOnBlur: true,
         }}
         listeners={({ navigation }) => ({
           tabPress: (e) => {
@@ -288,6 +288,7 @@ const AppStack = memo(() => {
           return {
             tabBarIcon: renderTabIcon(icons.Invoice),
             tabBarStyle: defaultTabBarStyle,
+            unmountOnBlur: true,
           };
         }}
         listeners={({ navigation }) => ({
@@ -306,6 +307,7 @@ const AppStack = memo(() => {
             tabBarIcon: renderTabIcon(icons.Account),
             tabBarStyle:
               routeName === 'Settings' ? { display: 'none' } : defaultTabBarStyle,
+            unmountOnBlur: true,
           };
         }}
         listeners={({ navigation }) => ({
