@@ -653,8 +653,9 @@ const styles = StyleSheet.create({
     width: screenWidth - HORIZONTAL_PADDING * 2,
   },
   imageCOntainer: {
-    width: isTabletDevice ? '40%' : '100%',
-    aspectRatio: 16 / 9,
+    width: isTabletDevice ? '70%' : '100%',
+    aspectRatio: isTabletDevice ? 21 / 9 : 16 / 9,
+    alignSelf: 'center',
   },
   image: {
     width: '100%',

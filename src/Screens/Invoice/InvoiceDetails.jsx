@@ -15,7 +15,7 @@ import {useBusiness, useUser} from '../../Contexts/AuthContext';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {invoiceService} from '../../Services/InvoiceService';
 import {API_URL} from '../../utils/config';
-import {icon, font, gap, margin} from '../../utils/responsive';
+import {icon, font, gap, margin, isTabletDevice} from '../../utils/responsive';
 import {
   calculateInvoiceData,
   formatDate,
@@ -72,8 +72,10 @@ const InvoiceDetails = () => {
     // Paddings
     const containerPaddingBottom = width * 0.026; // 10
     const topContainerPaddingVertical = width * 0.08; // 30
-    const secondContainerPaddingHorizontal = width * 0.042; // 16
-    const itemContainerPaddingHorizontal = width * 0.042; // 16
+    const secondContainerPaddingHorizontal = isTabletDevice ? width * 0.12 : width * 0.042;
+    const itemContainerPaddingHorizontal = isTabletDevice ? width * 0.12 : width * 0.042;
+
+    const labelWidth = font(isTabletDevice ? 100 : 90);
 
     // Margins
     const containerMarginTop = width * 0.053; // 20
@@ -97,8 +99,9 @@ const InvoiceDetails = () => {
       itemContainerMarginVertical,
       topContainerGap,
       subSecondContainerGap,
+      labelWidth,
     };
-  }, [width]);
+  }, [width, isTabletDevice]);
 
   const fetchInvoices = async () => {
     try {
@@ -273,12 +276,22 @@ const InvoiceDetails = () => {
                   styles.subSecondContainer,
                   {gap: sizes.subSecondContainerGap},
                 ]}>
-                <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                  Invoice No : {invoice.invoiceNumber}{' '}
-                </Text>
-                <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                  Date : {formatDate(invoice?.createdAt)}
-                </Text>
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <Text style={[styles.invoiceText, {fontSize: font(14), width: sizes.labelWidth}]}>
+                    Invoice No :
+                  </Text>
+                  <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
+                    {invoice.invoiceNumber}
+                  </Text>
+                </View>
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <Text style={[styles.invoiceText, {fontSize: font(14), width: sizes.labelWidth}]}>
+                    Date :
+                  </Text>
+                  <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
+                    {formatDate(invoice?.createdAt)}
+                  </Text>
+                </View>
               </View>
               <View style={styles.subSecondContainer}>
                 <Text style={[styles.invoiceText, {fontSize: font(14)}]} />
@@ -307,7 +320,7 @@ const InvoiceDetails = () => {
             <DottedDivider borderWidth={0.8} />
             
             {/* COLUMN HEADERS */}
-            <View style={styles.itemContainer}>
+            <View style={[styles.itemContainer, {paddingHorizontal: sizes.itemContainerPaddingHorizontal}]}>
               <View style={{width: '40%'}}>
                 <Text style={[styles.invoiceTitle, {fontSize: sizes.invoiceTitleFontSize}]}>
                   Item
@@ -363,7 +376,7 @@ const InvoiceDetails = () => {
                 : '';
 
               return (
-                <View style={styles.itemContainer} key={index + '_item'}>
+                <View style={[styles.itemContainer, {paddingHorizontal: sizes.itemContainerPaddingHorizontal}]} key={index + '_item'}>
                   <View style={{width: '40%'}}>
                     <Text style={[styles.invoiceItem, {fontSize: sizes.invoiceItemFontSize}]}>
                       {item.name}
@@ -595,7 +608,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start', // text-wrapping er jonno alignment flex-start rakha hoyeche
-    paddingHorizontal: 16,
     marginVertical: 5,
   },
   invoiceTitle: {
