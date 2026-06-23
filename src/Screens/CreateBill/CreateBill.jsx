@@ -51,6 +51,7 @@ import {
   useBusiness,
   useSubscription,
   useGstEnabled,
+  useUser,
 } from '../../Contexts/AuthContext';
 import {
   useAppSettings,
@@ -95,6 +96,8 @@ const CreateBill = () => {
   const addInvoices = useInvoice('addInvoice');
   const {printer} = usePrinter();
   const business = useBusiness();
+  const userName = useUser('name');
+  const businessName = userName || business?.name;
   const {updateNumberOfInvoices} = useAuth();
   const {getByKey} = useAppSettings();
   const token = useAuthToken();
@@ -288,6 +291,7 @@ const CreateBill = () => {
         customerNumber: phoneNumber,
         discount,
         invoiceNumber: invoiceNo,
+        businessName: businessName
       };
       const data = await invoiceService.createInvoice(payload);
       if (data?.status) {
@@ -320,7 +324,7 @@ const CreateBill = () => {
             gstListCalculate,
             totalQuantity,
             subTotalAmount,
-            business,
+            {...business, name: businessName},
           );
         }
         await updateInvoiceNumber(numberOfInvoices);
@@ -368,14 +372,6 @@ const CreateBill = () => {
       const numberOfInvoices = await getBusinessInvoiceNumber();
 
       const invoiceNo = generateInvoices(business?.prefix, numberOfInvoices);
-      const payload = {
-        token,
-        customerNumber: phoneNumber,
-        items: selectedItems,
-        paymentMode: paymentMethod,
-        discount,
-        invoiceNumber: invoiceNo,
-      };
 
       const data = await invoiceService.createInvoice({
         token,
@@ -384,6 +380,7 @@ const CreateBill = () => {
         paymentMode: paymentMethod,
         discount,
         invoiceNumber: invoiceNo,
+        businessName: "hello manoj",
       });
       if (data?.status) {
         addInvoices(data?.invoice);
@@ -403,7 +400,7 @@ const CreateBill = () => {
         await updateInvoiceNumber(numberOfInvoices);
         if (sentWhatAppEnabled) {
           await sendToWhatsApp({
-            businessName: business?.name,
+            businessName: businessName,
             invoiceNumber: data?.invoice?.invoiceNumber,
             createdAt: data?.invoice?.createdAt,
             customerNumber: data?.invoice?.customerNumber,

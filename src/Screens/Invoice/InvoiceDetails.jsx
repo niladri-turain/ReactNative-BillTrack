@@ -54,6 +54,9 @@ const InvoiceDetails = () => {
   const [groupedGstList, setGroupedGstList] = useState([]);
   const [totalQuantity, setTotalQuantity] = useState(0);
   const [subTotalAmount, setSubTotalAmount] = useState(0);
+  const [fetchedBusinessName, setFetchedBusinessName] = useState(
+    invoice?.businessName || '',
+  );
 
   // LOADING STATE
   const [isLoading, setIsLoading] = useState(true);
@@ -108,6 +111,13 @@ const InvoiceDetails = () => {
       setIsLoading(true);
       const data = await invoiceService.getInvoiceItems(invoice.id);
       if (data?.status) {
+        const bName =
+          data?.businessName ||
+          data?.data?.businessName ||
+          data?.invoice?.businessName;
+        if (bName) {
+          setFetchedBusinessName(bName);
+        }
         // Call the calculation function
         const result = calculateInvoiceData(data?.items);
         // Update all states with the returned values
@@ -227,7 +237,7 @@ const InvoiceDetails = () => {
                 resizeMode="contain"
               />
               <Text style={[styles.businessText, {fontSize: font(20)}]}>
-                {userName}
+                {fetchedBusinessName || business?.name}
               </Text>
               {business?.phone && (
                 <View style={styles.topKeyValueStyle}>
