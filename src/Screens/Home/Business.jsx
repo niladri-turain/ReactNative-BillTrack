@@ -49,6 +49,7 @@ const Business = () => {
   const token = useAuthToken();
   const {resetBusiness} = useAuth();
   const userPhone = useUser('phone');
+  const userEmail = useUser('email');
   const [businessCategory, setBusinessCategory] = useState([]);
 
   // MODAL STATES
@@ -57,7 +58,7 @@ const Business = () => {
 
   // STATE VARIABLES
   const [mobileNumber, setMobileNumber] = useState(business?.phone || userPhone || '');
-  const [email, setEmail] = useState(business?.email || '');
+  const [email, setEmail] = useState(userEmail || '');
   const [gstNumber, setGstNumber] = useState(business?.gstNumber || '');
   const [street, setStreet] = useState(business?.street || '');
   const [city, setCity] = useState(business?.city || '');
@@ -81,6 +82,10 @@ const Business = () => {
   useEffect(() => {
     fetchBusinessCategory();
   }, []);
+
+  useEffect(() => {
+    setEmail(userEmail || '');
+  }, [userEmail]);
 
   const handleOpenModal = ({type}) => {
     setModalType(type);
@@ -473,11 +478,11 @@ Proceed only if you have completed the required steps and approvals.`,
                     />
                   }
                   title="Email Address"
-                  onpress={() => handleOpenModal({type: 'Email Address'})}
+                  onpress={() => {}}
                   textFontSize={14}
-                  disabled={false}
-                  value={email}
-                  isEdit={true}
+                  disabled={true}
+                  value={userEmail || ''}
+                  showIcon={false}
                 />
                 <NavigationCardWithValue
                   mainIcon={
