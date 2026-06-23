@@ -266,6 +266,8 @@ const CreateBill = () => {
           return {
             productName: item?.name,
             quantity: item?.count,
+            hsnId: item?.hsnId || null,
+            hsnCode: item?.hsn?.hsnCode || "",
             rate: Number(item?.price).toFixed(2),
             gstType: hasHSN ? 'cgst/sgst' : null,
             gstPercentage: hasHSN
@@ -351,6 +353,8 @@ const CreateBill = () => {
           return {
             productName: item?.name,
             quantity: item?.count,
+            hsnId: item?.hsnId || null,
+            hsnCode: item?.hsn?.hsnCode || "",
             rate: Number(item?.price).toFixed(2),
             gstType: hasHSN ? 'cgst/sgst' : null,
             gstPercentage: hasHSN
