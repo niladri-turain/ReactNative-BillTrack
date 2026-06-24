@@ -662,7 +662,13 @@ const Account = memo(() => {
           {updateError ? (
             <Text style={styles.errorText}>{updateError}</Text>
           ) : null}
-          <Pressable style={styles.updateBtn} onPress={updateDetails}>
+          <Pressable
+            style={[
+              styles.updateBtn,
+              phone !== userPhone && {backgroundColor: colors.border},
+            ]}
+            onPress={updateDetails}
+            disabled={phone !== userPhone}>
             {isUpdateLoading ? (
               <ActivityIndicator color={'#fff'} size={'small'} />
             ) : (
