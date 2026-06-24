@@ -380,12 +380,12 @@ const CreateBill = () => {
         paymentMode: paymentMethod,
         discount,
         invoiceNumber: invoiceNo,
-        businessName: "hello manoj",
+        businessName: businessName,
       });
       if (data?.status) {
         addInvoices(data?.invoice);
         ToastService.show({
-          message: 'Bill Created Successfully',
+          message: 'Bill Created Successfully', 
           type: 'success',
           position: 'top',
         });

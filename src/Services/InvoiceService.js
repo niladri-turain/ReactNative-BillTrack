@@ -25,7 +25,7 @@ class InvoiceService {
         paymentMode: paymentMode,
         discount,
         invoiceNumber,
-        businessName,
+        businessName
       };
       const headers = {
         Authorization: `Bearer ${token}`,

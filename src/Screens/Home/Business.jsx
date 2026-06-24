@@ -65,6 +65,7 @@ const Business = () => {
   const [pincode, setPincode] = useState(business?.pinCode || '');
   const [state, setState] = useState(business?.state || '');
   const [prefix, setPrefix] = useState(business?.prefix || '');
+  const [tempValue, setTempValue] = useState('');
 
   // ANIMATION STATE
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -90,6 +91,34 @@ const Business = () => {
   const handleOpenModal = ({type}) => {
     setModalType(type);
     setIsModal(true);
+    switch (type) {
+      case 'Phone Number':
+        setTempValue(mobileNumber);
+        break;
+      case 'Email Address':
+        setTempValue(email);
+        break;
+      case 'GST Number':
+        setTempValue(gstNumber);
+        break;
+      case 'State':
+        setTempValue(state);
+        break;
+      case 'City':
+        setTempValue(city);
+        break;
+      case 'Pincode':
+        setTempValue(pincode);
+        break;
+      case 'Street':
+        setTempValue(street);
+        break;
+      case 'Prefix':
+        setTempValue(prefix);
+        break;
+      default:
+        setTempValue('');
+    }
   };
 
   const handleCloseModal = () => {
@@ -114,7 +143,28 @@ const Business = () => {
   }, [isModal, fadeAnim]);
 
   const handleSave = async () => {
-    if (!isChanged) {
+    const updatedValues = {
+      phone: modalType === 'Phone Number' ? tempValue : mobileNumber,
+      email: modalType === 'Email Address' ? tempValue : email,
+      gstNumber: modalType === 'GST Number' ? tempValue : gstNumber,
+      street: modalType === 'Street' ? tempValue : street,
+      city: modalType === 'City' ? tempValue : city,
+      pincode: modalType === 'Pincode' ? tempValue : pincode,
+      state: modalType === 'State' ? tempValue : state,
+      prefix: modalType === 'Prefix' ? tempValue : prefix,
+    };
+
+    const hasChanged =
+      updatedValues.phone !== initialValues.phone ||
+      updatedValues.email !== initialValues.email ||
+      updatedValues.gstNumber !== initialValues.gstNumber ||
+      updatedValues.street !== initialValues.street ||
+      updatedValues.city !== initialValues.city ||
+      updatedValues.pincode !== initialValues.pincode ||
+      updatedValues.state !== initialValues.state ||
+      updatedValues.prefix !== initialValues.prefix;
+
+    if (!hasChanged) {
       ToastService.show({
         message: 'No changes detected',
         type: 'info',
@@ -122,7 +172,7 @@ const Business = () => {
       return;
     }
 
-    if (!state) {
+    if (!updatedValues.state) {
       ToastService.show({
         message: 'Please select state',
         type: 'error',
@@ -130,7 +180,7 @@ const Business = () => {
       return;
     }
 
-    if (!street) {
+    if (!updatedValues.street) {
       ToastService.show({
         message: 'Please enter street',
         type: 'error',
@@ -138,7 +188,7 @@ const Business = () => {
       return;
     }
 
-    if (!city) {
+    if (!updatedValues.city) {
       ToastService.show({
         message: 'Please enter city',
         type: 'error',
@@ -146,7 +196,7 @@ const Business = () => {
       return;
     }
 
-    if (!pincode) {
+    if (!updatedValues.pincode) {
       ToastService.show({
         message: 'Please enter pincode',
         type: 'error',
@@ -154,7 +204,7 @@ const Business = () => {
       return;
     }
 
-    if (!prefix) {
+    if (!updatedValues.prefix) {
       ToastService.show({
         message: 'Please enter prefix',
         type: 'error',
@@ -162,7 +212,7 @@ const Business = () => {
       return;
     }
 
-    if (prefix.length >= 6) {
+    if (updatedValues.prefix.length >= 6) {
       ToastService.show({
         message: 'Prefix should be less than 6 characters',
         type: 'error',
@@ -170,7 +220,7 @@ const Business = () => {
       return;
     }
 
-    if (mobileNumber && !validateIndianPhone(mobileNumber)) {
+    if (updatedValues.phone && !validateIndianPhone(updatedValues.phone)) {
       ToastService.show({
         message: 'Invalid Phone Number',
         type: 'error',
@@ -178,7 +228,7 @@ const Business = () => {
       return;
     }
 
-    if (email && !validateEmail(email)) {
+    if (updatedValues.email && !validateEmail(updatedValues.email)) {
       ToastService.show({
         message: 'Invalid Email',
         type: 'error',
@@ -186,7 +236,7 @@ const Business = () => {
       return;
     }
 
-    if (gstNumber && !validateIndianGST(gstNumber)) {
+    if (updatedValues.gstNumber && !validateIndianGST(updatedValues.gstNumber)) {
       ToastService.show({
         message: 'Invalid GST Number',
         type: 'error',
@@ -194,7 +244,7 @@ const Business = () => {
       return;
     }
 
-    if (pincode && !validateIndianPincode(pincode)) {
+    if (updatedValues.pincode && !validateIndianPincode(updatedValues.pincode)) {
       ToastService.show({
         message: 'Invalid Pincode',
         type: 'error',
@@ -207,14 +257,14 @@ const Business = () => {
         setIsSaveLoading(true);
         const data = await businessService.updateBusiness({
           token: token,
-          gstNumber: gstNumber,
-          street: street,
-          city: city,
-          state: state,
-          pinCode: pincode,
-          email: email,
-          phone: mobileNumber,
-          prefix: prefix,
+          gstNumber: updatedValues.gstNumber,
+          street: updatedValues.street,
+          city: updatedValues.city,
+          state: updatedValues.state,
+          pinCode: updatedValues.pincode,
+          email: updatedValues.email,
+          phone: updatedValues.phone,
+          prefix: updatedValues.prefix,
         });
         if (data.status) {
           ToastService.show({
@@ -222,6 +272,16 @@ const Business = () => {
             type: 'success',
           });
           const updatedBusiness = data?.business;
+
+          setMobileNumber(updatedValues.phone);
+          setEmail(updatedValues.email);
+          setGstNumber(updatedValues.gstNumber);
+          setStreet(updatedValues.street);
+          setCity(updatedValues.city);
+          setPincode(updatedValues.pincode);
+          setState(updatedValues.state);
+          setPrefix(updatedValues.prefix);
+
           await resetBusiness(updatedBusiness);
           handleCloseModal();
         }
@@ -231,7 +291,7 @@ const Business = () => {
       }
     };
 
-    if (gstNumber && gstNumber !== initialValues.gstNumber) {
+    if (updatedValues.gstNumber && updatedValues.gstNumber !== initialValues.gstNumber) {
       Alert.alert(
         'GST Number Update',
         `Updating the GST Number will affect:
@@ -271,31 +331,31 @@ Proceed only if you have completed the required steps and approvals.`,
         return (
           <SimpleTextInput
             placeholder={`Enter ${modalType}`}
-            value={mobileNumber}
-            setValue={setMobileNumber}
+            value={tempValue}
+            setValue={setTempValue}
             keyboardType="numeric"
             maxLength={10}
-            hasError={mobileNumber > 0 && !validateIndianPhone(mobileNumber)}
+            hasError={tempValue > 0 && !validateIndianPhone(tempValue)}
           />
         );
       case 'Email Address':
         return (
           <SimpleTextInput
             placeholder={'Enter Email Address'}
-            value={email}
-            setValue={setEmail}
+            value={tempValue}
+            setValue={setTempValue}
             keyboardType="email-address"
-            hasError={email && !validateEmail(email)}
+            hasError={tempValue && !validateEmail(tempValue)}
           />
         );
       case 'GST Number':
         return (
           <SimpleTextInput
             placeholder={'Enter GST Number'}
-            value={gstNumber}
-            setValue={val => setGstNumber(val.replace(/[^a-zA-Z0-9]/g, ''))}
+            value={tempValue}
+            setValue={val => setTempValue(val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
             keyboardType="default"
-            hasError={gstNumber && !validateIndianGST(gstNumber)}
+            hasError={tempValue && !validateIndianGST(tempValue)}
             upperCase={true}
             maxLength={15}
           />
@@ -304,8 +364,8 @@ Proceed only if you have completed the required steps and approvals.`,
         return (
           <SimpleTextInput
             label="Enter State"
-            value={state}
-            setValue={setState}
+            value={tempValue}
+            setValue={setTempValue}
             keyboardType="default"
           />
         );
@@ -313,8 +373,8 @@ Proceed only if you have completed the required steps and approvals.`,
         return (
           <SimpleTextInput
             label="Enter City"
-            value={city}
-            setValue={setCity}
+            value={tempValue}
+            setValue={setTempValue}
             keyboardType="default"
           />
         );
@@ -322,18 +382,18 @@ Proceed only if you have completed the required steps and approvals.`,
         return (
           <SimpleTextInput
             label="Enter Pincode"
-            value={pincode}
-            setValue={setPincode}
+            value={tempValue}
+            setValue={setTempValue}
             keyboardType="numeric"
-            hasError={pincode && !validateIndianPincode(pincode)}
+            hasError={tempValue && !validateIndianPincode(tempValue)}
           />
         );
       case 'Street':
         return (
           <SimpleTextInput
             label="Enter Street"
-            value={street}
-            setValue={setStreet}
+            value={tempValue}
+            setValue={setTempValue}
             keyboardType="default"
           />
         );
@@ -341,8 +401,8 @@ Proceed only if you have completed the required steps and approvals.`,
         return (
           <SimpleTextInput
             label="Enter Prefix"
-            value={prefix}
-            setValue={setPrefix}
+            value={tempValue}
+            setValue={val => setTempValue(val.toUpperCase())}
             keyboardType="default"
             maxLength={6}
             upperCase={true}
@@ -351,17 +411,7 @@ Proceed only if you have completed the required steps and approvals.`,
       default:
         return null;
     }
-  }, [
-    modalType,
-    mobileNumber,
-    email,
-    gstNumber,
-    state,
-    city,
-    pincode,
-    street,
-    prefix,
-  ]);
+  }, [modalType, tempValue]);
 
   // Store original values for comparison
   const initialValues = useMemo(
