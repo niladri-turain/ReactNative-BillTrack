@@ -405,7 +405,8 @@ const CreateBill = () => {
         if (sentWhatAppEnabled) {
           try {
             const statusRes = await whatsAppService.checkStatus();
-            const userPhoneFormatted = userPhone ? `91${userPhone}` : '918768624650';
+            const userPhoneFormatted = `91${userPhone}` 
+            console.log('WhatsApp number:', userPhoneFormatted);
 
             if (statusRes.status !== 'connected') {
               console.log('WhatsApp disconnected, attempting to pair...');
