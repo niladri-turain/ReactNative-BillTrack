@@ -60,7 +60,8 @@ import {
 import {usePrinter} from '../../Contexts/PrinterContext';
 import {calculateInvoiceData, generateInvoices} from '../../utils/helper';
 import printerService from '../../utils/PrinterService';
-import {sendToWhatsApp} from '../../utils/WhatsappShare';
+import {sendToWhatsApp, getWhatsAppMessage} from '../../utils/WhatsappShare';
+import {whatsAppService} from '../../Services/WhatsAppService';
 import AntDesign from '@react-native-vector-icons/ant-design';
 import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
 import Lucide from '@react-native-vector-icons/lucide';
@@ -101,6 +102,8 @@ const CreateBill = () => {
   const {updateNumberOfInvoices} = useAuth();
   const {getByKey} = useAppSettings();
   const token = useAuthToken();
+  const userId = useUser('id');
+  const userPhone = useUser('phone');
   const {Products, resetProductCount} = useProduct();
   const [quantity, setQuantity] = useState(0);
   const [totalPrice, setTotalPrice] = useState(0);
@@ -398,16 +401,40 @@ const CreateBill = () => {
         setProductsWithHsnError([]);
         handleCloseBottomSheet();
         await updateInvoiceNumber(numberOfInvoices);
+
         if (sentWhatAppEnabled) {
-          await sendToWhatsApp({
-            businessName: businessName,
-            invoiceNumber: data?.invoice?.invoiceNumber,
-            createdAt: data?.invoice?.createdAt,
-            customerNumber: data?.invoice?.customerNumber,
-            totalAmount: data?.invoice?.totalAmount,
-            paymentMode: data?.invoice?.paymentMode,
-            businessId: business?.id,
-          });
+          try {
+            const statusRes = await whatsAppService.checkStatus();
+            const userPhoneFormatted = userPhone ? `91${userPhone}` : '918768624650';
+
+            if (statusRes.status !== 'connected') {
+              console.log('WhatsApp disconnected, attempting to pair...');
+              await whatsAppService.createSession(userPhoneFormatted);
+            }
+
+            const message = getWhatsAppMessage({
+              businessName: businessName,
+              invoiceNumber: data?.invoice?.invoiceNumber,
+              createdAt: data?.invoice?.createdAt,
+              totalAmount: data?.invoice?.totalAmount,
+              paymentMode: data?.invoice?.paymentMode,
+              customerNumber: data?.invoice?.customerNumber,
+              businessId: business?.id,
+            });
+
+            const recipient = data?.invoice?.customerNumber?.startsWith('91')
+              ? data.invoice.customerNumber
+              : `91${data.invoice.customerNumber}`;
+
+            const res = await whatsAppService.sendMessage(recipient, message);
+            if (res.success || res.status === 'sent') {
+              ToastAndroid.show('WhatsApp message sent successfully', ToastAndroid.SHORT);
+            } else {
+              ToastAndroid.show('Failed to send WhatsApp message', ToastAndroid.SHORT);
+            }
+          } catch (whatsappError) {
+            console.error('WhatsApp Flow Error:', whatsappError);
+          }
         }
       }
     } catch (error) {

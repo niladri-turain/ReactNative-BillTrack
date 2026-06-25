@@ -1,6 +1,38 @@
 import {Alert, Linking, ToastAndroid} from 'react-native';
 import {formatDate} from './helper';
 
+const getWhatsAppMessage = ({
+  customerNumber,
+  invoiceNumber,
+  createdAt,
+  totalAmount,
+  paymentMode,
+  businessName,
+  businessId,
+}) => {
+  return `Invoice Paid – Thank You!
+
+*${businessName}*
+
+━━━━━━━━━━━━━━━━━
+Invoice No.:   ${invoiceNumber}
+Date:              ${formatDate(createdAt)}
+Customer:      ${customerNumber}
+Amount Paid:  ₹${totalAmount}
+Paid via:          ${paymentMode || 'Cash'}
+━━━━━━━━━━━━━━━━━
+
+Thank you for your payment!
+
+Download Invoice:
+https://bill.billtrack.co.in/invoice-details/${invoiceNumber}9876543210/${businessId}1234567890
+
+Need help? Just reply here.
+
+Warm regards,
+Team ${businessName}`;
+};
+
 const sendToWhatsApp = async ({
   customerNumber,
   invoiceNumber,
@@ -29,30 +61,20 @@ const sendToWhatsApp = async ({
   }
 
   // Your beautiful WhatsApp message
-  const message = `Invoice Paid – Thank You!
-
-*${businessName}*
-
-━━━━━━━━━━━━━━━━━
-Invoice No.:   ${invoiceNumber}
-Date:              ${formatDate(createdAt)}
-Customer:      ${customerNumber}
-Amount Paid:  ₹${totalAmount}
-Paid via:          ${paymentMode || 'Cash'}
-━━━━━━━━━━━━━━━━━
-
-Thank you for your payment!
-
-Download Invoice:
-https://bill.billtrack.co.in/invoice-details/${invoiceNumber}9876543210/${businessId}1234567890
-
-Need help? Just reply here.
-
-Warm regards,
-Team ${businessName}`;
+  const message = getWhatsAppMessage({
+    customerNumber,
+    invoiceNumber,
+    createdAt,
+    totalAmount,
+    paymentMode,
+    businessName,
+    businessId,
+  });
 
   console.log(message);
-  console.log(`https://bill.billtrack.co.in/invoice-details/${invoiceNumber}9876543210/${businessId}1234567890`);
+  console.log(
+    `https://bill.billtrack.co.in/invoice-details/${invoiceNumber}9876543210/${businessId}1234567890`,
+  );
 
   const whatsappUrl = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(
     message,
@@ -78,4 +100,4 @@ Team ${businessName}`;
   }
 };
 
-export {sendToWhatsApp};
+export {sendToWhatsApp, getWhatsAppMessage};

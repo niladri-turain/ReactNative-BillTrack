@@ -25,13 +25,15 @@ import {
   useAuthToken,
   useBusiness,
   useSubscription,
+  useUser,
 } from '../../Contexts/AuthContext';
-import {sendToWhatsApp} from '../../utils/WhatsappShare';
+import {sendToWhatsApp, getWhatsAppMessage} from '../../utils/WhatsappShare';
 import {
   useAppSettings,
   useAppSettingsValue,
 } from '../../Contexts/AppSettingContexts';
 import {smsService} from '../../Services/SmsService';
+import {whatsAppService} from '../../Services/WhatsAppService';
 
 // const {width} = Dimensions.get('screen');
 
@@ -41,11 +43,15 @@ const InvoiceCard = ({invoice, onRefresh}) => {
   const business = useBusiness();
   const isPremiumPlanAndActive = useSubscription('isPremiumPlanAndActive');
   const token = useAuthToken();
+  const userId = useUser('id');
+
+  const userPhone = useUser('phone');
 
   const sentWhatAppEnabled = useAppSettingsValue('SEND_TO_WHATSAPP');
   const sentSmsEnabled = useAppSettingsValue('SEND_TO_SMS');
   const [isPrintingLoading, setIsPrintingLoading] = useState(false);
   const [isSmsLoading, setIsSmsLoading] = useState(false);
+  const [isWhatsAppLoading, setIsWhatsAppLoading] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
   const navigation = useNavigation();
@@ -57,15 +63,15 @@ const InvoiceCard = ({invoice, onRefresh}) => {
       );
       return;
     }
-    await sendToWhatsApp({
-      businessName: business?.name,
-      invoiceNumber: invoice?.invoiceNumber,
-      createdAt: invoice?.createdAt,
-      totalAmount: invoice?.totalAmount,
-      paymentMode: invoice?.paymentMode,
-      customerNumber: invoice?.customerNumber,
-      businessId: business?.id,
-    });
+    // await sendToWhatsApp({
+    //   businessName: business?.name,
+    //   invoiceNumber: invoice?.invoiceNumber,
+    //   createdAt: invoice?.createdAt,
+    //   totalAmount: invoice?.totalAmount,
+    //   paymentMode: invoice?.paymentMode,
+    //   customerNumber: invoice?.customerNumber,
+    //   businessId: business?.id,
+    // });
   };
   const cancelInvoice = async () => {
     Alert.alert(
@@ -194,6 +200,49 @@ const InvoiceCard = ({invoice, onRefresh}) => {
     }
   };
 
+  const handleWhatsAppPress = async () => {
+    if (!invoice?.customerNumber) {
+      ToastAndroid.show('Customer Phone Number Not Found', ToastAndroid.SHORT);
+      return;
+    }
+    try {
+      setIsWhatsAppLoading(true);
+      const statusRes = await whatsAppService.checkStatus();
+      const userPhoneFormatted = userPhone ? `91${userPhone}` : '918768624650';
+
+      if (statusRes.status !== 'connected') {
+        console.log('WhatsApp disconnected, attempting to pair...');
+        await whatsAppService.createSession(userPhoneFormatted);
+      }
+
+      const message = getWhatsAppMessage({
+        businessName: business?.name,
+        invoiceNumber: invoice?.invoiceNumber,
+        createdAt: invoice?.createdAt,
+        totalAmount: invoice?.totalAmount,
+        paymentMode: invoice?.paymentMode,
+        customerNumber: invoice?.customerNumber,
+        businessId: business?.id,
+      });
+
+      const recipient = invoice?.customerNumber?.startsWith('91')
+        ? invoice.customerNumber
+        : `91${invoice.customerNumber}`;
+
+      const res = await whatsAppService.sendMessage(recipient, message);
+      if (res.success || res.status === 'sent') {
+        ToastAndroid.show('WhatsApp message sent successfully', ToastAndroid.SHORT);
+      } else {
+        ToastAndroid.show('Failed to send WhatsApp message', ToastAndroid.SHORT);
+      }
+    } catch (error) {
+      console.error('WhatsApp Error:', error);
+      ToastAndroid.show('Error sending WhatsApp message', ToastAndroid.SHORT);
+    } finally {
+      setIsWhatsAppLoading(false);
+    }
+  };
+
   const isCancelled = invoice?.status?.toLowerCase() === 'canceled';
 
   return (
@@ -242,8 +291,13 @@ const InvoiceCard = ({invoice, onRefresh}) => {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.subBottomContainer}
-          onPress={sentToWhatsApp}>
-          <Ionicons name="logo-whatsapp" size={icon(18)} color={'#04bd01'} />
+          onPress={handleWhatsAppPress}
+          disabled={isWhatsAppLoading}>
+          {isWhatsAppLoading ? (
+            <ActivityIndicator size={'small'} color={'#04bd01'} />
+          ) : (
+            <Ionicons name="logo-whatsapp" size={icon(18)} color={'#04bd01'} />
+          )}
           <Text style={[{color: '#04bd01'}, styles.subBottomContainerText]}>
             Whatsapp
           </Text>
