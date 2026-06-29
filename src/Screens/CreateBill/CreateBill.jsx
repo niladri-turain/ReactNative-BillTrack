@@ -23,6 +23,7 @@ import {
   RadioInput,
   SecondaryHeader,
   SimpleTextInput,
+  WhatsAppPairingModal,
 } from '../../Components';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import BottomSheet, {
@@ -164,6 +165,11 @@ const CreateBill = () => {
   // LOADING STATE
   const [isPrintLoading, setIsPrintLoading] = useState(false);
   const [isSendLoading, setIsSendLoading] = useState(false);
+
+  // WhatsApp Pairing State
+  const [showWhatsAppPairingModal, setShowWhatsAppPairingModal] = useState(false);
+  const [whatsAppPairingCode, setWhatsAppPairingCode] = useState('');
+  const [isWhatsAppPairingLoading, setIsWhatsAppPairingLoading] = useState(false);
 
   // BOTTOMSHEET
   const bottomSheetRef = useRef(null);
@@ -406,11 +412,23 @@ const CreateBill = () => {
           try {
             const statusRes = await whatsAppService.checkStatus();
             const userPhoneFormatted = `91${userPhone}` 
-            console.log('WhatsApp number:', userPhoneFormatted);
+            console.log('WhatsApp connection status:', statusRes.status);
 
             if (statusRes.status !== 'connected') {
-              console.log('WhatsApp disconnected, attempting to pair...');
-              await whatsAppService.createSession(userPhoneFormatted);
+              console.log('WhatsApp disconnected, initiating pairing flow...');
+              setIsWhatsAppPairingLoading(true);
+              setShowWhatsAppPairingModal(true);
+              const pairRes = await whatsAppService.createSession(userPhoneFormatted);
+              setIsWhatsAppPairingLoading(false);
+
+              if (pairRes && pairRes.code) {
+                setWhatsAppPairingCode(pairRes.code);
+                ToastAndroid.show('WhatsApp not connected. Please pair using the code.', ToastAndroid.LONG);
+              } else {
+                ToastAndroid.show('Failed to initiate WhatsApp pairing', ToastAndroid.SHORT);
+                setShowWhatsAppPairingModal(false);
+              }
+              return; // Stop here, send message won't work while disconnected
             }
 
             const message = getWhatsAppMessage({
@@ -680,6 +698,12 @@ const CreateBill = () => {
             </View>
           </View>
         </CommonModal>
+        <WhatsAppPairingModal
+          visible={showWhatsAppPairingModal}
+          onClose={() => setShowWhatsAppPairingModal(false)}
+          pairingCode={whatsAppPairingCode}
+          isLoading={isWhatsAppPairingLoading}
+        />
       </GestureHandlerRootView>
     </KeyboardAvoidingView>
   );

@@ -34,6 +34,7 @@ import {
 } from '../../Contexts/AppSettingContexts';
 import {smsService} from '../../Services/SmsService';
 import {whatsAppService} from '../../Services/WhatsAppService';
+import {WhatsAppPairingModal} from '../../Components';
 
 // const {width} = Dimensions.get('screen');
 
@@ -53,6 +54,10 @@ const InvoiceCard = ({invoice, onRefresh}) => {
   const [isSmsLoading, setIsSmsLoading] = useState(false);
   const [isWhatsAppLoading, setIsWhatsAppLoading] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+
+  const [showPairingModal, setShowPairingModal] = useState(false);
+  const [pairingCode, setPairingCode] = useState('');
+  const [isPairingLoading, setIsPairingLoading] = useState(false);
 
   const navigation = useNavigation();
   const sentToWhatsApp = async () => {
@@ -208,12 +213,30 @@ const InvoiceCard = ({invoice, onRefresh}) => {
     try {
       setIsWhatsAppLoading(true);
       const statusRes = await whatsAppService.checkStatus();
-      const userPhoneFormatted = `91${userPhone}`
-     console.log('WhatsApp number:', userPhoneFormatted);
+      const userPhoneFormatted = `91${userPhone}`;
+      console.log('WhatsApp connection status:', statusRes.status);
 
       if (statusRes.status !== 'connected') {
-        console.log('WhatsApp disconnected, attempting to pair...');
-        await whatsAppService.createSession(userPhoneFormatted);
+        console.log('WhatsApp disconnected, initiating pairing flow...');
+        setIsPairingLoading(true);
+        setShowPairingModal(true);
+        const pairRes = await whatsAppService.createSession(userPhoneFormatted);
+        setIsPairingLoading(false);
+
+        if (pairRes && pairRes.code) {
+          setPairingCode(pairRes.code);
+          ToastAndroid.show(
+            'WhatsApp not connected. Please pair using the code.',
+            ToastAndroid.LONG,
+          );
+        } else {
+          ToastAndroid.show(
+            'Failed to initiate WhatsApp pairing',
+            ToastAndroid.SHORT,
+          );
+          setShowPairingModal(false);
+        }
+        return; // Don't proceed to sendMessage
       }
 
       const message = getWhatsAppMessage({
@@ -344,6 +367,12 @@ const InvoiceCard = ({invoice, onRefresh}) => {
           </TouchableOpacity>
         )}
       </View>
+      <WhatsAppPairingModal
+        visible={showPairingModal}
+        onClose={() => setShowPairingModal(false)}
+        pairingCode={pairingCode}
+        isLoading={isPairingLoading}
+      />
     </View>
   );
 };

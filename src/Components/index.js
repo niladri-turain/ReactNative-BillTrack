@@ -37,6 +37,7 @@ import ProductUnitModal from './modals/ProductUnitModal';
 import GstSelectModal from './modals/GstSelectModal';
 import CommonModal from './modals/CommonModal';
 import AppUpdateModal from './modals/AppUpdateModal';
+import WhatsAppPairingModal from './modals/WhatsAppPairingModal';
 
 // SHIMMERS
 import ItemCardShimmer from './Shimmers/ItemCardShimmer';
@@ -83,5 +84,6 @@ export {
   SettingSwitchCard,
   EmptyListCard,
   HomeTopCard,
-  AppUpdateModal
+  AppUpdateModal,
+  WhatsAppPairingModal
 };
