@@ -36,6 +36,7 @@ import ToastContainer from './Toasts/ToastContainer';
 import ProductUnitModal from './modals/ProductUnitModal';
 import GstSelectModal from './modals/GstSelectModal';
 import CommonModal from './modals/CommonModal';
+import AppUpdateModal from './modals/AppUpdateModal';
 
 // SHIMMERS
 import ItemCardShimmer from './Shimmers/ItemCardShimmer';
@@ -81,5 +82,6 @@ export {
   ProductActiveCard,
   SettingSwitchCard,
   EmptyListCard,
-  HomeTopCard
+  HomeTopCard,
+  AppUpdateModal
 };

@@ -108,7 +108,7 @@ const Home = () => {
             <TouchableOpacity
               style={styles.headerRight}
               onPress={() => {
-                navigation.navigate('Invoice');
+                navigation.navigate('Invoice', { screen: 'Invoice' });
               }}>
               <Text style={styles.headerRightText}>See more</Text>
               <Ionicons name="arrow-forward" size={12} color={colors.primary} />

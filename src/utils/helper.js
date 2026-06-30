@@ -121,6 +121,8 @@ const calculateInvoiceData = items => {
       name: item?.productName,
       quantity: item?.quantity,
       rate: actualRate,
+      hsnCode: item?.hsnCode,
+      hsnId: item?.hsnId,
       gstPercentage: item?.gstPercentage,
       originalPrice: item?.originalPrice,
     });

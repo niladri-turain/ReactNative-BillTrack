@@ -21,6 +21,10 @@ class BusinessService {
     deviceInfo,
   }) {
     try {
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      };
       const uri = this.baseUrl;
       const formData = new FormData();
       formData.append('name', name);
@@ -46,18 +50,21 @@ class BusinessService {
       formData.append('deviceName', deviceInfo.deviceName);
       formData.append('deviceUniqueKey', deviceInfo.deviceUniqueKey);
 
-      const response = await axios.post(uri, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      console.log('--- createBusiness ---');
+      console.log('URL:', uri);
+      console.log('Headers:', headers);
+      console.log('Body (FormData):', formData);
 
-      const data = await response.data;
-      return data;
+      const response = await axios.post(uri, formData, {headers});
+
+      console.log('Response:', response.data);
+      console.log('Status Code:', response.status);
+      return response.data;
     } catch (error) {
-      const data = await error.response.data;
-      return data;
+      console.error('--- createBusiness Error ---');
+      console.error('Response Data:', error.response?.data);
+      console.error('Status Code:', error.response?.status);
+      return error.response?.data;
     }
   }
 
@@ -79,6 +86,7 @@ class BusinessService {
 
   async updateBusiness({
     token,
+    name,
     gstNumber,
     street,
     city,
@@ -90,6 +98,9 @@ class BusinessService {
   }) {
     const uri = this.baseUrl + '/update';
     const payload = {};
+    if (name) {
+      payload.name = name;
+    }
     if (gstNumber) {
       payload.gstNumber = gstNumber;
     }

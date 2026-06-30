@@ -7,17 +7,19 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   ToastAndroid,
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {memo, useState} from 'react';
+import React, {memo, useState, useEffect, useRef} from 'react';
 import {Layout} from '../Layout';
 import {
   ProfileCard,
   SecondaryHeader,
   SettingItemsCard,
   SimpleTextInput,
+  CommonModal,
 } from '../../Components';
 import {colors} from '../../utils/colors';
 import {fonts} from '../../utils/fonts';
@@ -35,9 +37,11 @@ import {
   useUser,
 } from '../../Contexts/AuthContext';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import {validateEmail, validateName} from '../../utils/validator';
+import {validateEmail, validateIndianPhone, validateName} from '../../utils/validator';
 import ToastService from '../../Components/Toasts/ToastService';
 import {userService} from '../../Services/UserService';
+import {authService} from '../../Services/AuthService';
+import {businessService} from '../../Services/BusinessService';
 import {useProduct} from '../../Contexts/ProductContexts';
 import {usePrinter} from '../../Contexts/PrinterContext';
 import {useAppSettings} from '../../Contexts/AppSettingContexts';
@@ -46,9 +50,18 @@ import {API_URL} from '../../utils/config';
 import ImageCropPicker from 'react-native-image-crop-picker';
 
 const Account = memo(() => {
-  const userName = useUser('name');
-  const userPhone = useUser('phone');
-  const userEmail = useUser('email') || '';
+  const businessName = useBusiness('name');
+  const _userName = useUser('name');
+  const userName = _userName || businessName;
+
+  const businessPhone = useBusiness('phone');
+  const _userPhone = useUser('phone');
+  const userPhone = _userPhone || businessPhone;
+
+  const businessEmail = useBusiness('email');
+  const _userEmail = useUser('email');
+  const userEmail = _userEmail || businessEmail || '';
+  const userId = useUser('id');
   const logoUrl = useBusiness('logoUrl');
   const token = useAuthToken();
   const {logout, resetBusiness} = useAuth();
@@ -61,9 +74,40 @@ const Account = memo(() => {
 
   //STATE VARIABLES
   const [name, setName] = useState(userName);
+  const [phone, setPhone] = useState(userPhone);
   const [email, setEmail] = useState(userEmail);
   const [newImage, setNewImage] = useState(null);
   const [updateError, setUpdateError] = useState('');
+
+  // OTP STATES
+  const [otp, setOtp] = useState(['', '', '', '']);
+  const [showOtpFields, setShowOtpFields] = useState(false);
+  const [isVerifyLoading, setIsVerifyLoading] = useState(false);
+  const [otpSentMessage, setOtpSentMessage] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [timer, setTimer] = useState(60);
+
+  useEffect(() => {
+    let interval;
+    if (showOtpFields && timer > 0) {
+      interval = setInterval(() => {
+        setTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [showOtpFields, timer]);
+
+  useEffect(() => {
+    setName(userName);
+  }, [userName]);
+
+  useEffect(() => {
+    setPhone(userPhone);
+  }, [userPhone]);
+
+  useEffect(() => {
+    setEmail(userEmail);
+  }, [userEmail]);
 
   // LOADING STATE
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
@@ -72,6 +116,8 @@ const Account = memo(() => {
 
   // MODAL STATES
   const [isModalVisible, setModalVisible] = useState(false);
+
+  const otpInputs = [useRef(null), useRef(null), useRef(null), useRef(null)];
 
   const navigation = useNavigation();
 
@@ -99,6 +145,11 @@ const Account = memo(() => {
     setModalVisible(false);
     setNewImage(null);
     setUpdateError('');
+    setShowOtpFields(false);
+    setOtp(['', '', '', '']);
+    setOtpSentMessage('');
+    setPhoneError('');
+    setTimer(60);
   };
 
   const handleImagePick = () => {
@@ -157,13 +208,22 @@ const Account = memo(() => {
 
   const updateDetails = async () => {
     setUpdateError('');
-    if (name === userName && userEmail === email) {
+    if (name === userName && userEmail === email && userPhone === phone) {
       setUpdateError('No changes found');
       return;
     }
     if (!name || !validateName(name)) {
       ToastService.show({
         message: 'Enter a valid name',
+        type: 'error',
+        position: 'top',
+      });
+      return;
+    }
+
+    if (phone && !validateIndianPhone(phone)) {
+      ToastService.show({
+        message: 'Enter a valid phone number',
         type: 'error',
         position: 'top',
       });
@@ -184,15 +244,29 @@ const Account = memo(() => {
       const payload = {
         name: name,
         email: email,
+        phone: phone,
         token: token,
       };
       const data = await userService.updateUser(payload);
+
+      // Also update business name
+      const businessPayload = {
+        token: token,
+        name: name,
+        phone: phone,
+      };
+      await businessService.updateBusiness(businessPayload);
+
       if (data.status) {
         ToastAndroid.show(data.message, ToastAndroid.SHORT, ToastAndroid.TOP);
-        updateUserFields({name: name, email: email});
+        updateUserFields({name: name, email: email, phone: phone});
+
         if (data.business) {
-          resetBusiness(data.business);
+          resetBusiness({...data.business, name: name, phone: phone});
+        } else {
+          updateBusinessFields({name: name, phone: phone});
         }
+
         handleCloseModal();
       } else {
         ToastService.show({
@@ -212,6 +286,73 @@ const Account = memo(() => {
     }
   };
 
+  const handleSendOtp = async () => {
+    if (!phone || !validateIndianPhone(phone)) {
+      ToastService.show({
+        message: 'Enter a valid phone number',
+        type: 'error',
+        position: 'top',
+      });
+      return;
+    }
+
+    try {
+      setIsVerifyLoading(true);
+      const data = await authService.changePhone(userId, phone);
+      if (data.status) {
+        setOtpSentMessage(data.message);
+        setShowOtpFields(true);
+        setPhoneError('');
+        setTimer(60);
+        setOtp(['', '', '', '']);
+      } else {
+        setPhoneError(data.message || 'Failed to send OTP');
+      }
+    } catch (error) {
+      setPhoneError('Something went wrong while sending OTP');
+    } finally {
+      setIsVerifyLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    const enteredOtp = otp.join('');
+    setPhoneError('');
+    if (enteredOtp.length !== 4) {
+      setPhoneError('Enter a valid 4-digit OTP');
+      return;
+    }
+
+    try {
+      setIsVerifyLoading(true);
+      const data = await authService.verifyPhone(userId, enteredOtp);
+      if (data.status) {
+        ToastAndroid.show(data.message, ToastAndroid.SHORT);
+        updateUserFields({phone: phone});
+        updateBusinessFields({phone: phone});
+        handleCloseModal();
+      } else {
+        setPhoneError(data.message || 'OTP verification failed');
+      }
+    } catch (error) {
+      setPhoneError('Something went wrong during verification');
+    } finally {
+      setIsVerifyLoading(false);
+    }
+  };
+
+  const handleOtpChange = (value, index) => {
+    if (value && !/^\d+$/.test(value)) return;
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+
+    // Auto focus next input
+    if (value && index < 3) {
+      otpInputs[index + 1].current.focus();
+    }
+  };
+
   return (
     <Layout>
       <SecondaryHeader title="Account Setting" isSearch={false} />
@@ -227,6 +368,7 @@ const Account = memo(() => {
           logoUrl={logoUrl}
           onpressEditBtn={() => {
             setName(userName);
+            setPhone(userPhone);
             setEmail(userEmail);
             setUpdateError('');
             setModalVisible(true);
@@ -256,6 +398,17 @@ const Account = memo(() => {
         </View>
         <View style={styles.settingContainer}>
           <Text style={styles.settingTitleText}>Settings</Text>
+          <SettingItemsCard
+            onpress={() => handleNavigation({screen: 'Business'})}
+            mainIcon={
+              <Lucide
+                name="user"
+                size={icon(22)}
+                color={colors.primary}
+              />
+            }
+            title="Account Profile"
+          />
           <SettingItemsCard
             onpress={() => handleNavigation({screen: 'ItemMaster'})}
             mainIcon={
@@ -323,8 +476,8 @@ const Account = memo(() => {
               //   size={icon(22)}
               //   color={colors.primary}
               // />
-               <Ionicons name="trash-outline" size={icon(22)} color={colors.primary} />
-               
+              <Ionicons name="close-circle-outline" size={icon(28)} color={colors.primary} />
+
             }
             title="Cancel Invoice List"
             onpress={() => handleNavigation({screen: 'CancelInvoiceList'})}
@@ -351,75 +504,179 @@ const Account = memo(() => {
           <Text style={styles.deleteText}>Delete Account</Text>
         </View> */}
       </ScrollView>
-      <Modal
+      <CommonModal
         visible={isModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={handleCloseModal}>
-        <Pressable onPress={handleCloseModal} style={styles.modalContainer}>
-          <Pressable
-            onPress={event => event.stopPropagation()}
-            style={styles.modalContentContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalHeaderTitleText}>
-                Update Profile Details
-              </Text>
-              <TouchableOpacity onPress={handleCloseModal}>
-                <Ionicons name="close" size={icon(20)} color="#00000090" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.imageUploadContainer}>
-              <View>
-                <Image
-                  source={
-                    newImage
-                      ? {uri: newImage.path}
-                      : {uri: `${API_URL}files/logo/${logoUrl}`}
-                  }
-                  style={styles.modalImage}
-                />
-                {isImageUploading && (
-                  <View style={styles.imageOverlay}>
-                    <ActivityIndicator size="large" color={colors.primary} />
-                  </View>
-                )}
-              </View>
-              <TouchableOpacity
-                onPress={handleImagePick}
-                style={styles.changeImageButton}
-                disabled={isImageUploading}>
-                <Text style={styles.changeImageButtonText}>
-                  {isImageUploading
-                    ? 'Uploading...'
-                    : 'Change Profile Image'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <SimpleTextInput
-              placeholder="Name"
-              value={name}
-              setValue={setName}
-              hasError={name.length > 0 && !validateName(name)}
-            />
-            <SimpleTextInput
-              placeholder="Email(optional)"
-              value={email}
-              setValue={setEmail}
-              hasError={email && !validateEmail(email)}
-            />
-            {updateError ? (
-              <Text style={styles.errorText}>{updateError}</Text>
-            ) : null}
-            <Pressable style={styles.updateBtn} onPress={updateDetails}>
-              {isUpdateLoading ? (
-                <ActivityIndicator color={'#fff'} size={'small'} />
-              ) : (
-                <Text style={styles.updateBtnText}>UPDATE</Text>
+        handleClose={handleCloseModal}
+        animationType="slide">
+        <View style={styles.modalContentContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalHeaderTitleText}>
+              Update Profile Details
+            </Text>
+            <TouchableOpacity onPress={handleCloseModal}>
+              <Ionicons name="close" size={icon(24)} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+          <View
+            style={{
+              borderBottomColor: '#ccc',
+              borderBottomWidth: 0.7,
+              marginTop: 10,
+              marginBottom: 10,
+            }}
+          />
+          <View style={styles.imageUploadContainer}>
+            <View>
+              <Image
+                source={
+                  newImage
+                    ? {uri: newImage.path}
+                    : {uri: `${API_URL}files/logo/${logoUrl}`}
+                }
+                style={styles.modalImage}
+              />
+              {isImageUploading && (
+                <View style={styles.imageOverlay}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                </View>
               )}
-            </Pressable>
+            </View>
+            <TouchableOpacity
+              onPress={handleImagePick}
+              style={styles.changeImageButton}
+              disabled={isImageUploading}>
+              <Text style={styles.changeImageButtonText}>
+                {isImageUploading ? 'Uploading...' : 'Change Profile Image'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <SimpleTextInput
+            placeholder="Name"
+            value={name}
+            setValue={setName}
+            hasError={name.length > 0 && !validateName(name)}
+          />
+          <View>
+            <View style={{position: 'relative'}}>
+              <SimpleTextInput
+                placeholder="Phone Number"
+                value={phone}
+                setValue={val => {
+                  setPhone(val);
+                  setPhoneError('');
+                }}
+                keyboardType="number-pad"
+                maxLength={10}
+                hasError={phone && !validateIndianPhone(phone)}
+              />
+              {phone !== userPhone &&
+                validateIndianPhone(phone) &&
+                !showOtpFields && (
+                  <TouchableOpacity
+                    onPress={handleSendOtp}
+                    style={styles.verifyButtonInline}>
+                    {isVerifyLoading ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <Text style={styles.verifyButtonInlineText}>VERIFY</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+            </View>
+            {!showOtpFields && phoneError ? (
+              <Text style={styles.fieldErrorText}>{phoneError}</Text>
+            ) : null}
+          </View>
+
+          {showOtpFields && (
+            <View style={styles.otpSection}>
+              <Text style={styles.otpLabel}>{otpSentMessage}</Text>
+              <View style={styles.otpContainer}>
+                {otp.map((digit, index) => (
+                  <TextInput
+                    key={index}
+                    ref={otpInputs[index]}
+                    style={styles.otpInput}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    value={digit}
+                    onChangeText={value => handleOtpChange(value, index)}
+                    onKeyPress={({nativeEvent}) => {
+                      if (
+                        nativeEvent.key === 'Backspace' &&
+                        !otp[index] &&
+                        index > 0
+                      ) {
+                        otpInputs[index - 1].current.focus();
+                      }
+                    }}
+                  />
+                ))}
+              </View>
+              {timer > 0 ? (
+                <Text style={styles.timerText}>
+                  Resend OTP in 00:{timer < 10 ? `0${timer}` : timer}
+                </Text>
+              ) : null}
+              {phoneError ? (
+                <Text
+                  style={[
+                    styles.fieldErrorText,
+                    {textAlign: 'center', paddingHorizontal: 0},
+                  ]}>
+                  {phoneError}
+                </Text>
+              ) : null}
+              {timer > 0 ? (
+                <TouchableOpacity
+                  style={styles.verifyOtpBtn}
+                  onPress={handleVerifyOtp}
+                  disabled={isVerifyLoading}>
+                  {isVerifyLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.verifyOtpBtnText}>Verify OTP</Text>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.resendOtpBtn}
+                  onPress={handleSendOtp}
+                  disabled={isVerifyLoading}>
+                  {isVerifyLoading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Text style={styles.resendOtpBtnText}>Resend OTP</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          <SimpleTextInput
+            placeholder="Email(optional)"
+            value={email}
+            setValue={setEmail}
+            hasError={email && !validateEmail(email)}
+          />
+          {updateError ? (
+            <Text style={styles.errorText}>{updateError}</Text>
+          ) : null}
+          <Pressable
+            style={[
+              styles.updateBtn,
+              phone !== userPhone && {backgroundColor: colors.border},
+            ]}
+            onPress={updateDetails}
+            disabled={phone !== userPhone}>
+            {isUpdateLoading ? (
+              <ActivityIndicator color={'#fff'} size={'small'} />
+            ) : (
+              <Text style={styles.updateBtnText}>UPDATE</Text>
+            )}
           </Pressable>
-        </Pressable>
-      </Modal>
+        </View>
+      </CommonModal>
     </Layout>
   );
 });
@@ -485,7 +742,7 @@ const styles = StyleSheet.create({
   },
   modalContentContainer: {
     backgroundColor: '#fff',
-    borderRadius: 5,
+    borderRadius: 8,
     padding: padding(16),
     gap: gap(15),
   },
@@ -495,8 +752,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalHeaderTitleText: {
-    fontSize: font(12),
-    fontFamily: fonts.inRegular,
+    fontSize: font(14),
+    fontFamily: fonts.popSemiBold,
+    color: '#000',
   },
   updateBtn: {
     backgroundColor: colors.primary,
@@ -547,6 +805,78 @@ const styles = StyleSheet.create({
     fontFamily: fonts.inRegular,
     marginTop: -margin(5),
     textAlign: 'center',
+  },
+  fieldErrorText: {
+    color: colors.error,
+    fontSize: font(10),
+    fontFamily: fonts.inRegular,
+    paddingHorizontal: padding(16),
+    marginTop: margin(2),
+  },
+  verifyButtonInline: {
+    position: 'absolute',
+    right: 50,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
+  verifyButtonInlineText: {
+    color: colors.primary,
+    fontFamily: fonts.popBold,
+    fontSize: font(12),
+  },
+  otpSection: {
+    gap: gap(10),
+    alignItems: 'center',
+  },
+  otpLabel: {
+    fontSize: font(10),
+    fontFamily: fonts.inRegular,
+    color: colors.sucess,
+  },
+  otpContainer: {
+    flexDirection: 'row',
+    gap: gap(10),
+    justifyContent: 'center',
+  },
+  otpInput: {
+    width: 45,
+    height: 45,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 5,
+    textAlign: 'center',
+    fontSize: font(16),
+    fontFamily: fonts.popSemiBold,
+    color: '#000',
+  },
+  verifyOtpBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: padding(8),
+    paddingHorizontal: padding(20),
+    borderRadius: 5,
+  },
+  verifyOtpBtnText: {
+    color: '#fff',
+    fontFamily: fonts.inMedium,
+    fontSize: font(12),
+  },
+  timerText: {
+    fontSize: font(12),
+    fontFamily: fonts.popRegular,
+    color: '#6C6C6C',
+  },
+  resendOtpBtn: {
+    paddingVertical: padding(8),
+    paddingHorizontal: padding(20),
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  resendOtpBtnText: {
+    color: colors.primary,
+    fontFamily: fonts.inMedium,
+    fontSize: font(12),
   },
 });
 

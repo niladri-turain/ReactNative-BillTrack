@@ -7,12 +7,13 @@ class UserService {
     
   }
 
-  async updateUser({name, email='', token}) {
+  async updateUser({name, email='', phone, token}) {
     try {
       const uri = `${this.baseUrl}update-profile`;
       const payload = {
         name: name,
         email: email,
+        phone: phone,
       };
       const headers = {
         Authorization: `Bearer ${token}`,

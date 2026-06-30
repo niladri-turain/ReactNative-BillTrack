@@ -66,6 +66,14 @@ const GstSelectModal = ({
   const previousQueryRef = useRef('');
   const abortControllerRef = useRef(null);
 
+  // Trigger search when modal opens
+  useEffect(() => {
+    if (visible) {
+      setQuery('');
+      handleSearch('');
+    }
+  }, [visible]);
+
   // Cancel ongoing requests when component unmounts
   useEffect(() => {
     return () => {
@@ -76,17 +84,10 @@ const GstSelectModal = ({
   // Debounced search function
   const handleSearch = useCallback(
     debounce(async searchText => {
-      if (searchText === previousQueryRef.current) return;
       previousQueryRef.current = searchText;
 
       if (abortControllerRef.current) abortControllerRef.current.abort();
       abortControllerRef.current = new AbortController();
-
-      if (!searchText.trim()) {
-        setData([]);
-        setIsLoading(false);
-        return;
-      }
 
       setIsLoading(true);
 
@@ -112,7 +113,9 @@ const GstSelectModal = ({
 
   // Trigger search whenever query changes
   useEffect(() => {
-    if (query !== previousQueryRef.current && query) handleSearch(query);
+    if (query !== previousQueryRef.current) {
+      handleSearch(query);
+    }
   }, [query, handleSearch]);
 
   // Memoized sorted data: selected item always on top
@@ -145,10 +148,10 @@ const GstSelectModal = ({
     if (isLoading) return null;
     return (
       <Text style={styles.emptyText}>
-        {query ? 'No HSN found' : 'Start typing to search HSN codes'}
+        No HSN found
       </Text>
     );
-  }, [query, isLoading]);
+  }, [isLoading]);
 
   // Optimized key extractor
   const keyExtractor = useCallback(

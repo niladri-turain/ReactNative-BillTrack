@@ -194,8 +194,14 @@ const InvoiceCard = ({invoice, onRefresh}) => {
     }
   };
 
+  const isCancelled = invoice?.status?.toLowerCase() === 'canceled';
+
   return (
-    <View style={styles.mainContainer}>
+    <View
+      style={[
+        styles.mainContainer,
+        isCancelled && {borderColor: colors.error, borderWidth: 0.5},
+      ]}>
       <View style={styles.container}>
         <View style={styles.left}>
           <Text style={[styles.tsText]}>{invoice?.invoiceNumber}</Text>
@@ -275,7 +281,7 @@ const InvoiceCard = ({invoice, onRefresh}) => {
             {isCancelling ? (
               <ActivityIndicator size={'small'} color="red" />
             ) : (
-              <Ionicons name="trash-outline" size={icon(18)} color="red" />
+              <Ionicons name="close-circle-outline" size={icon(18)} color="red" />
             )}
             <Text style={[{color: '#e21717'}, styles.subBottomContainerText]}>
               Cancel

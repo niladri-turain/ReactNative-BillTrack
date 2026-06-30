@@ -39,7 +39,7 @@ import { memo, useCallback, useEffect, useMemo } from 'react';
 import { font, icon, margin, padding } from './utils/responsive';
 import AuthProvider, { useAuth, useUser } from './Contexts/AuthContext';
 import ProductProvider from './Contexts/ProductContexts';
-import { ToastContainer } from './Components';
+import { AppUpdateModal, ToastContainer } from './Components';
 import PrinterProvider from './Contexts/PrinterContext';
 import { requestNotificationPermission } from './utils/permissionHelper';
 import { notificationService } from './utils/NotificationService';
@@ -154,6 +154,7 @@ const AccountStack = memo(() => {
         animation: 'slide_from_right',
       }}>
       <Stack.Screen name="Account" component={Account} />
+      <Stack.Screen name="Business" component={Business} />
       <Stack.Screen name="Subscription" component={Subscription} />
       <Stack.Screen name="HelpAndSupport" component={HelpAndSupport} />
       <Stack.Screen name="About" component={About} />
@@ -215,8 +216,6 @@ const AppStack = memo(() => {
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
-        lazy: true,
-        animation: 'shift',
         tabBarStyle: defaultTabBarStyle,
         tabBarLabelStyle: {
           fontSize: font(12),
@@ -239,14 +238,28 @@ const AppStack = memo(() => {
         component={HomeStack}
         options={{
           tabBarIcon: renderTabIcon(icons.Home),
+          unmountOnBlur: true,
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('Home', { screen: 'Home' });
+          },
+        })}
       />
       <Tab.Screen
         name="Product"
         component={Product}
         options={{
           tabBarIcon: renderTabIcon(icons.Product),
+          unmountOnBlur: true,
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('Product');
+          },
+        })}
       />
       <Tab.Screen
         name="Create"
@@ -271,24 +284,19 @@ const AppStack = memo(() => {
       <Tab.Screen
         name="Invoice"
         component={InvoiceStack}
-        // options={({ route }) => {
-        //   const routeName = getFocusedRouteNameFromRoute(route) ?? 'Invoice';
-        //   return {
-        //     tabBarIcon: renderTabIcon(icons.Invoice),
-        //     tabBarStyle:
-        //       routeName === 'InvoiceDetails'
-        //         ? {
-        //           display: 'none',
-        //         }
-        //         : defaultTabBarStyle,
-        //   };
-        // }}
         options={({ route }) => {
           return {
             tabBarIcon: renderTabIcon(icons.Invoice),
             tabBarStyle: defaultTabBarStyle,
+            unmountOnBlur: true,
           };
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('Invoice', { screen: 'Invoice' });
+          },
+        })}
       />
       <Tab.Screen
         name="Account"
@@ -299,8 +307,15 @@ const AppStack = memo(() => {
             tabBarIcon: renderTabIcon(icons.Account),
             tabBarStyle:
               routeName === 'Settings' ? { display: 'none' } : defaultTabBarStyle,
+            unmountOnBlur: true,
           };
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('Account', { screen: 'Account' });
+          },
+        })}
       />
       <Tab.Screen
         name="BusinessSetup"
@@ -352,6 +367,7 @@ const App = () => {
                     <NavigationContainer>
                       <AppNav />
                       <ToastContainer />
+                      <AppUpdateModal />
                     </NavigationContainer>
                   </SafeAreaProvider>
                 </SocketProvider>

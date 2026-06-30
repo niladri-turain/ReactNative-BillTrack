@@ -28,6 +28,10 @@ const AuthProvider = ({children}) => {
         ['token', token],
         ['user', JSON.stringify(user)],
       ]);
+      await AsyncStorage.removeItem('business');
+      await AsyncStorage.removeItem('subscription');
+      setBusiness(null);
+      setSubscription(null);
       setUser(user);
       setAuthToken(token);
     } catch (error) {}

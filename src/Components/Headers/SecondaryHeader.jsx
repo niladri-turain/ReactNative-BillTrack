@@ -37,6 +37,7 @@ const SecondaryHeader = ({
   isRestart = false,
   handleRestartClick = () => {},
   handleAppClick = () => {},
+  handleBack: customHandleBack, // Added customHandleBack prop
   query = '',
   onchangeText = text => {},
   searchPlaceholder="Search"
@@ -47,8 +48,12 @@ const SecondaryHeader = ({
   const [isSearchActive, setSearchActive] = useState(false);
 
   const handleBack = useCallback(() => {
-    navigation.goBack();
-  }, [navigation]);
+    if (customHandleBack) {
+      customHandleBack();
+    } else {
+      navigation.goBack();
+    }
+  }, [navigation, customHandleBack]);
 
   const rotation = useSharedValue(0);
 

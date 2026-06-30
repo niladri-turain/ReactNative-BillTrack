@@ -45,9 +45,11 @@ import {
 } from '../../utils/responsive';
 import Toast from './../../Components/Toasts/ToastService';
 import {businessCategoryService} from '../../Services/BusinessCategoryService';
+import {useUser} from '../../Contexts/AuthContext';
 
 const BusinessSetup = () => {
   const navigation = useNavigation();
+  const userPhone = useUser('phone');
 
   const bottomSheetRef = useRef(null);
   const [query, setQuery] = useState('');
@@ -56,7 +58,7 @@ const BusinessSetup = () => {
   const [businessType, setBusinessType] = useState('');
   const [businessTypes, setBusinessTypes] = useState([]);
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(userPhone || '');
 
   const [suggestions, setSuggestions] = useState([]);
 

@@ -33,6 +33,8 @@ import {useAuth, useAuthToken} from '../../Contexts/AuthContext';
 import {requestPermission} from '../../utils/helper';
 import {getDeviceDetails} from '../../utils/DeviceInfo';
 
+import {userService} from '../../Services/UserService';
+
 const BusinessSetup2 = () => {
   const navigation = useNavigation();
   const token = useAuthToken();
@@ -138,8 +140,9 @@ const BusinessSetup2 = () => {
       });
       if (data?.status) {
         const businessData = await businessService.getBusiness(token);
-        const newUser = {...user, businessId: businessData?.data?.id};
+        const newUser = {...user, businessId: businessData?.data?.id, name: businessName};
         await setUserData(newUser);
+        await userService.updateUser({name: businessName, token: token});
         const business = businessData?.data;
         await setBusinessData(business);
         // navigation.reset({
@@ -157,7 +160,7 @@ const BusinessSetup2 = () => {
           index: 0,
           routes: [
             {
-              name: 'Product'
+              name: 'Product',
             },
           ],
         });

@@ -24,7 +24,7 @@ import {
 } from '../../Components';
 import {Layout} from '../Layout';
 import {font, gap, icon, margin, padding} from '../../utils/responsive';
-import {useAuth, useAuthToken, useBusiness} from '../../Contexts/AuthContext';
+import {useAuth, useAuthToken, useBusiness, useUser, useUpdateUserFields} from '../../Contexts/AuthContext';
 import {API_URL} from '../../utils/config';
 import {colors} from '../../utils/colors';
 import MaterialIcons from '@react-native-vector-icons/material-icons';
@@ -48,6 +48,8 @@ const Business = () => {
   const business = useBusiness();
   const token = useAuthToken();
   const {resetBusiness} = useAuth();
+  const userPhone = useUser('phone');
+  const userEmail = useUser('email');
   const [businessCategory, setBusinessCategory] = useState([]);
 
   // MODAL STATES
@@ -55,14 +57,15 @@ const Business = () => {
   const [modalType, setModalType] = useState('Phone Number');
 
   // STATE VARIABLES
-  const [mobileNumber, setMobileNumber] = useState(business?.phone || '');
-  const [email, setEmail] = useState(business?.email || '');
+  const [mobileNumber, setMobileNumber] = useState(business?.phone || userPhone || '');
+  const [email, setEmail] = useState(userEmail || '');
   const [gstNumber, setGstNumber] = useState(business?.gstNumber || '');
   const [street, setStreet] = useState(business?.street || '');
   const [city, setCity] = useState(business?.city || '');
   const [pincode, setPincode] = useState(business?.pinCode || '');
   const [state, setState] = useState(business?.state || '');
   const [prefix, setPrefix] = useState(business?.prefix || '');
+  const [tempValue, setTempValue] = useState('');
 
   // ANIMATION STATE
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -81,9 +84,41 @@ const Business = () => {
     fetchBusinessCategory();
   }, []);
 
+  useEffect(() => {
+    setEmail(userEmail || '');
+  }, [userEmail]);
+
   const handleOpenModal = ({type}) => {
     setModalType(type);
     setIsModal(true);
+    switch (type) {
+      case 'Phone Number':
+        setTempValue(mobileNumber);
+        break;
+      case 'Email Address':
+        setTempValue(email);
+        break;
+      case 'GST Number':
+        setTempValue(gstNumber);
+        break;
+      case 'State':
+        setTempValue(state);
+        break;
+      case 'City':
+        setTempValue(city);
+        break;
+      case 'Pincode':
+        setTempValue(pincode);
+        break;
+      case 'Street':
+        setTempValue(street);
+        break;
+      case 'Prefix':
+        setTempValue(prefix);
+        break;
+      default:
+        setTempValue('');
+    }
   };
 
   const handleCloseModal = () => {
@@ -105,10 +140,31 @@ const Business = () => {
         useNativeDriver: true,
       }).start();
     }
-  }, [isModal]);
+  }, [isModal, fadeAnim]);
 
   const handleSave = async () => {
-    if (!isChanged) {
+    const updatedValues = {
+      phone: modalType === 'Phone Number' ? tempValue : mobileNumber,
+      email: modalType === 'Email Address' ? tempValue : email,
+      gstNumber: modalType === 'GST Number' ? tempValue : gstNumber,
+      street: modalType === 'Street' ? tempValue : street,
+      city: modalType === 'City' ? tempValue : city,
+      pincode: modalType === 'Pincode' ? tempValue : pincode,
+      state: modalType === 'State' ? tempValue : state,
+      prefix: modalType === 'Prefix' ? tempValue : prefix,
+    };
+
+    const hasChanged =
+      updatedValues.phone !== initialValues.phone ||
+      updatedValues.email !== initialValues.email ||
+      updatedValues.gstNumber !== initialValues.gstNumber ||
+      updatedValues.street !== initialValues.street ||
+      updatedValues.city !== initialValues.city ||
+      updatedValues.pincode !== initialValues.pincode ||
+      updatedValues.state !== initialValues.state ||
+      updatedValues.prefix !== initialValues.prefix;
+
+    if (!hasChanged) {
       ToastService.show({
         message: 'No changes detected',
         type: 'info',
@@ -116,7 +172,7 @@ const Business = () => {
       return;
     }
 
-    if (!state) {
+    if (!updatedValues.state) {
       ToastService.show({
         message: 'Please select state',
         type: 'error',
@@ -124,7 +180,7 @@ const Business = () => {
       return;
     }
 
-    if (!street) {
+    if (!updatedValues.street) {
       ToastService.show({
         message: 'Please enter street',
         type: 'error',
@@ -132,7 +188,7 @@ const Business = () => {
       return;
     }
 
-    if (!city) {
+    if (!updatedValues.city) {
       ToastService.show({
         message: 'Please enter city',
         type: 'error',
@@ -140,7 +196,7 @@ const Business = () => {
       return;
     }
 
-    if (!pincode) {
+    if (!updatedValues.pincode) {
       ToastService.show({
         message: 'Please enter pincode',
         type: 'error',
@@ -148,7 +204,7 @@ const Business = () => {
       return;
     }
 
-    if (!prefix) {
+    if (!updatedValues.prefix) {
       ToastService.show({
         message: 'Please enter prefix',
         type: 'error',
@@ -156,7 +212,7 @@ const Business = () => {
       return;
     }
 
-    if (prefix.length >= 6) {
+    if (updatedValues.prefix.length >= 6) {
       ToastService.show({
         message: 'Prefix should be less than 6 characters',
         type: 'error',
@@ -164,7 +220,7 @@ const Business = () => {
       return;
     }
 
-    if (mobileNumber && !validateIndianPhone(mobileNumber)) {
+    if (updatedValues.phone && !validateIndianPhone(updatedValues.phone)) {
       ToastService.show({
         message: 'Invalid Phone Number',
         type: 'error',
@@ -172,7 +228,7 @@ const Business = () => {
       return;
     }
 
-    if (email && !validateEmail(email)) {
+    if (updatedValues.email && !validateEmail(updatedValues.email)) {
       ToastService.show({
         message: 'Invalid Email',
         type: 'error',
@@ -180,7 +236,7 @@ const Business = () => {
       return;
     }
 
-    if (gstNumber && !validateIndianGST(gstNumber)) {
+    if (updatedValues.gstNumber && !validateIndianGST(updatedValues.gstNumber)) {
       ToastService.show({
         message: 'Invalid GST Number',
         type: 'error',
@@ -188,7 +244,7 @@ const Business = () => {
       return;
     }
 
-    if (pincode && !validateIndianPincode(pincode)) {
+    if (updatedValues.pincode && !validateIndianPincode(updatedValues.pincode)) {
       ToastService.show({
         message: 'Invalid Pincode',
         type: 'error',
@@ -201,14 +257,14 @@ const Business = () => {
         setIsSaveLoading(true);
         const data = await businessService.updateBusiness({
           token: token,
-          gstNumber: gstNumber,
-          street: street,
-          city: city,
-          state: state,
-          pinCode: pincode,
-          email: email,
-          phone: mobileNumber,
-          prefix: prefix,
+          gstNumber: updatedValues.gstNumber,
+          street: updatedValues.street,
+          city: updatedValues.city,
+          state: updatedValues.state,
+          pinCode: updatedValues.pincode,
+          email: updatedValues.email,
+          phone: updatedValues.phone,
+          prefix: updatedValues.prefix,
         });
         if (data.status) {
           ToastService.show({
@@ -216,7 +272,18 @@ const Business = () => {
             type: 'success',
           });
           const updatedBusiness = data?.business;
+
+          setMobileNumber(updatedValues.phone);
+          setEmail(updatedValues.email);
+          setGstNumber(updatedValues.gstNumber);
+          setStreet(updatedValues.street);
+          setCity(updatedValues.city);
+          setPincode(updatedValues.pincode);
+          setState(updatedValues.state);
+          setPrefix(updatedValues.prefix);
+
           await resetBusiness(updatedBusiness);
+          handleCloseModal();
         }
       } catch (error) {
       } finally {
@@ -224,7 +291,7 @@ const Business = () => {
       }
     };
 
-    if (gstNumber) {
+    if (updatedValues.gstNumber && updatedValues.gstNumber !== initialValues.gstNumber) {
       Alert.alert(
         'GST Number Update',
         `Updating the GST Number will affect:
@@ -264,31 +331,31 @@ Proceed only if you have completed the required steps and approvals.`,
         return (
           <SimpleTextInput
             placeholder={`Enter ${modalType}`}
-            value={mobileNumber}
-            setValue={setMobileNumber}
+            value={tempValue}
+            setValue={setTempValue}
             keyboardType="numeric"
             maxLength={10}
-            hasError={mobileNumber > 0 && !validateIndianPhone(mobileNumber)}
+            hasError={tempValue > 0 && !validateIndianPhone(tempValue)}
           />
         );
       case 'Email Address':
         return (
           <SimpleTextInput
-            placeholder={`Enter Email Address`}
-            value={email}
-            setValue={setEmail}
+            placeholder={'Enter Email Address'}
+            value={tempValue}
+            setValue={setTempValue}
             keyboardType="email-address"
-            hasError={email && !validateEmail(email)}
+            hasError={tempValue && !validateEmail(tempValue)}
           />
         );
       case 'GST Number':
         return (
           <SimpleTextInput
-            placeholder={`Enter GST Number`}
-            value={gstNumber}
-            setValue={setGstNumber}
+            placeholder={'Enter GST Number'}
+            value={tempValue}
+            setValue={val => setTempValue(val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
             keyboardType="default"
-            hasError={gstNumber && !validateIndianGST(gstNumber)}
+            hasError={tempValue && !validateIndianGST(tempValue)}
             upperCase={true}
             maxLength={15}
           />
@@ -297,8 +364,8 @@ Proceed only if you have completed the required steps and approvals.`,
         return (
           <SimpleTextInput
             label="Enter State"
-            value={state}
-            setValue={setState}
+            value={tempValue}
+            setValue={setTempValue}
             keyboardType="default"
           />
         );
@@ -306,8 +373,8 @@ Proceed only if you have completed the required steps and approvals.`,
         return (
           <SimpleTextInput
             label="Enter City"
-            value={city}
-            setValue={setCity}
+            value={tempValue}
+            setValue={setTempValue}
             keyboardType="default"
           />
         );
@@ -315,18 +382,18 @@ Proceed only if you have completed the required steps and approvals.`,
         return (
           <SimpleTextInput
             label="Enter Pincode"
-            value={pincode}
-            setValue={setPincode}
+            value={tempValue}
+            setValue={setTempValue}
             keyboardType="numeric"
-            hasError={pincode && !validateIndianPincode(pincode)}
+            hasError={tempValue && !validateIndianPincode(tempValue)}
           />
         );
       case 'Street':
         return (
           <SimpleTextInput
             label="Enter Street"
-            value={street}
-            setValue={setStreet}
+            value={tempValue}
+            setValue={setTempValue}
             keyboardType="default"
           />
         );
@@ -334,8 +401,8 @@ Proceed only if you have completed the required steps and approvals.`,
         return (
           <SimpleTextInput
             label="Enter Prefix"
-            value={prefix}
-            setValue={setPrefix}
+            value={tempValue}
+            setValue={val => setTempValue(val.toUpperCase())}
             keyboardType="default"
             maxLength={6}
             upperCase={true}
@@ -344,17 +411,7 @@ Proceed only if you have completed the required steps and approvals.`,
       default:
         return null;
     }
-  }, [
-    modalType,
-    mobileNumber,
-    email,
-    gstNumber,
-    state,
-    city,
-    pincode,
-    street,
-    prefix,
-  ]);
+  }, [modalType, tempValue]);
 
   // Store original values for comparison
   const initialValues = useMemo(
@@ -424,13 +481,14 @@ Proceed only if you have completed the required steps and approvals.`,
                   Business Name <Text style={styles.required}>*</Text>
                 </Text>
                 <View style={styles.businessNameContainer}>
-                  <Text style={styles.businessNameText}>{business?.name}</Text>
+                  <Text style={styles.businessNameText}>{useUser('name') || business?.name}</Text>
                 </View>
               </View>
             </View>
             <View style={styles.rowContainer}>
               <Text>Primary Information</Text>
               <View style={styles.primaryInfoContainer}>
+
                 <NavigationCardWithValue
                   mainIcon={
                     <MaterialIcons
@@ -439,13 +497,14 @@ Proceed only if you have completed the required steps and approvals.`,
                       color={colors.primary}
                     />
                   }
-                  title="Prefix"
-                  onpress={() => handleOpenModal({type: 'Prefix'})}
+                  title="Primary Number"
+                  onpress={() => {}}
                   textFontSize={14}
-                  disabled={false}
-                  value={prefix}
+                  disabled={true}
+                  value={mobileNumber}
+                  showIcon={false}
                 />
-                <NavigationCardWithValue
+                 {/* <NavigationCardWithValue
                   mainIcon={
                     <MaterialIcons
                       name="phone"
@@ -453,12 +512,13 @@ Proceed only if you have completed the required steps and approvals.`,
                       color={colors.primary}
                     />
                   }
-                  title="Phone Number"
+                  title="WhatsApp Number"
                   onpress={() => handleOpenModal({type: 'Phone Number'})}
                   textFontSize={14}
                   disabled={false}
                   value={mobileNumber}
-                />
+                  isEdit={true}
+                /> */}
                 <NavigationCardWithValue
                   mainIcon={
                     <MaterialIcons
@@ -468,10 +528,11 @@ Proceed only if you have completed the required steps and approvals.`,
                     />
                   }
                   title="Email Address"
-                  onpress={() => handleOpenModal({type: 'Email Address'})}
+                  onpress={() => {}}
                   textFontSize={14}
-                  disabled={false}
-                  value={email}
+                  disabled={true}
+                  value={userEmail || ''}
+                  showIcon={false}
                 />
                 <NavigationCardWithValue
                   mainIcon={
@@ -495,11 +556,27 @@ Proceed only if you have completed the required steps and approvals.`,
                       item => item.id === business?.businessCategoryId,
                     )?.name
                   }
+                  showIcon={false}
                 />
               </View>
             </View>
             <View style={styles.rowContainer}>
               <Text>Business Information</Text>
+                  <NavigationCardWithValue
+                  mainIcon={
+                    <MaterialIcons
+                      name="label"
+                      size={icon(20)}
+                      color={colors.primary}
+                    />
+                  }
+                  title="Prefix"
+                  onpress={() => handleOpenModal({type: 'Prefix'})}
+                  textFontSize={14}
+                  disabled={false}
+                  value={prefix}
+                  isEdit={true}
+                />
               <View style={styles.primaryInfoContainer}>
                 <NavigationCardWithValue
                   mainIcon={
@@ -523,6 +600,8 @@ Proceed only if you have completed the required steps and approvals.`,
                       );
                     }
                   }}
+                  showIcon={!business?.gstNumber}
+                  isEdit={true}
                 />
                 <NavigationCardWithValue
                   mainIcon={
@@ -537,6 +616,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   textFontSize={14}
                   disabled={false}
                   value={street}
+                  isEdit={true}
                 />
                 <NavigationCardWithValue
                   mainIcon={
@@ -551,6 +631,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   textFontSize={14}
                   disabled={false}
                   value={city}
+                  isEdit={true}
                 />
                 <NavigationCardWithValue
                   mainIcon={
@@ -565,6 +646,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   textFontSize={14}
                   disabled={false}
                   value={pincode}
+                  isEdit={true}
                 />
                 <NavigationCardWithValue
                   mainIcon={
@@ -579,12 +661,13 @@ Proceed only if you have completed the required steps and approvals.`,
                   textFontSize={14}
                   disabled={false}
                   value={state}
+                  isEdit={true}
                 />
               </View>
             </View>
           </ScrollView>
           {/* {!isModal && ( */}
-          <AnimatedPressable
+          {/* <AnimatedPressable
             style={[styles.saveChangesContainer, {opacity: fadeAnim}]}
             onPress={handleSave}
             disabled={isSaveLoading}>
@@ -593,7 +676,7 @@ Proceed only if you have completed the required steps and approvals.`,
             ) : (
               <Text style={styles.saveChangesText}>SAVE CHANGES</Text>
             )}
-          </AnimatedPressable>
+          </AnimatedPressable> */}
           {/* )} */}
           <CommonModal
             visible={isModal}
@@ -625,9 +708,14 @@ Proceed only if you have completed the required steps and approvals.`,
                 {renderModalContent}
               </View>
               <TouchableOpacity
-                onPress={handleCloseModal}
+                onPress={handleSave}
+                disabled={isSaveLoading}
                 style={styles.submitButton}>
-                <Text style={styles.submitButtonText}>SUBMIT</Text>
+                {isSaveLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.submitButtonText}>SUBMIT</Text>
+                )}
               </TouchableOpacity>
             </View>
           </CommonModal>
@@ -653,20 +741,15 @@ const styles = StyleSheet.create({
   },
   businessNameContainer: {
     width: '100%',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: padding(16),
-    paddingVertical: padding(14),
   },
   profileSubContainer: {
     flex: 1,
     gap: gap(8),
   },
   businessNameText: {
-    color: '#00000090',
-    fontSize: font(14),
-    fontWeight: '500',
+    color: '#000',
+    fontSize: font(18),
+    fontFamily: fonts.inBold,
   },
   required: {
     color: 'red',
@@ -691,7 +774,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   primaryInfoContainer: {
-    marginVertical: gap(10),
+    marginVertical: gap(0),
   },
   modalContainer: {
     padding: padding(16),

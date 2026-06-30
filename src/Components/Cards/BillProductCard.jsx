@@ -137,6 +137,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.inMedium,
     color: '#000',
     width: '100%',
+    textAlign: 'center',
   },
   bottomContainer: {
     flexDirection: 'row',

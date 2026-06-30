@@ -75,7 +75,7 @@ const CreateBillBottom = memo(
               },
             ]}
             onPress={saveButtonFunciton}>
-            <Text style={[styles.bottomButtonText, {color: '#fff'}]}>SAVE</Text>
+            <Text style={[styles.bottomButtonText, {color: '#fff'}]}>CREATE</Text>
           </TouchableOpacity>
         </View>
       </View>

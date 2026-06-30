@@ -11,11 +11,11 @@ import React, {useEffect, useMemo, useState} from 'react';
 import {Layout} from '../Layout';
 import {DottedDivider, SecondaryHeader} from '../../Components';
 import {fonts} from '../../utils/fonts';
-import {useBusiness} from '../../Contexts/AuthContext';
-import {useRoute} from '@react-navigation/native';
+import {useBusiness, useUser} from '../../Contexts/AuthContext';
+import {useNavigation, useRoute} from '@react-navigation/native';
 import {invoiceService} from '../../Services/InvoiceService';
 import {API_URL} from '../../utils/config';
-import {icon, font, gap, margin} from '../../utils/responsive';
+import {icon, font, gap, margin, isTabletDevice} from '../../utils/responsive';
 import {
   calculateInvoiceData,
   formatDate,
@@ -40,39 +40,13 @@ function convertTo12Hour(datetime) {
 
 const InvoiceDetails = () => {
   // ROUTE - NAVIGATION
+  const navigation = useNavigation();
   const route = useRoute();
   const {invoice} = route.params;
   const business = useBusiness();
-  console.log("business",business)
-  const invoiceData = {
-    businessName: 'Turain Software',
-    businessPhone: '+91 6290 397200',
-    businessAddress: '2/25 Poddarnagar, Kolkata, West Bengal - 700046',
-    businessGstNo: '19YWFAS0292L8Z8',
-    businessLogo: require('./../../../asset/images/logo.png'),
-
-    invoiceNumber: 'TS252612531',
-    invoiceDate: '24-10-2025',
-    invoiceTime: '11:25 AM',
-    billedBy: 'Turain',
-
-    customerName: 'Turain',
-    customerPhone: '62903 97293',
-
-    cgstRate: 0.025, // 2.5%
-    sgstRate: 0.025, // 2.5%
-
-    paymentMethod: 'Cash',
-
-    items: [
-      {name: 'Chicken Biryani', quantity: 2, price: 250},
-      {name: 'Paneer Butter Masala', quantity: 1, price: 220},
-      {name: 'Butter Naan', quantity: 4, price: 40},
-      {name: 'Coke 500ml', quantity: 2, price: 35},
-      {name: 'Gulab Jamun', quantity: 3, price: 25},
-      {name: 'Chicken Kebab', quantity: 1, price: 180},
-    ],
-  };
+  const _userName = useUser('name');
+  const userName = _userName || business?.name;
+  console.log("business", business);
 
   // STATE VARIABLES
   const [invoiceItems, setInvoiceItems] = useState([]);
@@ -80,6 +54,9 @@ const InvoiceDetails = () => {
   const [groupedGstList, setGroupedGstList] = useState([]);
   const [totalQuantity, setTotalQuantity] = useState(0);
   const [subTotalAmount, setSubTotalAmount] = useState(0);
+  const [fetchedBusinessName, setFetchedBusinessName] = useState(
+    invoice?.businessName || '',
+  );
 
   // LOADING STATE
   const [isLoading, setIsLoading] = useState(true);
@@ -98,8 +75,10 @@ const InvoiceDetails = () => {
     // Paddings
     const containerPaddingBottom = width * 0.026; // 10
     const topContainerPaddingVertical = width * 0.08; // 30
-    const secondContainerPaddingHorizontal = width * 0.042; // 16
-    const itemContainerPaddingHorizontal = width * 0.042; // 16
+    const secondContainerPaddingHorizontal = isTabletDevice ? width * 0.12 : width * 0.042;
+    const itemContainerPaddingHorizontal = isTabletDevice ? width * 0.12 : width * 0.042;
+
+    const labelWidth = font(isTabletDevice ? 100 : 90);
 
     // Margins
     const containerMarginTop = width * 0.053; // 20
@@ -123,14 +102,22 @@ const InvoiceDetails = () => {
       itemContainerMarginVertical,
       topContainerGap,
       subSecondContainerGap,
+      labelWidth,
     };
-  }, [width]);
+  }, [width, isTabletDevice]);
 
   const fetchInvoices = async () => {
     try {
       setIsLoading(true);
       const data = await invoiceService.getInvoiceItems(invoice.id);
       if (data?.status) {
+        const bName =
+          data?.businessName ||
+          data?.data?.businessName ||
+          data?.invoice?.businessName;
+        if (bName) {
+          setFetchedBusinessName(bName);
+        }
         // Call the calculation function
         const result = calculateInvoiceData(data?.items);
         // Update all states with the returned values
@@ -141,7 +128,6 @@ const InvoiceDetails = () => {
         });
         setTotalQuantity(result.totalQuantity);
         setSubTotalAmount(result.subTotalAmount);
-        // setInvoiceItems(result.items);
         setInvoiceItems(sortedItems);
         const grouped = Object.values(
           result.gstListCalculate.reduce((acc, item) => {
@@ -173,7 +159,6 @@ const InvoiceDetails = () => {
           (a, b) => a.gstPercentage - b.gstPercentage,
         );
 
-        // setGroupedGstList(grouped);
         setGroupedGstList(sortedGrouped);
         console.log('invoiceItems ' + JSON.stringify(result.items));
         console.log('grouped ' + JSON.stringify(grouped));
@@ -191,6 +176,8 @@ const InvoiceDetails = () => {
     fetchInvoices();
   }, [invoice]);
 
+  const hasAnyHsn = invoiceItems.some(item => item?.hsnCode || item?.hsn || (item?.gstPercentage && parseFloat(item?.gstPercentage) > 0));
+
   return (
     <Layout>
       <SecondaryHeader
@@ -198,6 +185,13 @@ const InvoiceDetails = () => {
         isNotification={false}
         isQuestion={false}
         isSearch={false}
+        handleBack={() => {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('Home', { screen: 'Home' });
+          }
+        }}
       />
       {isLoading ? (
         <View
@@ -243,12 +237,12 @@ const InvoiceDetails = () => {
                 resizeMode="contain"
               />
               <Text style={[styles.businessText, {fontSize: font(20)}]}>
-                {business?.name}
+                {fetchedBusinessName || business?.name}
               </Text>
               {business?.phone && (
                 <View style={styles.topKeyValueStyle}>
                   <Text style={[styles.keyText, {fontSize: font(14)}]}>
-                    Phone Numer:{' '}
+                    Phone Number:{' '}
                   </Text>
                   <Text style={[styles.valueText, {fontSize: font(14)}]}>
                     {business?.phone}
@@ -279,7 +273,9 @@ const InvoiceDetails = () => {
                 </View>
               )}
             </View>
+            
             <DottedDivider borderWidth={0.8} />
+            
             <View
               style={[
                 styles.secondContainer,
@@ -290,23 +286,33 @@ const InvoiceDetails = () => {
                   styles.subSecondContainer,
                   {gap: sizes.subSecondContainerGap},
                 ]}>
-                <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                  Invoice No : {invoice.invoiceNumber}{' '}
-                </Text>
-                <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                  Date : {formatDate(invoice?.createdAt)}
-                </Text>
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <Text style={[styles.invoiceText, {fontSize: font(14), width: sizes.labelWidth}]}>
+                    Invoice No :
+                  </Text>
+                  <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
+                    {invoice.invoiceNumber}
+                  </Text>
+                </View>
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <Text style={[styles.invoiceText, {fontSize: font(14), width: sizes.labelWidth}]}>
+                    Date :
+                  </Text>
+                  <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
+                    {formatDate(invoice?.createdAt)}
+                  </Text>
+                </View>
               </View>
               <View style={styles.subSecondContainer}>
-                <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                  {/* Billed By : {invoiceData.billedBy} */}
-                </Text>
+                <Text style={[styles.invoiceText, {fontSize: font(14)}]} />
                 <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
                   Time : {convertTo12Hour(invoice?.createdAt)}
                 </Text>
               </View>
             </View>
+            
             {invoice?.customerNumber && <DottedDivider borderWidth={0.8} />}
+            
             <View
               style={[
                 styles.secondContainer,
@@ -320,25 +326,31 @@ const InvoiceDetails = () => {
                 </View>
               )}
             </View>
+            
             <DottedDivider borderWidth={0.8} />
-            <View style={styles.itemCotainer}>
-              <Text
-                style={[
-                  styles.invoiceTitle,
-                  {width: '35%', fontSize: sizes.invoiceTitleFontSize},
-                ]}>
-                Item/GST
-              </Text>
+            
+            {/* COLUMN HEADERS */}
+            <View style={[styles.itemContainer, {paddingHorizontal: sizes.itemContainerPaddingHorizontal}]}>
+              <View style={{width: '40%'}}>
+                <Text style={[styles.invoiceTitle, {fontSize: sizes.invoiceTitleFontSize}]}>
+                  Item
+                </Text>
+                {hasAnyHsn && (
+                  <Text style={[styles.invoiceTitle, {fontSize: 12, marginTop: 2}]}>
+                    HSN (GST)
+                  </Text>
+                )}
+              </View>
               <Text
                 style={[
                   styles.invoiceTitle,
                   {
                     width: '20%',
-                    textAlign: 'right',
+                    textAlign: 'center',
                     fontSize: sizes.invoiceTitleFontSize,
                   },
                 ]}>
-                Quantity
+                Qty
               </Text>
               <Text
                 style={[
@@ -363,62 +375,71 @@ const InvoiceDetails = () => {
                 Amount
               </Text>
             </View>
+            
             <DottedDivider borderWidth={0.8} />
-            {invoiceItems.map((item, index) => (
-              <View style={styles.itemCotainer} key={index + '_item'}>
-                <Text
-                  style={[
-                    styles.invoiceItem,
-                    {width: '40%', fontSize: sizes.invoiceItemFontSize},
-                  ]}>
-                  {item.name}
-                  {item?.gstPercentage && `(${item?.gstPercentage}%)`}
-                </Text>
-                <Text
-                  style={[
-                    styles.invoiceItem,
-                    {
-                      width: '20%',
-                      textAlign: 'center',
-                      fontSize: sizes.invoiceItemFontSize,
-                    },
-                  ]}>
-                  {item.quantity}
-                </Text>
-                <Text
-                  style={[
-                    styles.invoiceItem,
-                    {
-                      width: '20%',
-                      textAlign: 'right',
-                      fontSize: sizes.invoiceItemFontSize,
-                    },
-                  ]}>
-                  ₹{Number(item?.originalPrice).toFixed(2)}
-                </Text>
-                <Text
-                  style={[
-                    styles.invoiceTitle,
-                    {
-                      width: '20%',
-                      textAlign: 'right',
-                      fontSize: sizes.invoiceTitleFontSize,
-                    },
-                  ]}>
-                  ₹
-                  {(Number(item.originalPrice) * Number(item.quantity)).toFixed(
-                    2,
-                  )}
-                </Text>
-              </View>
-            ))}
+            
+            {/* ITEMS LIST LOOP */}
+            {invoiceItems.map((item, index) => {
+              const hsnCode = item?.hsnCode || item?.hsn || '';
+              const gstRate = item?.gstPercentage && parseFloat(item.gstPercentage) > 0 
+                ? `${parseFloat(item.gstPercentage)}%` 
+                : '';
+
+              return (
+                <View style={[styles.itemContainer, {paddingHorizontal: sizes.itemContainerPaddingHorizontal}]} key={index + '_item'}>
+                  <View style={{width: '40%'}}>
+                    <Text style={[styles.invoiceItem, {fontSize: sizes.invoiceItemFontSize}]}>
+                      {item.name}
+                    </Text>
+                    {hasAnyHsn && (hsnCode || gstRate) && (
+                      <Text style={[styles.invoiceHsnGstText, {fontSize: font(12)}]}>
+                        {`${hsnCode}${gstRate ? `(${gstRate})` : ''}`}
+                      </Text>
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.invoiceItem,
+                      {
+                        width: '20%',
+                        textAlign: 'center',
+                        fontSize: sizes.invoiceItemFontSize,
+                      },
+                    ]}>
+                    {item.quantity}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.invoiceItem,
+                      {
+                        width: '20%',
+                        textAlign: 'right',
+                        fontSize: sizes.invoiceItemFontSize,
+                      },
+                    ]}>
+                    ₹{Number(item?.originalPrice).toFixed(2)}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.invoiceTitle,
+                      {
+                        width: '20%',
+                        textAlign: 'right',
+                        fontSize: sizes.invoiceTitleFontSize,
+                      },
+                    ]}>
+                    ₹{(Number(item.originalPrice) * Number(item.quantity)).toFixed(2)}
+                  </Text>
+                </View>
+              );
+            })}
+            
             <DottedDivider borderWidth={0.8} />
+            
             <View
               style={[
-                [
-                  styles.secondContainer,
-                  {paddingHorizontal: sizes.secondContainerPaddingHorizontal},
-                ],
+                styles.secondContainer,
+                {paddingHorizontal: sizes.secondContainerPaddingHorizontal},
               ]}>
               <View style={styles.subSecondContainer}>
                 <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
@@ -431,13 +452,12 @@ const InvoiceDetails = () => {
                 </Text>
               </View>
             </View>
+            
             {invoice?.discountAmount > 0 && (
               <View
                 style={[
-                  [
-                    styles.secondContainer,
-                    {paddingHorizontal: sizes.secondContainerPaddingHorizontal},
-                  ],
+                  styles.secondContainer,
+                  {paddingHorizontal: sizes.secondContainerPaddingHorizontal},
                 ]}>
                 <View style={styles.subSecondContainer}>
                   <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
@@ -451,39 +471,16 @@ const InvoiceDetails = () => {
                 </View>
               </View>
             )}
+            
             <DottedDivider borderWidth={0.8} />
-            {/* {gstList.map((item, index) => (
-              <View
-                key={index + 'gst_list'}
-                style={[
-                  styles.secondContainer,
-                  {paddingHorizontal: sizes.secondContainerPaddingHorizontal},
-                ]}>
-                <View style={styles.subSecondContainer}>
-                  <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                    ₹{item?.rate.toFixed(2)} @ {item?.gstType} -{' '}
-                    {item?.gstPercentage}%
-                  </Text>
-                </View>
-                <View style={styles.subSecondContainer}>
-                  <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                    ₹{item?.gstAmount.toFixed(2)}
-                  </Text>
-                </View>
-              </View>
-            ))}
-            <DottedDivider borderWidth={0.8} /> */}
 
+            {/* GST BREAKDOWN SECTION */}
             {groupedGstList.map((item, index) => (
-              <View
-                style={{marginBottom: 10}}
-                key={index + 'gruped_gst_parent'}>
+              <View style={{marginBottom: 10}} key={index + 'grouped_gst_parent'}>
                 <View
                   style={[
                     styles.secondContainerForGSTPercentage,
-                    {
-                      paddingHorizontal: sizes.secondContainerPaddingHorizontal,
-                    },
+                    {paddingHorizontal: sizes.secondContainerPaddingHorizontal},
                   ]}>
                   <View style={styles.subSecondContainer}>
                     <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
@@ -491,12 +488,10 @@ const InvoiceDetails = () => {
                     </Text>
                   </View>
                   <View style={styles.subSecondContainer}>
-                    <Text
-                      style={[styles.invoiceText, {fontSize: font(14)}]}></Text>
+                    <Text style={[styles.invoiceText, {fontSize: font(14)}]} />
                   </View>
                 </View>
                 <View
-                  key={index + 'gst_list'}
                   style={[
                     styles.secondContainer,
                     {
@@ -522,8 +517,7 @@ const InvoiceDetails = () => {
                       style={[
                         styles.secondContainer,
                         {
-                          paddingHorizontal:
-                            sizes.secondContainerPaddingHorizontal,
+                          paddingHorizontal: sizes.secondContainerPaddingHorizontal,
                           marginTop: margin(-2),
                         },
                       ]}>
@@ -544,6 +538,7 @@ const InvoiceDetails = () => {
             ))}
 
             <DottedDivider borderWidth={0.8} />
+            
             <View
               style={[
                 styles.secondContainer,
@@ -560,7 +555,9 @@ const InvoiceDetails = () => {
                 </Text>
               </View>
             </View>
+            
             <DottedDivider borderWidth={0.8} />
+            
             <Text style={[styles.thankYouText, {fontSize: sizes.thankYouText}]}>
               Thank You & Visit Again
             </Text>
@@ -574,19 +571,14 @@ const InvoiceDetails = () => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
-    // marginTop: 20,
-    // paddingBottom: 10,
   },
   topContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    // paddingVertical: 30,
-    // gap: 7,
   },
   logo: {
     width: icon(100),
     height: icon(100),
-    // tintColor: '#00000090',
   },
   businessText: {
     fontFamily: fonts.onBold,
@@ -606,29 +598,26 @@ const styles = StyleSheet.create({
   },
   secondContainer: {
     marginVertical: 5,
-    // paddingHorizontal: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   secondContainerForGSTPercentage: {
-    // paddingHorizontal: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   subSecondContainer: {
-    // gap: 10,
+    // Gap custom handle korle ekhane korte paren
   },
   invoiceText: {
     fontFamily: fonts.inSemiBold,
     color: '#000000',
   },
-  itemCotainer: {
+  itemContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
+    alignItems: 'flex-start', // text-wrapping er jonno alignment flex-start rakha hoyeche
     marginVertical: 5,
   },
   invoiceTitle: {
@@ -639,8 +628,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.inMedium,
     color: '#000000',
   },
-  gstSecondContainer: {
-    gap: 5,
+  invoiceHsnGstText: {
+    fontFamily: fonts.inMedium,
+    color: '#555555',
+    marginTop: 2,
   },
   thankYouText: {
     fontFamily: fonts.inBold,

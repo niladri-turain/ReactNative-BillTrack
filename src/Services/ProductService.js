@@ -155,7 +155,9 @@ class ProductService {
       formData.append('name', name);
       formData.append('price', price);
       formData.append('unitType', unit);
-      formData.append('hsnId', hsnId);
+      if (hsnId) {
+        formData.append('hsnId', hsnId);
+      }
       if (productImage) {
         formData.append('logo', productImage);
       }

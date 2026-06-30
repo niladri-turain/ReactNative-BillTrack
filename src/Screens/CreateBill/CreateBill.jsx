@@ -51,6 +51,7 @@ import {
   useBusiness,
   useSubscription,
   useGstEnabled,
+  useUser,
 } from '../../Contexts/AuthContext';
 import {
   useAppSettings,
@@ -95,6 +96,8 @@ const CreateBill = () => {
   const addInvoices = useInvoice('addInvoice');
   const {printer} = usePrinter();
   const business = useBusiness();
+  const userName = useUser('name');
+  const businessName = userName || business?.name;
   const {updateNumberOfInvoices} = useAuth();
   const {getByKey} = useAppSettings();
   const token = useAuthToken();
@@ -266,6 +269,8 @@ const CreateBill = () => {
           return {
             productName: item?.name,
             quantity: item?.count,
+            hsnId: item?.hsnId || null,
+            hsnCode: item?.hsn?.hsnCode || "",
             rate: Number(item?.price).toFixed(2),
             gstType: hasHSN ? 'cgst/sgst' : null,
             gstPercentage: hasHSN
@@ -286,6 +291,7 @@ const CreateBill = () => {
         customerNumber: phoneNumber,
         discount,
         invoiceNumber: invoiceNo,
+        businessName: businessName
       };
       const data = await invoiceService.createInvoice(payload);
       if (data?.status) {
@@ -318,7 +324,7 @@ const CreateBill = () => {
             gstListCalculate,
             totalQuantity,
             subTotalAmount,
-            business,
+            {...business, name: businessName},
           );
         }
         await updateInvoiceNumber(numberOfInvoices);
@@ -351,6 +357,8 @@ const CreateBill = () => {
           return {
             productName: item?.name,
             quantity: item?.count,
+            hsnId: item?.hsnId || null,
+            hsnCode: item?.hsn?.hsnCode || "",
             rate: Number(item?.price).toFixed(2),
             gstType: hasHSN ? 'cgst/sgst' : null,
             gstPercentage: hasHSN
@@ -364,14 +372,6 @@ const CreateBill = () => {
       const numberOfInvoices = await getBusinessInvoiceNumber();
 
       const invoiceNo = generateInvoices(business?.prefix, numberOfInvoices);
-      const payload = {
-        token,
-        customerNumber: phoneNumber,
-        items: selectedItems,
-        paymentMode: paymentMethod,
-        discount,
-        invoiceNumber: invoiceNo,
-      };
 
       const data = await invoiceService.createInvoice({
         token,
@@ -380,11 +380,12 @@ const CreateBill = () => {
         paymentMode: paymentMethod,
         discount,
         invoiceNumber: invoiceNo,
+        businessName: businessName,
       });
       if (data?.status) {
         addInvoices(data?.invoice);
         ToastService.show({
-          message: 'Bill Created Successfully',
+          message: 'Bill Created Successfully', 
           type: 'success',
           position: 'top',
         });
@@ -399,7 +400,7 @@ const CreateBill = () => {
         await updateInvoiceNumber(numberOfInvoices);
         if (sentWhatAppEnabled) {
           await sendToWhatsApp({
-            businessName: business?.name,
+            businessName: businessName,
             invoiceNumber: data?.invoice?.invoiceNumber,
             createdAt: data?.invoice?.createdAt,
             customerNumber: data?.invoice?.customerNumber,
@@ -591,7 +592,10 @@ const CreateBill = () => {
                   phoneNumber.length > 0 && !validateIndianPhone(phoneNumber)
                 }
                 value={phoneNumber}
-                setValue={setPhoneNumber}
+                setValue={val => {
+                  const cleaned = val.replace(/[^0-9]/g, '');
+                  setPhoneNumber(cleaned);
+                }}
                 keyboardType="phone-pad"
                 placeholder="Customer Phone Number"
                 borderColor="#00000090"

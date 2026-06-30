@@ -48,6 +48,7 @@ const ProductCard = memo(
             resizeMode="cover"
           />
         </TouchableOpacity>
+        <View style={{height: 5}} />
         <Text
           style={[styles.titleText, {fontSize: font(12)}]}
           numberOfLines={2}>
@@ -90,6 +91,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.inMedium,
     color: '#000',
     width: '100%',
+    textAlign: 'center',
   },
   bottomContainer: {
     flexDirection: 'row',
