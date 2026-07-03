@@ -57,6 +57,9 @@ const InvoiceDetails = () => {
   const [fetchedBusinessName, setFetchedBusinessName] = useState(
     invoice?.businessName || '',
   );
+  const [fetchedUserPhone, setFetchedUserPhone] = useState(
+    invoice?.userPhone || '',
+  );
 
   // LOADING STATE
   const [isLoading, setIsLoading] = useState(true);
@@ -117,6 +120,13 @@ const InvoiceDetails = () => {
           data?.invoice?.businessName;
         if (bName) {
           setFetchedBusinessName(bName);
+        }
+        const uPhone =
+          data?.userPhone ||
+          data?.data?.userPhone ||
+          data?.invoice?.userPhone;
+        if (uPhone) {
+          setFetchedUserPhone(uPhone);
         }
         // Call the calculation function
         const result = calculateInvoiceData(data?.items);
@@ -239,13 +249,13 @@ const InvoiceDetails = () => {
               <Text style={[styles.businessText, {fontSize: font(20)}]}>
                 {fetchedBusinessName || business?.name}
               </Text>
-              {business?.phone && (
+              {(fetchedUserPhone || business?.phone) && (
                 <View style={styles.topKeyValueStyle}>
                   <Text style={[styles.keyText, {fontSize: font(14)}]}>
                     Phone Number:{' '}
                   </Text>
                   <Text style={[styles.valueText, {fontSize: font(14)}]}>
-                    {business?.phone}
+                    {fetchedUserPhone || business?.phone}
                   </Text>
                 </View>
               )}

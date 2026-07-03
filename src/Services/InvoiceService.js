@@ -14,7 +14,8 @@ class InvoiceService {
     paymentMode = 'cash',
     discount,
     invoiceNumber,
-    businessName
+    businessName,
+    userPhone
   }) {
     try {
       const uri = this.baseUrl;
@@ -25,7 +26,8 @@ class InvoiceService {
         paymentMode: paymentMode,
         discount,
         invoiceNumber,
-        businessName
+        businessName,
+        userPhone
       };
       const headers = {
         Authorization: `Bearer ${token}`,

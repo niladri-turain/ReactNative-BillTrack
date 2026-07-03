@@ -98,6 +98,7 @@ const CreateBill = () => {
   const business = useBusiness();
   const userName = useUser('name');
   const businessName = userName || business?.name;
+  const userPhone = useUser('phone');
   const {updateNumberOfInvoices} = useAuth();
   const {getByKey} = useAppSettings();
   const token = useAuthToken();
@@ -291,7 +292,8 @@ const CreateBill = () => {
         customerNumber: phoneNumber,
         discount,
         invoiceNumber: invoiceNo,
-        businessName: businessName
+        businessName: businessName,
+        userPhone: userPhone
       };
       const data = await invoiceService.createInvoice(payload);
       if (data?.status) {
@@ -381,6 +383,7 @@ const CreateBill = () => {
         discount,
         invoiceNumber: invoiceNo,
         businessName: businessName,
+        userPhone: userPhone,
       });
       if (data?.status) {
         addInvoices(data?.invoice);
