@@ -3,6 +3,7 @@ const colors = {
   // primary: '#288cfa',
   sucess: '#27C840',
   border: '#C9C9C9',
+  black: '#000000',
   error: '#FF5F57',
   primaryBackground: '#E6ECF4',
 };

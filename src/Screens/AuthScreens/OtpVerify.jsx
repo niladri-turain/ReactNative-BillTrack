@@ -30,7 +30,7 @@ const OtpVerify = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const [otp, setOtp] = useState(['', '', '', '']);
-  const [timer, setTimer] = useState(180);
+  const [timer, setTimer] = useState(90);
   const otpRef = useRef([]);
   const {mobile} = route.params;
   const [isLoading, setIsLoading] = useState(false);
@@ -81,7 +81,7 @@ const OtpVerify = () => {
       if (timer > 0) return;
       const data = await authService.login(mobile);
       if (data?.status) {
-        setTimer(180);
+        setTimer(90);
         ToastAndroid.show(data?.message, ToastAndroid.SHORT);
       } else {
         ToastAndroid.show(data?.message, ToastAndroid.SHORT);
@@ -217,7 +217,7 @@ const OtpVerify = () => {
               </TouchableOpacity>
             </View>
           </View>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.button}
             onPress={validateOtp}
             disabled={isLoading}>
@@ -226,7 +226,7 @@ const OtpVerify = () => {
             ) : (
               <Text style={styles.buttonText}>VERIFY OTP</Text>
             )}
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </ScrollView>
       </KeyboardAvoidingView>
       <CommonModal visible={isModal}>
