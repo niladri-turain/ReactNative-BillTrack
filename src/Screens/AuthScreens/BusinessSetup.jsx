@@ -231,6 +231,7 @@ const BusinessSetup = () => {
               keyboardType="numeric"
               value={phone}
               setValue={setPhone}
+              disabled={true}
               hasError={phone.length > 0 && !validateIndianPhone(phone)}
             />
           </View>
