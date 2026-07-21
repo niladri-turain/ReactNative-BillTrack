@@ -220,6 +220,14 @@ const BusinessSetup2 = () => {
           </TouchableOpacity>
         </View>
         <View style={styles.inputContainer}>
+
+           <SimpleTextInput
+            placeholder="Street"
+            maxLength={50}
+            value={street}
+            setValue={setStreet}
+            hasError={street.length > 0 && street.length < 3}
+          />
           <SimpleTextInput
             placeholder="Pincode"
             keyboardType="numeric"
@@ -229,13 +237,7 @@ const BusinessSetup2 = () => {
             hasError={pincode.length > 0 && !validateIndianPincode(pincode)}
           />
 
-          <SimpleTextInput
-            placeholder="Street"
-            maxLength={50}
-            value={street}
-            setValue={setStreet}
-            hasError={street.length > 0 && street.length < 3}
-          />
+         
 
           <SimpleTextInput
             placeholder="City"

@@ -47,6 +47,7 @@ const SORT_OPTIONS = [
   { label: 'Oldest First', value: 'date_asc' },
   { label: 'Amount High to Low', value: 'amount_high_to_low' },
   { label: 'Amount Low to High', value: 'amount_low_to_high' },
+ 
 ];
 const STICKY_HEADER_INDICES = [0];
 const ANIMATION_CONFIG = {duration: 300};

@@ -79,6 +79,8 @@ const BusinessSetup = () => {
   );
 
   const handleOpenBottomSheet = type => {
+    setQuery('');
+    setSuggestions(businessTypes);
     bottomSheetRef.current?.expand();
   };
   const handleCloseBottomSheet = type => {
@@ -229,6 +231,7 @@ const BusinessSetup = () => {
               keyboardType="numeric"
               value={phone}
               setValue={setPhone}
+              disabled={true}
               hasError={phone.length > 0 && !validateIndianPhone(phone)}
             />
           </View>
@@ -289,6 +292,11 @@ const BusinessSetup = () => {
               keyExtractor={(_, index) =>
                 index + 'bottomsheet_radiobtn_business_types'
               }
+              ListEmptyComponent={() => (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>Business Type not found</Text>
+                </View>
+              )}
               renderItem={({item}) => (
                 <View style={styles.bottomSheetItem}>
                   <RadioInput
@@ -387,6 +395,17 @@ const styles = StyleSheet.create({
   bottomSheetHeaderContainer: {
     marginBottom: margin(10),
     backgroundColor: '#fff',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: padding(40),
+  },
+  emptyText: {
+    fontSize: font(16),
+    fontFamily: fonts.onMedium,
+    color: colors.black,
   },
 });
 
