@@ -206,13 +206,23 @@ const Product = () => {
       compressImageQuality: 0.8,
       avoidEmptySpaceAroundImage: true,
       cropping: true,
-      mediaType: 'photo'
+      mediaType: 'photo',
     })
       .then(image => {
-        setProductImage(image);
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp,image/jpg'];
+        if (allowedTypes.includes(image.mime)) {
+          setProductImage(image);
+        } else {
+          ToastAndroid.show(
+            'Only JPG, PNG, and WEBP files are allowed',
+            ToastAndroid.SHORT,
+          );
+        }
       })
       .catch(err => {
-        ToastAndroid.show('Image not selected', ToastAndroid.SHORT);
+        if (err.code !== 'E_PICKER_CANCELLED') {
+          ToastAndroid.show('Image not selected', ToastAndroid.SHORT);
+        }
       });
   };
 
