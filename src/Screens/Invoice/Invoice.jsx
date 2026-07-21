@@ -15,7 +15,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import {Layout} from '../Layout';
+import { Layout } from '../Layout';
 import {
   DottedDivider,
   EmptyListCard,
@@ -26,19 +26,19 @@ import {
   SecondaryHeader,
 } from '../../Components';
 import Lucide from '@react-native-vector-icons/lucide';
-import {colors} from '../../utils/colors';
-import {fonts} from '../../utils/fonts';
-import {GestureHandlerRootView} from 'react-native-gesture-handler';
+import { colors } from '../../utils/colors';
+import { fonts } from '../../utils/fonts';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import {font, margin, padding} from '../../utils/responsive';
-import {invoiceService} from '../../Services/InvoiceService';
-import {useAuthToken, useSubscription} from '../../Contexts/AuthContext';
+import { font, margin, padding } from '../../utils/responsive';
+import { invoiceService } from '../../Services/InvoiceService';
+import { useAuthToken, useSubscription } from '../../Contexts/AuthContext';
 
-import {useFocusEffect} from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 // Constants moved outside component to prevent recreation
 const SNAP_POINTS = ['50%'];
 const SHIMMER_DATA = [1, 2, 3];
@@ -47,12 +47,13 @@ const SORT_OPTIONS = [
   { label: 'Oldest First', value: 'date_asc' },
   { label: 'Amount High to Low', value: 'amount_high_to_low' },
   { label: 'Amount Low to High', value: 'amount_low_to_high' },
+  { label: 'Cancelled', value: 'cancelled' },
 ];
 const STICKY_HEADER_INDICES = [0];
-const ANIMATION_CONFIG = {duration: 300};
+const ANIMATION_CONFIG = { duration: 300 };
 
 // Memoized ListFooterComponent
-const ListFooterComponent = memo(({isLoading, paginationHasNextPage}) =>
+const ListFooterComponent = memo(({ isLoading, paginationHasNextPage }) =>
   paginationHasNextPage && isLoading ? (
     <View style={styles.footerLoader}>
       <Loader />
@@ -61,7 +62,7 @@ const ListFooterComponent = memo(({isLoading, paginationHasNextPage}) =>
 );
 
 // Memoized SortOption Component
-const SortOption = memo(({label, value, isSelected, onSelect, isLast}) => (
+const SortOption = memo(({ label, value, isSelected, onSelect, isLast }) => (
   <>
     <View style={styles.bottomSheetBottom}>
       <RadioInput
@@ -118,20 +119,23 @@ const Invoice = () => {
     async (page = 0) => {
       try {
         setIsLoading(true);
-        const data = await invoiceService.getInvoices(token, page, 8, sortBy);
+        const data =
+          sortBy === 'cancelled'
+            ? await invoiceService.getCancelInvoices(token, page, 8, 'date_desc')
+            : await invoiceService.getInvoices(token, page, 8, sortBy);
         if (data?.status) {
           setInvoices(data?.data);
           const pagination = data?.pagination;
           setPaginationTotalPage(pagination?.totalPage);
           setPaginationHasNextPage(pagination?.hasNext);
-          console.log(JSON.stringify(data.data))
+          console.log(JSON.stringify(data.data));
         }
       } catch (error) {
       } finally {
         setIsLoading(false);
       }
     },
-    [token,sortBy],
+    [token, sortBy],
   );
 
   const fetchMore = useCallback(
@@ -140,7 +144,15 @@ const Invoice = () => {
 
       try {
         setIsLoading(true);
-        const data = await invoiceService.getInvoices(token, nextPage, 8,sortBy);
+        const data =
+          sortBy === 'cancelled'
+            ? await invoiceService.getCancelInvoices(
+                token,
+                nextPage,
+                8,
+                'date_desc',
+              )
+            : await invoiceService.getInvoices(token, nextPage, 8, sortBy);
         if (data?.status) {
           setInvoices(prev => [...prev, ...data?.data]);
           const pagination = data?.pagination;
@@ -207,7 +219,7 @@ const Invoice = () => {
 
   /* RENDER ITEM OPTIMIZATION */
   const renderItem = useCallback(
-    ({item}) =>
+    ({ item }) =>
       typeof item === 'number' ? (
         <InvoiceCardShimmer />
       ) : (
@@ -217,7 +229,7 @@ const Invoice = () => {
   );
 
   const renderSortOption = useCallback(
-    ({item, index}) => (
+    ({ item, index }) => (
       <SortOption
         label={item.label}
         value={item.value}
@@ -273,7 +285,7 @@ const Invoice = () => {
     );
   }, [isLoading, pageNumber, invoices, query]);
 
-  const applySorting=async()=>{
+  const applySorting = async () => {
     setPageNumber(0);
     setIsRefreshing(true);
     await fetchInvoices(0);
@@ -295,7 +307,7 @@ const Invoice = () => {
           handleRestartClick={onRefresh}
         />
         <FlatList
-          contentContainerStyle={[styles.container, {flexGrow: 1}]}
+          contentContainerStyle={[styles.container, { flexGrow: 1 }]}
           ListHeaderComponent={ListHeaderComponent}
           data={filteredInvoices}
           keyExtractor={keyExtractor}
@@ -336,9 +348,9 @@ const Invoice = () => {
             keyExtractor={sortOptionsKeyExtractor}
             renderItem={renderSortOption}
           />
-          <TouchableOpacity style={styles.applyButton} onPress={applySorting} 
-          disabled={isRefreshing}>
-            {isRefreshing?<ActivityIndicator size={'small'} color={'#fff'} />:<Text style={styles.applyText}>APPLY</Text>}
+          <TouchableOpacity style={styles.applyButton} onPress={applySorting}
+            disabled={isRefreshing}>
+            {isRefreshing ? <ActivityIndicator size={'small'} color={'#fff'} /> : <Text style={styles.applyText}>APPLY</Text>}
           </TouchableOpacity>
         </BottomSheetView>
       </BottomSheet>
