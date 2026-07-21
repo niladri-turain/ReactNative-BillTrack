@@ -1,11 +1,16 @@
-import { StyleSheet, Text, View } from 'react-native';
-import React, { memo } from 'react';
-import MaterialIcons from '@react-native-vector-icons/material-icons';
+import {Image, StyleSheet, Text, View} from 'react-native';
+import React, {memo} from 'react';
+import {font, icon, margin} from '../../utils/responsive';
+import {fonts} from '../../utils/fonts';
 
-const EmptyListCard = ({ title = 'No Data Found' }) => {
+const EmptyListCard = ({title = 'No Data Found'}) => {
   return (
     <View style={styles.container}>
-      <MaterialIcons name="inbox" size={60} color="#A0A0A0" style={styles.icon} />
+      <Image
+        source={require('../../../asset/images/noInvoice.png')}
+        style={styles.emptyImage}
+        resizeMode="contain"
+      />
       <Text style={styles.title}>{title}</Text>
     </View>
   );
@@ -16,15 +21,17 @@ export default memo(EmptyListCard);
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    justifyContent: 'center',
   },
-  icon: {
-    marginBottom: 10,
+  emptyImage: {
+    width: icon(200),
+    height: icon(200),
   },
   title: {
-    fontSize: 16,
-    color: '#888',
+    fontSize: font(16),
+    fontFamily: fonts.onSemiBold,
+    color: '#333',
+    marginTop: margin(-20),
   },
 });

@@ -295,7 +295,7 @@ const Invoice = () => {
           handleRestartClick={onRefresh}
         />
         <FlatList
-          contentContainerStyle={styles.container}
+          contentContainerStyle={[styles.container, {flexGrow: 1}]}
           ListHeaderComponent={ListHeaderComponent}
           data={filteredInvoices}
           keyExtractor={keyExtractor}
@@ -309,7 +309,7 @@ const Invoice = () => {
           onEndReached={onEndReached}
           onEndReachedThreshold={0.5}
           ListFooterComponent={renderFooter}
-          ListEmptyComponent={<EmptyListCard title="No Invoice Found" />}
+          ListEmptyComponent={<EmptyListCard title="" />}
         />
       </Layout>
       <BottomSheet

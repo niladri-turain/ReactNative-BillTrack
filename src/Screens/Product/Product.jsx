@@ -565,12 +565,14 @@ const Product = () => {
             <View style={styles.buttonContainer}>
               <TouchableOpacity
                 style={[styles.saveBtn, {backgroundColor: colors.error}]}
-                disabled={isDeleteLoading || isNewProduct}
-                onPress={handleDeleteProduct}>
+                disabled={isDeleteLoading}
+                onPress={isNewProduct ? handleCloseModal : handleDeleteProduct}>
                 {isDeleteLoading ? (
                   <ActivityIndicator color={'#fff'} size={'small'} />
                 ) : (
-                  <Text style={styles.saveBtnText}>Delete</Text>
+                  <Text style={styles.saveBtnText}>
+                    {isNewProduct ? 'Cancel' : 'Delete'}
+                  </Text>
                 )}
               </TouchableOpacity>
               <TouchableOpacity

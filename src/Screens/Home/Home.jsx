@@ -114,15 +114,30 @@ const Home = () => {
               <Ionicons name="arrow-forward" size={12} color={colors.primary} />
             </TouchableOpacity>
           </View>
-          {isLoading
-            ? Array(3)
-                .fill(null)
-                .map((_, index) => (
-                  <InvoiceCardShimmer key={'invoiceShimmer' + index} />
-                ))
-            : invoices.map((item, index) => (
-                <InvoiceCard invoice={item} key={index + '_invoice_card'} onRefresh={onRefresh} />
-              ))}
+          {isLoading ? (
+            Array(3)
+              .fill(null)
+              .map((_, index) => (
+                <InvoiceCardShimmer key={'invoiceShimmer' + index} />
+              ))
+          ) : invoices.length > 0 ? (
+            invoices.map((item, index) => (
+              <InvoiceCard
+                invoice={item}
+                key={index + '_invoice_card'}
+                onRefresh={onRefresh}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Image
+                source={require('./../../../asset/images/noInvoice.png')}
+                style={styles.emptyImage}
+                resizeMode="contain"
+              />
+             
+            </View>
+          )}
         </View>
       </ScrollView>
     </Layout>
@@ -158,6 +173,23 @@ const styles = StyleSheet.create({
     fontSize: font(12),
     fontFamily: fonts.inMedium,
     color: colors.primary,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    // paddingVertical: padding(20),
+    // backgroundColor: '#fff',
+    // borderRadius: 5,
+  },
+  emptyImage: {
+    width: icon(200),
+    height: icon(200),
+  },
+  emptyText: {
+    fontSize: font(16),
+    fontFamily: fonts.onSemiBold,
+    color: '#333',
+    marginTop: margin(-20),
   },
 });
 
