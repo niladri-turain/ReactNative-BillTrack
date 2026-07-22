@@ -345,43 +345,45 @@ const InvoiceDetails = () => {
                 <Text style={[styles.invoiceTitle, {fontSize: sizes.invoiceTitleFontSize}]}>
                   Item
                 </Text>
+                {hasAnyHsn && (
+                  <Text style={[styles.invoiceTitle, {fontSize: 12, marginTop: 2}]}>
+                    HSN (GST)
+                  </Text>
+                )}
               </View>
-              <View style={{width: '15%'}}>
-                <Text
-                  style={[
-                    styles.invoiceTitle,
-                    {
-                      textAlign: 'left',
-                      fontSize: sizes.invoiceTitleFontSize,
-                    },
-                  ]}>
-                  Qty
-                </Text>
-              </View>
-              <View style={{width: '20%'}}>
-                <Text
-                  style={[
-                    styles.invoiceTitle,
-                    {
-                      textAlign: 'right',
-                      fontSize: sizes.invoiceTitleFontSize,
-                    },
-                  ]}>
-                  Price
-                </Text>
-              </View>
-              <View style={{width: '25%'}}>
-                <Text
-                  style={[
-                    styles.invoiceTitle,
-                    {
-                      textAlign: 'right',
-                      fontSize: sizes.invoiceTitleFontSize,
-                    },
-                  ]}>
-                  Amount
-                </Text>
-              </View>
+              <Text
+                style={[
+                  styles.invoiceTitle,
+                  {
+                    width: '20%',
+                    textAlign: 'center',
+                    fontSize: sizes.invoiceTitleFontSize,
+                  },
+                ]}>
+                Qty
+              </Text>
+              <Text
+                style={[
+                  styles.invoiceTitle,
+                  {
+                    width: '20%',
+                    textAlign: 'right',
+                    fontSize: sizes.invoiceTitleFontSize,
+                  },
+                ]}>
+                Price
+              </Text>
+              <Text
+                style={[
+                  styles.invoiceTitle,
+                  {
+                    width: '20%',
+                    textAlign: 'right',
+                    fontSize: sizes.invoiceTitleFontSize,
+                  },
+                ]}>
+                Amount
+              </Text>
             </View>
             
             <DottedDivider borderWidth={0.8} />
@@ -400,49 +402,45 @@ const InvoiceDetails = () => {
                     <Text style={[styles.invoiceItem, {fontSize: sizes.invoiceItemFontSize}]}>
                       {itemName}
                     </Text>
-                    {(hsnCode || gstRate) ? (
-                      <Text style={[styles.invoiceHsnGstText, {fontSize: font(10), color: '#666'}]}>
-                        {hsnCode ? `HSN: ${hsnCode}` : ''}{hsnCode && gstRate ? ' | ' : ''}{gstRate ? `GST: ${gstRate}` : ''}
+                    {hasAnyHsn && (hsnCode || gstRate) && (
+                      <Text style={[styles.invoiceHsnGstText, {fontSize: font(12)}]}>
+                        {`${hsnCode}${gstRate ? `(${gstRate})` : ''}`}
                       </Text>
-                    ) : null}
+                    )}
                   </View>
-                  <View style={{width: '15%'}}>
-                    <Text
-                      style={[
-                        styles.invoiceItem,
-                        {
-                          textAlign: 'left',
-                          fontSize: sizes.invoiceItemFontSize,
-                        },
-                      ]}>
-                      {item.quantity}
-                    </Text>
-                  </View>
-                  <View style={{width: '20%'}}>
-                    <Text
-                      style={[
-                        styles.invoiceItem,
-                        {
-                          textAlign: 'right',
-                          fontSize: sizes.invoiceItemFontSize,
-                        },
-                      ]}>
-                      ₹{Number(item?.originalPrice || 0).toFixed(2)}
-                    </Text>
-                  </View>
-                  <View style={{width: '25%'}}>
-                    <Text
-                      style={[
-                        styles.invoiceItem,
-                        {
-                          textAlign: 'right',
-                          fontSize: sizes.invoiceItemFontSize,
-                          fontFamily: fonts.inBold
-                        },
-                      ]}>
-                      ₹{(Number(item.originalPrice || 0) * Number(item.quantity || 0)).toFixed(2)}
-                    </Text>
-                  </View>
+                  <Text
+                    style={[
+                      styles.invoiceItem,
+                      {
+                        width: '20%',
+                        textAlign: 'center',
+                        fontSize: sizes.invoiceItemFontSize,
+                      },
+                    ]}>
+                    {item.quantity}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.invoiceItem,
+                      {
+                        width: '20%',
+                        textAlign: 'right',
+                        fontSize: sizes.invoiceItemFontSize,
+                      },
+                    ]}>
+                    ₹{Number(item?.originalPrice || 0).toFixed(2)}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.invoiceTitle,
+                      {
+                        width: '20%',
+                        textAlign: 'right',
+                        fontSize: sizes.invoiceTitleFontSize,
+                      },
+                    ]}>
+                    ₹{(Number(item.originalPrice || 0) * Number(item.quantity || 0)).toFixed(2)}
+                  </Text>
                 </View>
               );
             })}
