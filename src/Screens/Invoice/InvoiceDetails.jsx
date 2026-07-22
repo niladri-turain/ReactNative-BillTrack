@@ -128,8 +128,8 @@ const InvoiceDetails = () => {
         if (uPhone) {
           setFetchedUserPhone(uPhone);
         }
-        // Call the calculation function
-        const result = calculateInvoiceData(data?.items);
+        // Call the calculation function with discount
+        const result = calculateInvoiceData(data?.items, invoice?.discountAmount || 0);
         // Update all states with the returned values
         const sortedItems = [...result.items].sort((a, b) => {
           const gstA = parseFloat(a.gstPercentage) || 0;

@@ -54,85 +54,90 @@ function formatTime12Hour(isoString) {
 }
 
 // responsible to calculate the invoice data
-const calculateInvoiceData = items => {
-  console.log(JSON.stringify(items));
+const calculateInvoiceData = (items, totalDiscount = 0) => {
   const calculatedItems = [];
   const gstListCalculate = [];
   let totalQuantity = 0;
   let subTotalAmount = 0;
 
+  // 1. Subtotal calculation (before discount)
+  const actualSubtotal = items.reduce(
+    (acc, item) => acc + parseFloat(item?.originalPrice || item?.rate || 0) * Number(item?.quantity || 0),
+    0,
+  );
+
   items.forEach(item => {
-    // const rate = parseFloat(item?.rate);
-    const rate = parseFloat(item?.originalPrice);
-    let actualRate;
-    const quantity = Number(item?.quantity);
+    const originalPrice = parseFloat(item?.originalPrice || item?.rate || 0);
+    const quantity = Number(item?.quantity || 0);
     totalQuantity += quantity;
+    subTotalAmount += originalPrice * quantity;
 
-    if (item?.gstType !== null && item?.gstPercentage !== 0) {
-      const gstPercentage = parseFloat(item?.gstPercentage);
+    // 2 & 3. Distribute Discount Proportionally
+    let discountedPricePerUnit = originalPrice;
+    if (totalDiscount > 0 && actualSubtotal > 0 && quantity > 0) {
+      const itemTotalOriginal = originalPrice * quantity;
+      const itemProportionalDiscount = (totalDiscount * itemTotalOriginal) / actualSubtotal;
+      discountedPricePerUnit = (itemTotalOriginal - itemProportionalDiscount) / quantity;
+    }
 
-      // Correct formula: actualRate = rate / (1 + gstPercentage/100)
-      actualRate = rate / (1 + gstPercentage / 100);
+    // 4. Calculate Taxable Value (Taxable = Discounted Price / (1 + GST%/100))
+    let taxableRate = discountedPricePerUnit;
+    const gstPercentage = parseFloat(item?.gstPercentage || 0);
 
-      // GST amount is the difference
-      const gstAmount = rate - actualRate;
+    if (gstPercentage !== 0) {
+      taxableRate = discountedPricePerUnit / (1 + gstPercentage / 100);
+      const totalGstAmountForItem = (discountedPricePerUnit - taxableRate) * quantity;
 
-      // Helper function to find or create GST entry
-      const addOrUpdateGst = (type, percentage, amount, baseRate) => {
+      // 5. Calculate CGST/SGST
+      const addOrUpdateGst = (type, percentage, amount, baseValue) => {
         const existing = gstListCalculate.find(
           g => g.gstType === type && g.gstPercentage === percentage,
         );
-
         if (existing) {
           existing.gstAmount += amount;
-          existing.rate += baseRate;
+          existing.rate += baseValue;
         } else {
           gstListCalculate.push({
             gstType: type,
             gstPercentage: percentage,
             gstAmount: amount,
-            rate: baseRate,
+            rate: baseValue,
           });
         }
       };
 
-      // Add or update CGST
-      addOrUpdateGst(
-        'CGST',
-        gstPercentage / 2,
-        (gstAmount / 2) * quantity,
-        actualRate * quantity,
-      );
-
-      // Add or update SGST
-      addOrUpdateGst(
-        'SGST',
-        gstPercentage / 2,
-        (gstAmount / 2) * quantity,
-        actualRate * quantity,
-      );
-    } else {
-      actualRate = rate;
+      addOrUpdateGst('CGST', gstPercentage / 2, totalGstAmountForItem / 2, taxableRate * quantity);
+      addOrUpdateGst('SGST', gstPercentage / 2, totalGstAmountForItem / 2, taxableRate * quantity);
     }
 
-    // subTotalAmount += actualRate * Number(item?.quantity);
-    subTotalAmount += Number(item?.originalPrice) * Number(item?.quantity);
     calculatedItems.push({
-      name: item?.productName,
-      quantity: item?.quantity,
-      rate: actualRate,
-      hsnCode: item?.hsnCode,
-      hsnId: item?.hsnId,
-      gstPercentage: item?.gstPercentage,
-      originalPrice: item?.originalPrice,
+      ...item,
+      productName: item.productName || item.name,
+      quantity: quantity,
+      rate: taxableRate,
+      originalPrice: originalPrice,
+      discountedRate: discountedPricePerUnit,
+      gstPercentage: gstPercentage
     });
+  });
+
+  // Use a precise rounding function to 2 decimal places
+  const round2 = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
+
+  const roundedSubTotal = round2(subTotalAmount);
+  const netTotal = round2(subTotalAmount - totalDiscount);
+
+  gstListCalculate.forEach(g => {
+    g.gstAmount = round2(g.gstAmount);
+    g.rate = round2(g.rate);
   });
 
   return {
     items: calculatedItems,
     gstListCalculate,
     totalQuantity,
-    subTotalAmount,
+    subTotalAmount: roundedSubTotal,
+    netTotal: netTotal,
   };
 };
 
