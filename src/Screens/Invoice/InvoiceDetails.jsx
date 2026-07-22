@@ -340,106 +340,109 @@ const InvoiceDetails = () => {
             <DottedDivider borderWidth={0.8} />
             
             {/* COLUMN HEADERS */}
-            <View style={[styles.itemContainer, {paddingHorizontal: sizes.itemContainerPaddingHorizontal}]}>
+            <View style={[styles.itemHeaderContainer, {paddingHorizontal: sizes.itemContainerPaddingHorizontal}]}>
               <View style={{width: '40%'}}>
                 <Text style={[styles.invoiceTitle, {fontSize: sizes.invoiceTitleFontSize}]}>
                   Item
                 </Text>
-                {hasAnyHsn && (
-                  <Text style={[styles.invoiceTitle, {fontSize: 12, marginTop: 2}]}>
-                    HSN (GST)
-                  </Text>
-                )}
               </View>
-              <Text
-                style={[
-                  styles.invoiceTitle,
-                  {
-                    width: '20%',
-                    textAlign: 'center',
-                    fontSize: sizes.invoiceTitleFontSize,
-                  },
-                ]}>
-                Qty
-              </Text>
-              <Text
-                style={[
-                  styles.invoiceTitle,
-                  {
-                    width: '20%',
-                    textAlign: 'right',
-                    fontSize: sizes.invoiceTitleFontSize,
-                  },
-                ]}>
-                Price
-              </Text>
-              <Text
-                style={[
-                  styles.invoiceTitle,
-                  {
-                    width: '20%',
-                    textAlign: 'right',
-                    fontSize: sizes.invoiceTitleFontSize,
-                  },
-                ]}>
-                Amount
-              </Text>
+              <View style={{width: '15%'}}>
+                <Text
+                  style={[
+                    styles.invoiceTitle,
+                    {
+                      textAlign: 'left',
+                      fontSize: sizes.invoiceTitleFontSize,
+                    },
+                  ]}>
+                  Qty
+                </Text>
+              </View>
+              <View style={{width: '20%'}}>
+                <Text
+                  style={[
+                    styles.invoiceTitle,
+                    {
+                      textAlign: 'right',
+                      fontSize: sizes.invoiceTitleFontSize,
+                    },
+                  ]}>
+                  Price
+                </Text>
+              </View>
+              <View style={{width: '25%'}}>
+                <Text
+                  style={[
+                    styles.invoiceTitle,
+                    {
+                      textAlign: 'right',
+                      fontSize: sizes.invoiceTitleFontSize,
+                    },
+                  ]}>
+                  Amount
+                </Text>
+              </View>
             </View>
             
             <DottedDivider borderWidth={0.8} />
             
             {/* ITEMS LIST LOOP */}
             {invoiceItems.map((item, index) => {
+              const itemName = item.productName || item.name || 'Unnamed Item';
               const hsnCode = item?.hsnCode || item?.hsn || '';
               const gstRate = item?.gstPercentage && parseFloat(item.gstPercentage) > 0 
                 ? `${parseFloat(item.gstPercentage)}%` 
                 : '';
 
               return (
-                <View style={[styles.itemContainer, {paddingHorizontal: sizes.itemContainerPaddingHorizontal}]} key={index + '_item'}>
+                <View style={[styles.itemRowContainer, {paddingHorizontal: sizes.itemContainerPaddingHorizontal}]} key={index + '_item'}>
                   <View style={{width: '40%'}}>
                     <Text style={[styles.invoiceItem, {fontSize: sizes.invoiceItemFontSize}]}>
-                      {item.name}
+                      {itemName}
                     </Text>
-                    {hasAnyHsn && (hsnCode || gstRate) && (
-                      <Text style={[styles.invoiceHsnGstText, {fontSize: font(12)}]}>
-                        {`${hsnCode}${gstRate ? `(${gstRate})` : ''}`}
+                    {(hsnCode || gstRate) ? (
+                      <Text style={[styles.invoiceHsnGstText, {fontSize: font(10), color: '#666'}]}>
+                        {hsnCode ? `HSN: ${hsnCode}` : ''}{hsnCode && gstRate ? ' | ' : ''}{gstRate ? `GST: ${gstRate}` : ''}
                       </Text>
-                    )}
+                    ) : null}
                   </View>
-                  <Text
-                    style={[
-                      styles.invoiceItem,
-                      {
-                        width: '20%',
-                        textAlign: 'center',
-                        fontSize: sizes.invoiceItemFontSize,
-                      },
-                    ]}>
-                    {item.quantity}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.invoiceItem,
-                      {
-                        width: '20%',
-                        textAlign: 'right',
-                        fontSize: sizes.invoiceItemFontSize,
-                      },
-                    ]}>
-                    ₹{Number(item?.originalPrice).toFixed(2)}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.invoiceTitle,
-                      {
-                        width: '20%',
-                        textAlign: 'right',
-                        fontSize: sizes.invoiceTitleFontSize,
-                      },
-                    ]}>
-                    ₹{(Number(item.originalPrice) * Number(item.quantity)).toFixed(2)}
-                  </Text>
+                  <View style={{width: '15%'}}>
+                    <Text
+                      style={[
+                        styles.invoiceItem,
+                        {
+                          textAlign: 'left',
+                          fontSize: sizes.invoiceItemFontSize,
+                        },
+                      ]}>
+                      {item.quantity}
+                    </Text>
+                  </View>
+                  <View style={{width: '20%'}}>
+                    <Text
+                      style={[
+                        styles.invoiceItem,
+                        {
+                          textAlign: 'right',
+                          fontSize: sizes.invoiceItemFontSize,
+                        },
+                      ]}>
+                      ₹{Number(item?.originalPrice || 0).toFixed(2)}
+                    </Text>
+                  </View>
+                  <View style={{width: '25%'}}>
+                    <Text
+                      style={[
+                        styles.invoiceItem,
+                        {
+                          textAlign: 'right',
+                          fontSize: sizes.invoiceItemFontSize,
+                          fontFamily: fonts.inBold
+                        },
+                      ]}>
+                      ₹{(Number(item.originalPrice || 0) * Number(item.quantity || 0)).toFixed(2)}
+                    </Text>
+                  </View>
                 </View>
               );
             })}
@@ -476,7 +479,7 @@ const InvoiceDetails = () => {
                 </View>
                 <View style={styles.subSecondContainer}>
                   <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                    ₹{invoice?.discountAmount}
+                    ₹{Number(invoice?.discountAmount).toFixed(2)}
                   </Text>
                 </View>
               </View>
@@ -561,7 +564,7 @@ const InvoiceDetails = () => {
               </View>
               <View style={styles.subSecondContainer}>
                 <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                  Total Amount : ₹{invoice.totalAmount}
+                  Total Amount : ₹{Number(invoice.totalAmount).toFixed(2)}
                 </Text>
               </View>
             </View>
@@ -624,11 +627,15 @@ const styles = StyleSheet.create({
     fontFamily: fonts.inSemiBold,
     color: '#000000',
   },
-  itemContainer: {
+  itemHeaderContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start', // text-wrapping er jonno alignment flex-start rakha hoyeche
-    marginVertical: 5,
+    alignItems: 'flex-start',
+    marginVertical: 8,
+  },
+  itemRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginVertical: 6,
   },
   invoiceTitle: {
     fontFamily: fonts.inBold,
