@@ -35,9 +35,9 @@ const SalesAreaChart = memo(({barData = []}) => {
   }, [barData]);
 
   // Memoize style objects to prevent recreation on each render
-  const xAxisLabelStyle = useMemo(() => ({fontSize: font(10)}), []);
+  const xAxisLabelStyle = useMemo(() => ({fontSize: font(9)}), []);
   const yAxisStyle = useMemo(() => ({fontSize: font(10)}), []);
-  const topLabelStyle = useMemo(() => ({fontSize: font(8)}), []);
+  const topLabelStyle = useMemo(() => ({fontSize: font(7)}), []);
 
   return (
     <View>
