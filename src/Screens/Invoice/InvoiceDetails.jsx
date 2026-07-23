@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  BackHandler,
   Image,
   ScrollView,
   StyleSheet,
@@ -44,6 +45,21 @@ const InvoiceDetails = () => {
   const route = useRoute();
   const {invoice} = route.params;
   const business = useBusiness();
+
+  useEffect(() => {
+    const backAction = () => {
+      navigation.navigate('Home');
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction,
+    );
+
+    return () => backHandler.remove();
+  }, [navigation]);
+
   const _userName = useUser('name');
   const userName = _userName || business?.name;
   console.log("business", business);
@@ -196,11 +212,7 @@ const InvoiceDetails = () => {
         isQuestion={false}
         isSearch={false}
         handleBack={() => {
-          if (navigation.canGoBack()) {
-            navigation.goBack();
-          } else {
-            navigation.navigate('Home', { screen: 'Home' });
-          }
+          navigation.navigate('Home');
         }}
       />
       {isLoading ? (

@@ -243,7 +243,10 @@ const AppStack = memo(() => {
         listeners={({ navigation }) => ({
           tabPress: (e) => {
             e.preventDefault();
-            navigation.navigate('Home', { screen: 'Home' });
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Home' }],
+            });
           },
         })}
       />
