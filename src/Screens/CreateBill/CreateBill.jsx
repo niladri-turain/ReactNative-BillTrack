@@ -454,8 +454,8 @@ const CreateBill = () => {
 
   return (
     <KeyboardAvoidingView
-      style={{flex: 1, paddingBottom: inset.bottom}}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      style={{flex: 1}}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <GestureHandlerRootView style={{flex: 1}}>
         <Layout>
           <SecondaryHeader
