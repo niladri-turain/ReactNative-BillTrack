@@ -153,13 +153,13 @@ const styles = StyleSheet.create({
   selectable: {
     width: '30%',
     // height: heightResponsive(30),
-    paddingVertical: padding(9),
-    paddingHorizontal: padding(20),
+    paddingVertical: padding(6),
+    paddingHorizontal: padding(10),
     justifyContent: 'center',
     alignItems: 'center',
   },
   selectedText: {
-    fontSize: font(12),
+    fontSize: font(10),
     fontFamily: fonts.inMedium,
     color: '#000000',
   },
@@ -177,17 +177,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   salesText: {
-    fontSize: font(14),
+    fontSize: font(13),
     fontFamily: fonts.inMedium,
     color: '#00000090',
   },
   salesAmount: {
-    fontSize: font(24),
+    fontSize: font(18),
     fontFamily: fonts.inBold,
     color: '#000',
   },
   salesPercentageText: {
-    fontSize: font(12),
+    fontSize: font(11),
     fontFamily: fonts.inMedium,
     color: colors.sucess,
   },

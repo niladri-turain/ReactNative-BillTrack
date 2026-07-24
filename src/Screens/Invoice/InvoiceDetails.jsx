@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  BackHandler,
   Image,
   ScrollView,
   StyleSheet,
@@ -44,6 +45,21 @@ const InvoiceDetails = () => {
   const route = useRoute();
   const {invoice} = route.params;
   const business = useBusiness();
+
+  useEffect(() => {
+    const backAction = () => {
+      navigation.navigate('Home');
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction,
+    );
+
+    return () => backHandler.remove();
+  }, [navigation]);
+
   const _userName = useUser('name');
   const userName = _userName || business?.name;
   console.log("business", business);
@@ -128,8 +144,8 @@ const InvoiceDetails = () => {
         if (uPhone) {
           setFetchedUserPhone(uPhone);
         }
-        // Call the calculation function
-        const result = calculateInvoiceData(data?.items);
+        // Call the calculation function with discount
+        const result = calculateInvoiceData(data?.items, invoice?.discountAmount || 0);
         // Update all states with the returned values
         const sortedItems = [...result.items].sort((a, b) => {
           const gstA = parseFloat(a.gstPercentage) || 0;
@@ -196,11 +212,7 @@ const InvoiceDetails = () => {
         isQuestion={false}
         isSearch={false}
         handleBack={() => {
-          if (navigation.canGoBack()) {
-            navigation.goBack();
-          } else {
-            navigation.navigate('Home', { screen: 'Home' });
-          }
+          navigation.navigate('Home');
         }}
       />
       {isLoading ? (
@@ -340,7 +352,7 @@ const InvoiceDetails = () => {
             <DottedDivider borderWidth={0.8} />
             
             {/* COLUMN HEADERS */}
-            <View style={[styles.itemContainer, {paddingHorizontal: sizes.itemContainerPaddingHorizontal}]}>
+            <View style={[styles.itemHeaderContainer, {paddingHorizontal: sizes.itemContainerPaddingHorizontal}]}>
               <View style={{width: '40%'}}>
                 <Text style={[styles.invoiceTitle, {fontSize: sizes.invoiceTitleFontSize}]}>
                   Item
@@ -390,16 +402,17 @@ const InvoiceDetails = () => {
             
             {/* ITEMS LIST LOOP */}
             {invoiceItems.map((item, index) => {
+              const itemName = item.productName || item.name || 'Unnamed Item';
               const hsnCode = item?.hsnCode || item?.hsn || '';
               const gstRate = item?.gstPercentage && parseFloat(item.gstPercentage) > 0 
                 ? `${parseFloat(item.gstPercentage)}%` 
                 : '';
 
               return (
-                <View style={[styles.itemContainer, {paddingHorizontal: sizes.itemContainerPaddingHorizontal}]} key={index + '_item'}>
+                <View style={[styles.itemRowContainer, {paddingHorizontal: sizes.itemContainerPaddingHorizontal}]} key={index + '_item'}>
                   <View style={{width: '40%'}}>
                     <Text style={[styles.invoiceItem, {fontSize: sizes.invoiceItemFontSize}]}>
-                      {item.name}
+                      {itemName}
                     </Text>
                     {hasAnyHsn && (hsnCode || gstRate) && (
                       <Text style={[styles.invoiceHsnGstText, {fontSize: font(12)}]}>
@@ -427,7 +440,7 @@ const InvoiceDetails = () => {
                         fontSize: sizes.invoiceItemFontSize,
                       },
                     ]}>
-                    ₹{Number(item?.originalPrice).toFixed(2)}
+                    ₹{Number(item?.originalPrice || 0).toFixed(2)}
                   </Text>
                   <Text
                     style={[
@@ -438,7 +451,7 @@ const InvoiceDetails = () => {
                         fontSize: sizes.invoiceTitleFontSize,
                       },
                     ]}>
-                    ₹{(Number(item.originalPrice) * Number(item.quantity)).toFixed(2)}
+                    ₹{(Number(item.originalPrice || 0) * Number(item.quantity || 0)).toFixed(2)}
                   </Text>
                 </View>
               );
@@ -476,7 +489,7 @@ const InvoiceDetails = () => {
                 </View>
                 <View style={styles.subSecondContainer}>
                   <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                    ₹{invoice?.discountAmount}
+                    ₹{Number(invoice?.discountAmount).toFixed(2)}
                   </Text>
                 </View>
               </View>
@@ -561,7 +574,7 @@ const InvoiceDetails = () => {
               </View>
               <View style={styles.subSecondContainer}>
                 <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                  Total Amount : ₹{invoice.totalAmount}
+                  Total Amount : ₹{Number(invoice.totalAmount).toFixed(2)}
                 </Text>
               </View>
             </View>
@@ -624,11 +637,15 @@ const styles = StyleSheet.create({
     fontFamily: fonts.inSemiBold,
     color: '#000000',
   },
-  itemContainer: {
+  itemHeaderContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start', // text-wrapping er jonno alignment flex-start rakha hoyeche
-    marginVertical: 5,
+    alignItems: 'flex-start',
+    marginVertical: 8,
+  },
+  itemRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginVertical: 6,
   },
   invoiceTitle: {
     fontFamily: fonts.inBold,

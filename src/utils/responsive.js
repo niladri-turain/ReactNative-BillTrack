@@ -54,7 +54,7 @@ export const ScreenWidth = width;
 export const ScreenHeight = height;
 
 // for chart bar height
-export const HOME_CHART_HEIGHT = 210;
+export const HOME_CHART_HEIGHT = 160;
 
 // Export flag in case you need it
 export const isTabletDevice = isTablet;

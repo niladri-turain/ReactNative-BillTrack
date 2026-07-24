@@ -76,11 +76,16 @@ class BusinessService {
           Authorization: `Bearer ${token}`,
         },
       });
-      const data = await response.data;
-      return data;
+      console.log('--- getBusiness Success Response ---');
+      console.log('Status Code:', response.status);
+      return response.data;
     } catch (error) {
-      const data = await error.response.data;
-      return data;
+      console.error('--- getBusiness Error Response ---');
+      if (error.response) {
+        console.error('Status Code:', error.response.status);
+        console.error('Data:', error.response.data);
+      }
+      return error.response?.data;
     }
   }
 
@@ -125,6 +130,11 @@ class BusinessService {
     if (prefix) {
       payload.prefix = prefix;
     }
+
+    console.log('--- updateBusiness Request ---');
+    console.log('URL:', uri);
+    console.log('Payload:', JSON.stringify(payload, null, 2));
+
     try {
       const response = await axios.put(uri, payload, {
         headers: {
@@ -132,11 +142,23 @@ class BusinessService {
           'Content-Type': 'application/json',
         },
       });
-      const data = await response.data;
-      return data;
+      console.log('--- updateBusiness Success Response ---');
+      console.log('Status Code:', response.status);
+      console.log('Data:', JSON.stringify(response.data, null, 2));
+      return response.data;
     } catch (error) {
-      const data = await error.response.data;
-      return data;
+      console.error('--- updateBusiness Error Response ---');
+      console.error('Error:', error.message);
+      if (error.response) {
+        console.error('Data:', JSON.stringify(error.response.data, null, 2));
+        console.error('Status:', error.response.status);
+      }
+      return (
+        error.response?.data || {
+          status: false,
+          message: error.message || 'Something went wrong',
+        }
+      );
     }
   }
 }

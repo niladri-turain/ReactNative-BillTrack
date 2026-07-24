@@ -154,6 +154,10 @@ const Business = () => {
       prefix: modalType === 'Prefix' ? tempValue : prefix,
     };
 
+    console.log('--- handleSave Initiated ---');
+    console.log('Current Modal Type:', modalType);
+    console.log('Payload to be validated:', JSON.stringify(updatedValues, null, 2));
+
     const hasChanged =
       updatedValues.phone !== initialValues.phone ||
       updatedValues.email !== initialValues.email ||
@@ -165,6 +169,7 @@ const Business = () => {
       updatedValues.prefix !== initialValues.prefix;
 
     if (!hasChanged) {
+      console.log('Validation: No changes detected');
       ToastService.show({
         message: 'No changes detected',
         type: 'info',
@@ -173,6 +178,7 @@ const Business = () => {
     }
 
     if (!updatedValues.state) {
+      console.log('Validation Failed: State is empty');
       ToastService.show({
         message: 'Please select state',
         type: 'error',
@@ -181,6 +187,7 @@ const Business = () => {
     }
 
     if (!updatedValues.street) {
+      console.log('Validation Failed: Street is empty');
       ToastService.show({
         message: 'Please enter street',
         type: 'error',
@@ -189,6 +196,7 @@ const Business = () => {
     }
 
     if (!updatedValues.city) {
+      console.log('Validation Failed: City is empty');
       ToastService.show({
         message: 'Please enter city',
         type: 'error',
@@ -197,6 +205,7 @@ const Business = () => {
     }
 
     if (!updatedValues.pincode) {
+      console.log('Validation Failed: Pincode is empty');
       ToastService.show({
         message: 'Please enter pincode',
         type: 'error',
@@ -205,6 +214,7 @@ const Business = () => {
     }
 
     if (!updatedValues.prefix) {
+      console.log('Validation Failed: Prefix is empty');
       ToastService.show({
         message: 'Please enter prefix',
         type: 'error',
@@ -213,6 +223,7 @@ const Business = () => {
     }
 
     if (updatedValues.prefix.length >= 6) {
+      console.log('Validation Failed: Prefix too long');
       ToastService.show({
         message: 'Prefix should be less than 6 characters',
         type: 'error',
@@ -221,6 +232,7 @@ const Business = () => {
     }
 
     if (updatedValues.phone && !validateIndianPhone(updatedValues.phone)) {
+      console.log('Validation Failed: Invalid Phone');
       ToastService.show({
         message: 'Invalid Phone Number',
         type: 'error',
@@ -229,6 +241,7 @@ const Business = () => {
     }
 
     if (updatedValues.email && !validateEmail(updatedValues.email)) {
+      console.log('Validation Failed: Invalid Email');
       ToastService.show({
         message: 'Invalid Email',
         type: 'error',
@@ -237,6 +250,7 @@ const Business = () => {
     }
 
     if (updatedValues.gstNumber && !validateIndianGST(updatedValues.gstNumber)) {
+      console.log('Validation Failed: Invalid GST');
       ToastService.show({
         message: 'Invalid GST Number',
         type: 'error',
@@ -245,12 +259,15 @@ const Business = () => {
     }
 
     if (updatedValues.pincode && !validateIndianPincode(updatedValues.pincode)) {
+      console.log('Validation Failed: Invalid Pincode Format');
       ToastService.show({
         message: 'Invalid Pincode',
         type: 'error',
       });
       return;
     }
+
+    console.log('Validation Passed. Proceeding to API call...');
 
     const saveBusiness = async () => {
       try {
@@ -266,6 +283,9 @@ const Business = () => {
           phone: updatedValues.phone,
           prefix: updatedValues.prefix,
         });
+
+        console.log('Update Business API Response:', data);
+
         if (data.status) {
           ToastService.show({
             message: 'Business updated successfully',
@@ -284,8 +304,18 @@ const Business = () => {
 
           await resetBusiness(updatedBusiness);
           handleCloseModal();
+        } else {
+          ToastService.show({
+            message: data.message || 'Failed to update business',
+            type: 'error',
+          });
         }
       } catch (error) {
+        console.error('Update Business Error:', error);
+        ToastService.show({
+          message: 'An unexpected error occurred',
+          type: 'error',
+        });
       } finally {
         setIsSaveLoading(false);
       }

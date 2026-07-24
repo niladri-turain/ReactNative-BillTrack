@@ -87,7 +87,17 @@ const ActiveProducts = () => {
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return products;
     const query = searchQuery.toLowerCase();
-    return products.filter(item => item?.name.toLowerCase().includes(query) || item?.price.toLowerCase().includes(query) || item?.unitType.toLowerCase().includes(query) || item?.description?.toLowerCase().includes(query));
+    return products.filter(item => {
+      const name = item?.name?.toLowerCase() || '';
+      const price = item?.price?.toString()?.toLowerCase() || '';
+      const unitType = item?.unitType?.toLowerCase() || '';
+      const description = item?.description?.toLowerCase() || '';
+
+      return name.includes(query) ||
+             price.includes(query) ||
+             unitType.includes(query) ||
+             description.includes(query);
+    });
   }, [products, searchQuery]);
 
   // Stable toggle function
