@@ -91,7 +91,7 @@ const Product = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Loading state
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(Products.length === 0);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
@@ -100,6 +100,8 @@ const Product = () => {
   const [unitModalVisible, setUnitModalVisible] = useState(false);
   const [units, setUnits] = useState([]);
   const [hsnModalVisible, setHsnModalVisible] = useState(false);
+
+  const [lastProductsLength, setLastProductsLength] = useState(Products.length);
 
   const setInitialValueOfModal = () => {
     setProductImage(null);
@@ -166,9 +168,11 @@ const Product = () => {
     [],
   );
 
-  const getProducts = async () => {
+  const getProducts = async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent && Products.length === 0) {
+        setIsLoading(true);
+      }
       const data = await productService.getAllProducts(token);
       if (data?.status) {
         await resetProducts(data?.data || []);
@@ -392,13 +396,16 @@ const Product = () => {
   useEffect(() => {
     if (Products.length === 0 || doRefreshPage) {
       getProducts();
+    } else if (Products.length !== lastProductsLength) {
+      getProducts(true);
+      setLastProductsLength(Products.length);
     }
-  }, []);
+  }, [Products.length, doRefreshPage, lastProductsLength]);
 
   useEffect(() => {
     // Fetch units when component mounts or businessCategoryId/token changes
     getUnits();
-  }, []);
+  }, [token, businessCategoryId]);
 
   const onRefresh = async () => {
     setIsRefreshing(true);

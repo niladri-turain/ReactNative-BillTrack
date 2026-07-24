@@ -43,18 +43,17 @@ const Home = () => {
   // Loading State
   const [isRefreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-
-  // state variables
-  // const [invoices, setInvoices] = useState(contextInvoices);
+  const [isLoading, setIsLoading] = useState(invoices.length === 0);
+  const [isInitialLoad, setIsInitialLoad] = useState(invoices.length === 0);
+  const [lastInvoicesLength, setLastInvoicesLength] = useState(invoices.length);
 
   const fetchInvoice = async () => {
     try {
-      setIsLoading(true);
+      if (invoices.length === 0) {
+        setIsLoading(true);
+      }
       const data = await invoiceService.getInvoices(token, 0, 10);
       if (data?.status) {
-        // setInvoices(data?.data || []);
         resetInvoices(data?.data || []);
       }
     } catch (error) {
@@ -73,10 +72,18 @@ const Home = () => {
 
   useFocusEffect(
     useCallback(() => {
-      fetchInvoice();
-      setRefreshTrigger(prev => prev + 1);
-    }, [token]),
+      if (invoices.length === 0) {
+        fetchInvoice();
+      }
+
+      if (invoices.length !== lastInvoicesLength) {
+        setRefreshTrigger(prev => prev + 1);
+        setLastInvoicesLength(invoices.length);
+      }
+    }, [token, invoices.length, lastInvoicesLength]),
   );
+
+  const {salesData} = useInvoice();
 
   return (
     <Layout>
@@ -94,7 +101,7 @@ const Home = () => {
             tintColor={colors.primary}
           />
         }>
-        {isInitialLoad ? (
+        {isInitialLoad && !salesData ? (
           <HomeChartShimmer />
         ) : (
           <HomeChartComponent refreshTrigger={refreshTrigger}  />

@@ -37,6 +37,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { font, margin, padding } from '../../utils/responsive';
 import { invoiceService } from '../../Services/InvoiceService';
 import { useAuthToken, useSubscription } from '../../Contexts/AuthContext';
+import { useInvoice } from '../../Contexts/InvoiceContext';
 
 import { useFocusEffect } from '@react-navigation/native';
 // Constants moved outside component to prevent recreation
@@ -80,16 +81,18 @@ const SortOption = memo(({ label, value, isSelected, onSelect, isLast }) => (
 const Invoice = () => {
   const token = useAuthToken();
   const subscription = useSubscription();
+  const { invoices, resetInvoices } = useInvoice();
 
   // STATE VARIABLES
   const [sortBy, setSortBy] = useState('date_desc');
   const [pageNumber, setPageNumber] = useState(0);
-  const [invoices, setInvoices] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(invoices.length === 0);
+  const [isInitialLoad, setIsInitialLoad] = useState(invoices.length === 0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [paginationTotalPage, setPaginationTotalPage] = useState(0);
   const [paginationHasNextPage, setPaginationHasNextPage] = useState(false);
   const [query, setQuery] = useState('');
+  const [lastInvoicesLength, setLastInvoicesLength] = useState(invoices.length);
 
   const bottomSheetRef = useRef(null);
 
@@ -116,61 +119,51 @@ const Invoice = () => {
 
   /* FETCH INVOICES OPTIMIZATION */
   const fetchInvoices = useCallback(
-    async (page = 0) => {
+    async (page = 0, silent = false) => {
       try {
-        setIsLoading(true);
+        if (!silent && invoices.length === 0) {
+          setIsLoading(true);
+        }
         const data =
           sortBy === 'cancelled'
             ? await invoiceService.getCancelInvoices(token, page, 8, 'date_desc')
             : await invoiceService.getInvoices(token, page, 8, sortBy);
         if (data?.status) {
-          setInvoices(data?.data);
+          if (page === 0) {
+            resetInvoices(data?.data || []);
+          } else {
+            resetInvoices([...invoices, ...data?.data]);
+          }
           const pagination = data?.pagination;
           setPaginationTotalPage(pagination?.totalPage);
           setPaginationHasNextPage(pagination?.hasNext);
-          console.log(JSON.stringify(data.data));
         }
       } catch (error) {
       } finally {
         setIsLoading(false);
+        setIsInitialLoad(false);
       }
     },
-    [token, sortBy],
+    [token, sortBy, invoices, resetInvoices],
   );
 
   const fetchMore = useCallback(
     async nextPage => {
       if (isLoading) return;
-
-      try {
-        setIsLoading(true);
-        const data =
-          sortBy === 'cancelled'
-            ? await invoiceService.getCancelInvoices(
-                token,
-                nextPage,
-                8,
-                'date_desc',
-              )
-            : await invoiceService.getInvoices(token, nextPage, 8, sortBy);
-        if (data?.status) {
-          setInvoices(prev => [...prev, ...data?.data]);
-          const pagination = data?.pagination;
-          setPaginationTotalPage(pagination?.totalPage);
-          setPaginationHasNextPage(pagination?.hasNext);
-        }
-      } catch (error) {
-      } finally {
-        setIsLoading(false);
-      }
+      await fetchInvoices(nextPage);
     },
-    [token, isLoading, sortBy],
+    [isLoading, fetchInvoices],
   );
 
   useFocusEffect(
     useCallback(() => {
-      fetchInvoices(0);
-    }, [fetchInvoices]),
+      if (invoices.length === 0) {
+        fetchInvoices(0);
+      } else if (invoices.length !== lastInvoicesLength) {
+        fetchInvoices(0, true);
+        setLastInvoicesLength(invoices.length);
+      }
+    }, [fetchInvoices, invoices.length, lastInvoicesLength]),
   );
 
   /* ON REFRESH OPTIMIZATION */

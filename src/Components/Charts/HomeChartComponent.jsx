@@ -20,22 +20,25 @@ import {
 import {salesReportService} from '../../Services/SalesReportService';
 import {useAuthToken} from '../../Contexts/AuthContext';
 import HomeChartShimmer from '../Shimmers/HomeChartShimmer';
+import {useInvoice} from '../../Contexts/InvoiceContext';
 
 const {width} = Dimensions.get('screen');
 
 const HomeChartComponent = memo(
   ({salesDurations = ['Today', 'Week', 'Month'], refreshTrigger}) => {
     const token = useAuthToken();
+    const {salesData, setSalesData} = useInvoice();
     const [selectedPriod, setSelectedPriod] = React.useState('Today');
-    const [salesData, setSalesData] = useState(null);
     const [salesPercentage, setSalesPercentage] = useState(0);
 
     // Loading State
-    const [isLoading, setIsLaoding] = useState(true);
+    const [isLoading, setIsLaoding] = useState(!salesData);
 
-    const fetchSales = useCallback(async () => {
+    const fetchSales = useCallback(async (silent = false) => {
       try {
-        setIsLaoding(true);
+        if (!silent && !salesData) {
+          setIsLaoding(true);
+        }
         const data = await salesReportService.getSalesReportByPeriod(
           token,
           selectedPriod.toLowerCase(),
@@ -60,9 +63,9 @@ const HomeChartComponent = memo(
         }
       } catch (error) {
       } finally {
-          setIsLaoding(false);
+        setIsLaoding(false);
       }
-    }, [selectedPriod]);
+    }, [token, selectedPriod, salesData]);
 
     const handleChangePriod = period => {
       try {
@@ -71,10 +74,10 @@ const HomeChartComponent = memo(
     };
 
     useEffect(() => {
-      fetchSales();
+      fetchSales(salesData !== null);
     }, [selectedPriod, refreshTrigger]);
 
-    if (isLoading) {
+    if (isLoading && !salesData) {
       return <HomeChartShimmer />;
     }
 

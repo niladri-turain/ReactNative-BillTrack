@@ -4,6 +4,8 @@ const InvoiceContext = createContext();
 
 const InvoiceProvider = ({children}) => {
   const [invoices, setInvoices] = useState([]);
+  const [salesData, setSalesData] = useState(null);
+
   const addInvoice = invoice => {
     setInvoices(prevInvoices => [invoice, ...prevInvoices]);
   };
@@ -17,8 +19,15 @@ const InvoiceProvider = ({children}) => {
   };
 
   const value = useMemo(
-    () => ({invoices, addInvoice, resetInvoices, clearInvoice}),
-    [invoices],
+    () => ({
+      invoices,
+      addInvoice,
+      resetInvoices,
+      clearInvoice,
+      salesData,
+      setSalesData,
+    }),
+    [invoices, salesData],
   );
 
   return (
