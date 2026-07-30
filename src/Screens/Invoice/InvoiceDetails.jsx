@@ -48,7 +48,10 @@ const InvoiceDetails = () => {
 
   useEffect(() => {
     const backAction = () => {
-      navigation.navigate('Home');
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'Home'}],
+      });
       return true;
     };
 
@@ -212,7 +215,10 @@ const InvoiceDetails = () => {
         isQuestion={false}
         isSearch={false}
         handleBack={() => {
-          navigation.navigate('Home');
+          navigation.reset({
+            index: 0,
+            routes: [{name: 'Home'}],
+          });
         }}
       />
       {isLoading ? (
