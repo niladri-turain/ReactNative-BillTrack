@@ -63,6 +63,7 @@ const GstSelectModal = ({
 }) => {
   const [query, setQuery] = useState('');
   const [allData, setAllData] = useState([]);
+  const [isGlobalMode, setIsGlobalMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Fetch HSNs when modal opens
@@ -77,9 +78,20 @@ const GstSelectModal = ({
           businessCategoryId,
         );
         if (response.success) {
-          // Extract the nested hsn objects
           const hsns = (response.data?.hsns || []).map(item => item.hsn);
-          setAllData(hsns);
+
+          if (hsns.length === 0) {
+            // Category empty -> Switch to Global Mode
+            setIsGlobalMode(true);
+            const globalSearchResponse = await hsnService.search('');
+            if (globalSearchResponse.status) {
+              setAllData(globalSearchResponse.data);
+            }
+          } else {
+            // Category has data -> Stay in Local Mode
+            setIsGlobalMode(false);
+            setAllData(hsns);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch HSNs:', error);
@@ -95,8 +107,37 @@ const GstSelectModal = ({
     }
   }, [visible, token, businessCategoryId]);
 
-  // Local filtering based on search query
+  // Global search implementation
+  const handleGlobalSearch = useCallback(
+    debounce(async searchText => {
+      setIsLoading(true);
+      try {
+        const response = await hsnService.search(searchText);
+        if (response.status) {
+          setAllData(response.data);
+        }
+      } catch (error) {
+        console.error('Global search error:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 500),
+    [],
+  );
+
+  // Trigger search from API ONLY IF in Global Mode
+  useEffect(() => {
+    if (isGlobalMode && query.trim() !== '') {
+      handleGlobalSearch(query);
+    } else if (isGlobalMode && query.trim() === '') {
+      handleGlobalSearch(''); // Reset to initial global list
+    }
+  }, [query, isGlobalMode, handleGlobalSearch]);
+
+  // Local filtering for Category mode, or direct data for Global mode
   const filteredData = useMemo(() => {
+    if (isGlobalMode) return allData;
+
     if (!query.trim()) return allData;
     const lowerQuery = query.toLowerCase();
     return allData.filter(
@@ -104,7 +145,7 @@ const GstSelectModal = ({
         item.hsnCode?.toLowerCase().includes(lowerQuery) ||
         item.description?.toLowerCase().includes(lowerQuery),
     );
-  }, [allData, query]);
+  }, [allData, query, isGlobalMode]);
 
   // Memoized sorted data: selected item always on top
   const sortedData = useMemo(() => {

@@ -54,8 +54,8 @@ const STICKY_HEADER_INDICES = [0];
 const ANIMATION_CONFIG = { duration: 300 };
 
 // Memoized ListFooterComponent
-const ListFooterComponent = memo(({ isLoading, paginationHasNextPage }) =>
-  paginationHasNextPage && isLoading ? (
+const ListFooterComponent = memo(({ isLoading, paginationHasNextPage, pageNumber }) =>
+  paginationHasNextPage && isLoading && pageNumber > 0 ? (
     <View style={styles.footerLoader}>
       <Loader />
     </View>
@@ -95,6 +95,12 @@ const Invoice = () => {
   const [lastInvoicesLength, setLastInvoicesLength] = useState(invoices.length);
 
   const bottomSheetRef = useRef(null);
+  const invoicesRef = useRef(invoices);
+
+  // Sync ref with state
+  useEffect(() => {
+    invoicesRef.current = invoices;
+  }, [invoices]);
 
   // Memoized callbacks
   const handleOpenBottomSheet = useCallback(() => {
@@ -121,7 +127,7 @@ const Invoice = () => {
   const fetchInvoices = useCallback(
     async (page = 0, silent = false) => {
       try {
-        if (!silent && invoices.length === 0) {
+        if (!silent && invoicesRef.current.length === 0) {
           setIsLoading(true);
         }
         const data =
@@ -132,7 +138,7 @@ const Invoice = () => {
           if (page === 0) {
             resetInvoices(data?.data || []);
           } else {
-            resetInvoices([...invoices, ...data?.data]);
+            resetInvoices([...invoicesRef.current, ...data?.data]);
           }
           const pagination = data?.pagination;
           setPaginationTotalPage(pagination?.totalPage);
@@ -144,7 +150,7 @@ const Invoice = () => {
         setIsInitialLoad(false);
       }
     },
-    [token, sortBy, invoices, resetInvoices],
+    [token, sortBy, resetInvoices],
   );
 
   const fetchMore = useCallback(
@@ -244,9 +250,10 @@ const Invoice = () => {
       <ListFooterComponent
         isLoading={isLoading}
         paginationHasNextPage={paginationHasNextPage}
+        pageNumber={pageNumber}
       />
     ),
-    [isLoading, paginationHasNextPage],
+    [isLoading, paginationHasNextPage, pageNumber],
   );
 
   const refreshControl = useMemo(
@@ -267,7 +274,7 @@ const Invoice = () => {
 
   /* FILTERED INVOICES OPTIMIZATION */
   const filteredInvoices = useMemo(() => {
-    const data = isLoading && pageNumber === 0 ? SHIMMER_DATA : invoices;
+    const data = (isLoading && pageNumber === 0 && isInitialLoad) ? SHIMMER_DATA : invoices;
 
     // Safety check: specific handling for SHIMMER_DATA to avoid property access on numbers
     if (data === SHIMMER_DATA) return SHIMMER_DATA;

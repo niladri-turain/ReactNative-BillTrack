@@ -17,6 +17,7 @@ import {
   InvoiceCard,
   InvoiceCardShimmer,
   PrimaryHeader,
+  SubscriptionModal,
 } from '../../Components';
 import {colors} from '../../utils/colors';
 import {fonts} from '../../utils/fonts';
@@ -31,14 +32,18 @@ import {
   padding,
 } from '../../utils/responsive';
 import {invoiceService} from '../../Services/InvoiceService';
-import {useAuthToken} from '../../Contexts/AuthContext';
+import {useAuthToken, useSubscription} from '../../Contexts/AuthContext';
 import {useInvoice} from '../../Contexts/InvoiceContext';
 import LinearGradient from 'react-native-linear-gradient';
+
+// Global variable to track if the modal has been shown in the current app session
+let isSubscriptionModalShown = false;
 
 const Home = () => {
   const {invoices, resetInvoices} = useInvoice();
   const navigation = useNavigation();
   const token = useAuthToken();
+  const subscription = useSubscription();
 
   // Loading State
   const [isRefreshing, setRefreshing] = useState(false);
@@ -46,6 +51,19 @@ const Home = () => {
   const [isLoading, setIsLoading] = useState(invoices.length === 0);
   const [isInitialLoad, setIsInitialLoad] = useState(invoices.length === 0);
   const [lastInvoicesLength, setLastInvoicesLength] = useState(invoices.length);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+
+  useEffect(() => {
+    // Show modal if user is on a free plan or has no active subscription
+    // AND it hasn't been shown in this session yet
+    if (subscription && !subscription.isPremiumPlanAndActive && !isSubscriptionModalShown) {
+      const timer = setTimeout(() => {
+        setShowSubscriptionModal(true);
+        isSubscriptionModalShown = true; // Mark as shown for this session
+      }, 1500); // Small delay for better UX
+      return () => clearTimeout(timer);
+    }
+  }, [subscription]);
 
   const fetchInvoice = async () => {
     try {
@@ -147,6 +165,15 @@ const Home = () => {
           )}
         </View>
       </ScrollView>
+
+      <SubscriptionModal
+        visible={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        onUpgrade={() => {
+          setShowSubscriptionModal(false);
+          navigation.navigate('Account', {screen: 'Subscription'});
+        }}
+      />
     </Layout>
   );
 };
