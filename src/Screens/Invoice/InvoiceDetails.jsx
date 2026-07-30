@@ -353,7 +353,7 @@ const InvoiceDetails = () => {
             
             {/* COLUMN HEADERS */}
             <View style={[styles.itemHeaderContainer, {paddingHorizontal: sizes.itemContainerPaddingHorizontal}]}>
-              <View style={{width: '40%'}}>
+              <View style={{width: '35%'}}>
                 <Text style={[styles.invoiceTitle, {fontSize: sizes.invoiceTitleFontSize}]}>
                   Item
                 </Text>
@@ -367,7 +367,7 @@ const InvoiceDetails = () => {
                 style={[
                   styles.invoiceTitle,
                   {
-                    width: '20%',
+                    width: '10%',
                     textAlign: 'center',
                     fontSize: sizes.invoiceTitleFontSize,
                   },
@@ -378,7 +378,7 @@ const InvoiceDetails = () => {
                 style={[
                   styles.invoiceTitle,
                   {
-                    width: '20%',
+                    width: '25%',
                     textAlign: 'right',
                     fontSize: sizes.invoiceTitleFontSize,
                   },
@@ -389,7 +389,7 @@ const InvoiceDetails = () => {
                 style={[
                   styles.invoiceTitle,
                   {
-                    width: '20%',
+                    width: '30%',
                     textAlign: 'right',
                     fontSize: sizes.invoiceTitleFontSize,
                   },
@@ -410,7 +410,7 @@ const InvoiceDetails = () => {
 
               return (
                 <View style={[styles.itemRowContainer, {paddingHorizontal: sizes.itemContainerPaddingHorizontal}]} key={index + '_item'}>
-                  <View style={{width: '40%'}}>
+                  <View style={{width: '35%'}}>
                     <Text style={[styles.invoiceItem, {fontSize: sizes.invoiceItemFontSize}]}>
                       {itemName}
                     </Text>
@@ -424,7 +424,7 @@ const InvoiceDetails = () => {
                     style={[
                       styles.invoiceItem,
                       {
-                        width: '20%',
+                        width: '10%',
                         textAlign: 'center',
                         fontSize: sizes.invoiceItemFontSize,
                       },
@@ -435,7 +435,7 @@ const InvoiceDetails = () => {
                     style={[
                       styles.invoiceItem,
                       {
-                        width: '20%',
+                        width: '25%',
                         textAlign: 'right',
                         fontSize: sizes.invoiceItemFontSize,
                       },
@@ -446,7 +446,7 @@ const InvoiceDetails = () => {
                     style={[
                       styles.invoiceTitle,
                       {
-                        width: '20%',
+                        width: '30%',
                         textAlign: 'right',
                         fontSize: sizes.invoiceTitleFontSize,
                       },

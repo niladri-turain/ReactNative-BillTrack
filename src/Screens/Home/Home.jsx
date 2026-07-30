@@ -65,9 +65,9 @@ const Home = () => {
     }
   }, [subscription]);
 
-  const fetchInvoice = async () => {
+  const fetchInvoice = async (silent = false) => {
     try {
-      if (invoices.length === 0) {
+      if (!silent && invoices.length === 0 && isInitialLoad) {
         setIsLoading(true);
       }
       const data = await invoiceService.getInvoices(token, 0, 10);
@@ -91,14 +91,16 @@ const Home = () => {
   useFocusEffect(
     useCallback(() => {
       if (invoices.length === 0) {
-        fetchInvoice();
+        fetchInvoice(!isInitialLoad);
+      } else {
+        fetchInvoice(true);
       }
 
       if (invoices.length !== lastInvoicesLength) {
         setRefreshTrigger(prev => prev + 1);
         setLastInvoicesLength(invoices.length);
       }
-    }, [token, invoices.length, lastInvoicesLength]),
+    }, [token, invoices.length, lastInvoicesLength, isInitialLoad]),
   );
 
   const {salesData} = useInvoice();
@@ -139,7 +141,7 @@ const Home = () => {
               <Ionicons name="arrow-forward" size={12} color={colors.primary} />
             </TouchableOpacity>
           </View>
-          {isLoading ? (
+          {isLoading && isInitialLoad ? (
             Array(3)
               .fill(null)
               .map((_, index) => (
