@@ -58,75 +58,105 @@ const GstSelectModal = ({
   handleCancel = () => {},
   value,
   setValue,
+  token,
+  businessCategoryId,
 }) => {
   const [query, setQuery] = useState('');
-  const [data, setData] = useState([]);
+  const [allData, setAllData] = useState([]);
+  const [isGlobalMode, setIsGlobalMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const previousQueryRef = useRef('');
-  const abortControllerRef = useRef(null);
-
-  // Trigger search when modal opens
+  // Fetch HSNs when modal opens
   useEffect(() => {
-    if (visible) {
-      setQuery('');
-      handleSearch('');
-    }
-  }, [visible]);
-
-  // Cancel ongoing requests when component unmounts
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) abortControllerRef.current.abort();
-    };
-  }, []);
-
-  // Debounced search function
-  const handleSearch = useCallback(
-    debounce(async searchText => {
-      previousQueryRef.current = searchText;
-
-      if (abortControllerRef.current) abortControllerRef.current.abort();
-      abortControllerRef.current = new AbortController();
+    const fetchHsns = async () => {
+      if (!visible || !token || !businessCategoryId) return;
 
       setIsLoading(true);
-
       try {
-        const response = await hsnService.search(searchText, {
-          signal: abortControllerRef.current.signal,
-        });
-        if (response.status && !abortControllerRef.current.signal.aborted) {
-          setData(response.data);
+        const response = await hsnService.getHsnByBusinessCategory(
+          token,
+          businessCategoryId,
+        );
+        if (response.success) {
+          const hsns = (response.data?.hsns || []).map(item => item.hsn);
+
+          if (hsns.length === 0) {
+            // Category empty -> Switch to Global Mode
+            setIsGlobalMode(true);
+            const globalSearchResponse = await hsnService.search('');
+            if (globalSearchResponse.status) {
+              setAllData(globalSearchResponse.data);
+            }
+          } else {
+            // Category has data -> Stay in Local Mode
+            setIsGlobalMode(false);
+            setAllData(hsns);
+          }
         }
       } catch (error) {
-        if (error.name !== 'AbortError') {
-          setData([]);
-        }
+        console.error('Failed to fetch HSNs:', error);
+        setAllData([]);
       } finally {
-        if (!abortControllerRef.current.signal.aborted) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
-    }, 300),
+    };
+
+    if (visible) {
+      setQuery('');
+      fetchHsns();
+    }
+  }, [visible, token, businessCategoryId]);
+
+  // Global search implementation
+  const handleGlobalSearch = useCallback(
+    debounce(async searchText => {
+      setIsLoading(true);
+      try {
+        const response = await hsnService.search(searchText);
+        if (response.status) {
+          setAllData(response.data);
+        }
+      } catch (error) {
+        console.error('Global search error:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 500),
     [],
   );
 
-  // Trigger search whenever query changes
+  // Trigger search from API ONLY IF in Global Mode
   useEffect(() => {
-    if (query !== previousQueryRef.current) {
-      handleSearch(query);
+    if (isGlobalMode && query.trim() !== '') {
+      handleGlobalSearch(query);
+    } else if (isGlobalMode && query.trim() === '') {
+      handleGlobalSearch(''); // Reset to initial global list
     }
-  }, [query, handleSearch]);
+  }, [query, isGlobalMode, handleGlobalSearch]);
+
+  // Local filtering for Category mode, or direct data for Global mode
+  const filteredData = useMemo(() => {
+    if (isGlobalMode) return allData;
+
+    if (!query.trim()) return allData;
+    const lowerQuery = query.toLowerCase();
+    return allData.filter(
+      item =>
+        item.hsnCode?.toLowerCase().includes(lowerQuery) ||
+        item.description?.toLowerCase().includes(lowerQuery),
+    );
+  }, [allData, query, isGlobalMode]);
 
   // Memoized sorted data: selected item always on top
   const sortedData = useMemo(() => {
-    if (!data.length) return [];
-    if (!value || !data.find(item => item.id === value.id)) return data;
+    if (!filteredData.length) return [];
+    if (!value || !filteredData.find(item => item.id === value.id))
+      return filteredData;
 
-    const selectedItem = data.find(item => item.id === value.id);
-    const otherItems = data.filter(item => item.id !== value.id);
-    return selectedItem ? [selectedItem, ...otherItems] : data;
-  }, [data, value]);
+    const selectedItem = filteredData.find(item => item.id === value.id);
+    const otherItems = filteredData.filter(item => item.id !== value.id);
+    return selectedItem ? [selectedItem, ...otherItems] : filteredData;
+  }, [filteredData, value]);
 
   // Memoized item renderer
   const renderItem = useCallback(

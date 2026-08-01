@@ -624,6 +624,8 @@ const Product = () => {
         handleCancel={() => setHsnModalVisible(false)}
         value={hsnCode}
         setValue={setHsnCode}
+        token={token}
+        businessCategoryId={businessCategoryId}
       />
     </Layout>
   );

@@ -17,6 +17,7 @@ import {
   InvoiceCard,
   InvoiceCardShimmer,
   PrimaryHeader,
+  SubscriptionModal,
 } from '../../Components';
 import {colors} from '../../utils/colors';
 import {fonts} from '../../utils/fonts';
@@ -31,14 +32,18 @@ import {
   padding,
 } from '../../utils/responsive';
 import {invoiceService} from '../../Services/InvoiceService';
-import {useAuthToken} from '../../Contexts/AuthContext';
+import {useAuthToken, useSubscription} from '../../Contexts/AuthContext';
 import {useInvoice} from '../../Contexts/InvoiceContext';
 import LinearGradient from 'react-native-linear-gradient';
+
+// Global variable to track if the modal has been shown in the current app session
+let isSubscriptionModalShown = false;
 
 const Home = () => {
   const {invoices, resetInvoices} = useInvoice();
   const navigation = useNavigation();
   const token = useAuthToken();
+  const subscription = useSubscription();
 
   // Loading State
   const [isRefreshing, setRefreshing] = useState(false);
@@ -46,10 +51,23 @@ const Home = () => {
   const [isLoading, setIsLoading] = useState(invoices.length === 0);
   const [isInitialLoad, setIsInitialLoad] = useState(invoices.length === 0);
   const [lastInvoicesLength, setLastInvoicesLength] = useState(invoices.length);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
-  const fetchInvoice = async () => {
+  useEffect(() => {
+    // Show modal if user is on a free plan or has no active subscription
+    // AND it hasn't been shown in this session yet
+    if (subscription && !subscription.isPremiumPlanAndActive && !isSubscriptionModalShown) {
+      const timer = setTimeout(() => {
+        setShowSubscriptionModal(true);
+        isSubscriptionModalShown = true; // Mark as shown for this session
+      }, 1500); // Small delay for better UX
+      return () => clearTimeout(timer);
+    }
+  }, [subscription]);
+
+  const fetchInvoice = async (silent = false) => {
     try {
-      if (invoices.length === 0) {
+      if (!silent && invoices.length === 0 && isInitialLoad) {
         setIsLoading(true);
       }
       const data = await invoiceService.getInvoices(token, 0, 10);
@@ -73,14 +91,16 @@ const Home = () => {
   useFocusEffect(
     useCallback(() => {
       if (invoices.length === 0) {
-        fetchInvoice();
+        fetchInvoice(!isInitialLoad);
+      } else {
+        fetchInvoice(true);
       }
 
       if (invoices.length !== lastInvoicesLength) {
         setRefreshTrigger(prev => prev + 1);
         setLastInvoicesLength(invoices.length);
       }
-    }, [token, invoices.length, lastInvoicesLength]),
+    }, [token, invoices.length, lastInvoicesLength, isInitialLoad]),
   );
 
   const {salesData} = useInvoice();
@@ -121,7 +141,7 @@ const Home = () => {
               <Ionicons name="arrow-forward" size={12} color={colors.primary} />
             </TouchableOpacity>
           </View>
-          {isLoading ? (
+          {isLoading && isInitialLoad ? (
             Array(3)
               .fill(null)
               .map((_, index) => (
@@ -147,6 +167,15 @@ const Home = () => {
           )}
         </View>
       </ScrollView>
+
+      <SubscriptionModal
+        visible={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        onUpgrade={() => {
+          setShowSubscriptionModal(false);
+          navigation.navigate('Account', {screen: 'Subscription'});
+        }}
+      />
     </Layout>
   );
 };
