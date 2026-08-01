@@ -13,10 +13,11 @@ import {
 } from 'react-native';
 import React, {useEffect, useState} from 'react';
 import {AuthLayout} from '../Layout';
-import {SimpleTextInput} from '../../Components';
+import {SimpleTextInput, StepGuide} from '../../Components';
 import {fonts} from '../../utils/fonts';
 import {colors} from '../../utils/colors';
 import MaterialIcons from '@react-native-vector-icons/material-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ImageCropPicker from 'react-native-image-crop-picker';
 import {font, gap, icon, margin, padding} from '../../utils/responsive';
 import {validateIndianPincode} from '../../utils/validator';
@@ -48,6 +49,31 @@ const BusinessSetup2 = () => {
   const [pincode, setPincode] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
+
+  // Step Guide
+  const [guideVisible, setGuideVisible] = useState(false);
+  const [targetLayout, setTargetLayout] = useState(null);
+  const proceedButtonRef = React.useRef(null);
+
+  useEffect(() => {
+    const checkGuide = async () => {
+      const hasSeen = await AsyncStorage.getItem('hasSeenBusinessSetup2Guide');
+      if (!hasSeen) {
+        setTimeout(() => {
+          proceedButtonRef.current?.measure((x, y, width, height, pageX, pageY) => {
+            setTargetLayout({x: pageX, y: pageY, width, height});
+            setGuideVisible(true);
+          });
+        }, 1000);
+      }
+    };
+    checkGuide();
+  }, []);
+
+  const closeGuide = async () => {
+    setGuideVisible(false);
+    await AsyncStorage.setItem('hasSeenBusinessSetup2Guide', 'true');
+  };
 
   const handleImagePickcker = async () => {
     // const hasPermission = await requestPermission();
@@ -255,7 +281,10 @@ const BusinessSetup2 = () => {
           />
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleProceed}>
+        <TouchableOpacity
+          ref={proceedButtonRef}
+          style={styles.button}
+          onPress={handleProceed}>
           {isLoading ? (
             <ActivityIndicator size={'small'} color={'#fff'} />
           ) : (
@@ -263,6 +292,14 @@ const BusinessSetup2 = () => {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      <StepGuide
+        visible={guideVisible}
+        onClose={closeGuide}
+        targetLayout={targetLayout}
+        text="complete business setup"
+        arrowPosition="bottom"
+      />
       {/* </KeyboardAvoidingView> */}
     </AuthLayout>
   );

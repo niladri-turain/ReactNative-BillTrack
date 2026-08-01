@@ -20,7 +20,9 @@ import {
   RadioInput,
   SearchInput,
   SimpleTextInput,
+  StepGuide,
 } from '../../Components';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   validateBusinessName,
   validateEmail,
@@ -61,6 +63,32 @@ const BusinessSetup = () => {
   const [phone, setPhone] = useState(userPhone || '');
 
   const [suggestions, setSuggestions] = useState([]);
+
+  // Step Guide
+  const [guideVisible, setGuideVisible] = useState(false);
+  const [targetLayout, setTargetLayout] = useState(null);
+  const continueButtonRef = useRef(null);
+
+  useEffect(() => {
+    const checkGuide = async () => {
+      const hasSeen = await AsyncStorage.getItem('hasSeenBusinessSetupGuide');
+      if (!hasSeen) {
+        // We'll show it after a short delay to ensure layout is ready
+        setTimeout(() => {
+          continueButtonRef.current?.measure((x, y, width, height, pageX, pageY) => {
+            setTargetLayout({x: pageX, y: pageY, width, height});
+            setGuideVisible(true);
+          });
+        }, 1000);
+      }
+    };
+    checkGuide();
+  }, []);
+
+  const closeGuide = async () => {
+    setGuideVisible(false);
+    await AsyncStorage.setItem('hasSeenBusinessSetupGuide', 'true');
+  };
 
   // BOTTOM SHEET
   const snapPoints = useMemo(() => ['70%'], []);
@@ -235,10 +263,21 @@ const BusinessSetup = () => {
               hasError={phone.length > 0 && !validateIndianPhone(phone)}
             />
           </View>
-          <TouchableOpacity style={styles.button} onPress={handleContinue}>
+          <TouchableOpacity
+            ref={continueButtonRef}
+            style={styles.button}
+            onPress={handleContinue}>
             <Text style={styles.buttonText}>CONTINUE</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        <StepGuide
+          visible={guideVisible}
+          onClose={closeGuide}
+          targetLayout={targetLayout}
+          text="create first step of business setup"
+          arrowPosition="bottom"
+        />
 
         <BottomSheet
           ref={bottomSheetRef}
