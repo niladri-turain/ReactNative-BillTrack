@@ -27,19 +27,6 @@ const StepGuide = ({target, text, onNext, visible, onClose, targetLayout, arrowP
   return (
     <Modal transparent visible={isVisible} animationType="fade">
       <View style={styles.overlay}>
-        {/* Highlight Box */}
-        <View
-          style={[
-            styles.highlight,
-            {
-              top: y - 5,
-              left: x - 5,
-              width: width + 10,
-              height: height + 10,
-            },
-          ]}
-        />
-
         {/* Info Bubble */}
         <View
           style={[
