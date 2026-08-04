@@ -123,7 +123,7 @@ const ItemCard = ({
         style={[styles.cardHeader, !expanded && {backgroundColor: '#fff'}]}
         onPress={toggleExpand}
         disabled={isMeasuring}>
-        <Text style={styles.cardHeaderTitle}>{products?.name}</Text>
+        <Text style={styles.cardHeaderTitle}>{products?.categoryName}</Text>
         <Animated.View
           style={{
             transform: [

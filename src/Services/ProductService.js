@@ -17,7 +17,7 @@ class ProductService {
       console.log('URL:', uri);
       console.log('Headers:', headers);
       const response = await axios.get(uri, {headers});
-      console.log('Response:', response.data);
+      console.log('Response products suggestions:', response.data);
       console.log('Status Code:', response.status);
       return response.data;
     } catch (error) {

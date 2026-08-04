@@ -76,7 +76,7 @@ const ItemMaster = () => {
     const finalPayload = selectedItems.map(item => ({
       name: item?.name,
       hsnId: isGstEnbaled ? item?.hsnId : null,
-      unitType: item?.unitType,
+      unitType: item?.unit?.shortName,
       description: item?.description,
       logo: item?.logo,
     }));
@@ -117,7 +117,7 @@ const ItemMaster = () => {
 
     return products
       .map(category => {
-        const categoryMatch = category.name.toLowerCase().includes(q);
+        const categoryMatch = category.categoryName.toLowerCase().includes(q);
 
         const filteredProducts = category.products.filter(p =>
           p.name.toLowerCase().includes(q),
@@ -156,7 +156,7 @@ const ItemMaster = () => {
 
   /** Stable keyExtractor */
   const keyExtractor = useCallback(
-    (item, index) => item?.id?.toString() || `${index}_itemCard`,
+    (item, index) => item?.categoryId?.toString() || `${index}_itemCard`,
     [],
   );
 
