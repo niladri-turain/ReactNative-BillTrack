@@ -79,8 +79,12 @@ const BillProductCard = memo(
           <Image
             style={[styles.image, {height: imageHeight}]}
             source={
-              item?.logo
-                ? {uri: `${API_URL}files/product/${item.logo}`}
+              item?.logo || item?.image
+                ? {
+                    uri: (item?.logo || item?.image).startsWith('http')
+                      ? item?.logo || item?.image
+                      : `${API_URL}files/product/${item?.logo || item?.image}`,
+                  }
                 : require('./../../../asset/images/emptyimg.jpg')
             }
             resizeMode="cover"

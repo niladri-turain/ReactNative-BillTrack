@@ -41,8 +41,12 @@ const ProductCard = memo(
           <Image
             style={[styles.image, {height: imageHeight}]}
             source={
-              item?.image
-                ? {uri: `${API_URL}files/product/${item?.image}`}
+              item?.logo || item?.image
+                ? {
+                    uri: (item?.logo || item?.image).startsWith('http')
+                      ? item?.logo || item?.image
+                      : `${API_URL}files/product/${item?.logo || item?.image}`,
+                  }
                 : require('./../../../asset/images/emptyimg.jpg')
             }
             resizeMode="cover"
@@ -52,7 +56,7 @@ const ProductCard = memo(
         <Text
           style={[styles.titleText, {fontSize: font(12)}]}
           numberOfLines={2}>
-          {item?.title}
+          {item?.name || item?.title}
         </Text>
         <View style={[styles.bottomContainer, {marginTop: bottomMarginTop}]}>
           <Text style={[styles.priceText, {fontSize: font(12)}]}>
