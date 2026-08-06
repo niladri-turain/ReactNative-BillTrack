@@ -676,7 +676,7 @@ const Product = () => {
           visible={guideStep === 2}
           onClose={closeGuide}
           targetLayout={guideTargetLayout}
-          text="add product"
+          text={isNewProduct ? 'add the product' : 'update product'}
           arrowPosition="bottom"
         />
       </Modal>

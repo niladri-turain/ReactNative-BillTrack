@@ -197,7 +197,7 @@ const ItemMaster = () => {
           {isSaveLoading ? (
             <ActivityIndicator color="#fff" size={'small'} />
           ) : (
-            <Text style={styles.btnText}>SET PRICE</Text>
+            <Text style={styles.btnText}>Add Product</Text>
           )}
         </TouchableOpacity>
       </View>
