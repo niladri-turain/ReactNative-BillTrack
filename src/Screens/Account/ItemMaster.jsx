@@ -115,6 +115,7 @@ const ItemMaster = () => {
         return !exists;
       })
       .map(item => ({
+        productSuggestionId: item?.id,
         name: item?.name,
         hsnId: isGstEnbaled ? item?.hsnId : null,
         unitType: item?.unit?.shortName,
