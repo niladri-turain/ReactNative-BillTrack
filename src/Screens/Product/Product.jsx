@@ -548,7 +548,19 @@ const Product = () => {
                 source={
                   productImage
                     ? typeof productImage === 'string'
-                      ? {uri: `${API_URL}files/product/${productImage}`}
+                      ? (() => {
+                          let uri = productImage;
+                          if (uri.includes('http')) {
+                            // Fix double prefix and upgrade to https
+                            const parts = uri.split('http');
+                            uri = 'http' + parts[parts.length - 1];
+                            uri = uri.replace('http://', 'https://');
+                          } else {
+                            // Relative path - default to product folder
+                            uri = `${API_URL}files/product/${uri}`;
+                          }
+                          return {uri};
+                        })()
                       : {uri: productImage?.path}
                     : require('./../../../asset/images/emptyimg.jpg')
                 }
