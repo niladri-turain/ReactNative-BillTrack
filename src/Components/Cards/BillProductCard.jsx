@@ -80,11 +80,19 @@ const BillProductCard = memo(
             style={[styles.image, {height: imageHeight}]}
             source={
               item?.logo || item?.image
-                ? {
-                    uri: (item?.logo || item?.image).startsWith('http')
-                      ? item?.logo || item?.image
-                      : `${API_URL}files/product/${item?.logo || item?.image}`,
-                  }
+                ? (() => {
+                    let uri = item?.logo || item?.image;
+                    if (uri.startsWith('http')) {
+                      // Fix double prefix and upgrade to https
+                      const parts = uri.split('http');
+                      uri = 'http' + parts[parts.length - 1];
+                      uri = uri.replace('http://', 'https://');
+                    } else {
+                      // Relative path
+                      uri = `${API_URL}files/product/${uri}`;
+                    }
+                    return {uri};
+                  })()
                 : require('./../../../asset/images/emptyimg.jpg')
             }
             resizeMode="cover"
