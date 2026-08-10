@@ -7,14 +7,16 @@ class SubscriptionService {
   }
 
   async currentSubscription(token) {
+    const uri = this.baseUrl + '/current-subscription';
     try {
-      const uri = this.baseUrl + '/current-subscription';
       const response = await axios.get(uri, {
         headers: {Authorization: `Bearer ${token}`},
       });
+      console.log(`[SubscriptionService] GET ${uri} - Status: ${response.status}`);
       return response.data;
     } catch (error) {
-      const data = await error.response.data;
+      console.log(`[SubscriptionService] GET ${uri} - Error Status: ${error.response?.status}`);
+      const data = error.response?.data;
       return data;
     }
   }
@@ -27,8 +29,8 @@ class SubscriptionService {
     paymentSignature,
     amount,
   }) {
+    const uri = this.baseUrl;
     try {
-      const uri = this.baseUrl;
       const payload = {
         plan: plan,
         orderId: orderId,
@@ -39,24 +41,28 @@ class SubscriptionService {
       const response = await axios.post(uri, payload, {
         headers: {Authorization: `Bearer ${token}`},
       });
+      console.log(`[SubscriptionService] POST ${uri} - Status: ${response.status}`);
       return response.data;
     } catch (error) {
-      const data = await error.response.data;
+      console.log(`[SubscriptionService] POST ${uri} - Error Status: ${error.response?.status}`);
+      const data = error.response?.data;
       return data;
     }
   }
 
   async allSubscriptions(token) {
+    const uri = this.baseUrl + '/subscription';
     try {
-      const uri = this.baseUrl + '/subscription';
       const response = await axios.get(uri, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+      console.log(`[SubscriptionService] GET ${uri} - Status: ${response.status}`);
       return response.data;
     } catch (error) {
-      const data = await error.response.data;
+      console.log(`[SubscriptionService] GET ${uri} - Error Status: ${error.response?.status}`);
+      const data = error.response?.data;
       return data;
     }
   }
