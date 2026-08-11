@@ -12,13 +12,29 @@ import {colors} from '../../utils/colors';
 import {API_URL} from '../../utils/config';
 
 const ProductActiveCard = ({item, toggle}) => {
-  const imageSource = useMemo(
-    () =>
-      item.logo
-        ? {uri: `${API_URL}files/product/${item.logo}`}
-        : require('../../../asset/images/emptyimg.jpg'),
-    [item.logo],
-  );
+  const imageSource = useMemo(() => {
+    const imgPath = item?.logo || item?.image;
+    if (!imgPath) return require('../../../asset/images/emptyimg.jpg');
+
+    let uri = String(imgPath).trim();
+
+    if (uri.toLowerCase().includes('http')) {
+      // Handle potential double prefixes and normalize to https
+      // This splits by http:// or https:// and takes the last part
+      const parts = uri.split(/https?:\/\//i);
+      const cleanPath = parts[parts.length - 1];
+      uri = `https://${cleanPath}`;
+    } else {
+      // Relative path logic
+      // If it's from the 'logo' field, it's typically in the logo folder
+      const folder = item?.logo ? 'logo' : 'product';
+      const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+      uri = `${baseUrl}/files/${folder}/${uri}`;
+    }
+
+    // Fix spaces and special characters for the final URI
+    return {uri: uri.replace(/ /g, '%20')};
+  }, [item?.logo, item?.image]);
 
   return (
     <View style={styles.container}>

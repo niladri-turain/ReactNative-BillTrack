@@ -78,14 +78,16 @@ const GstSelectModal = ({
           businessCategoryId,
         );
         if (response.success) {
-          const hsns = (response.data?.hsns || []).map(item => item.hsn);
+          const hsns = (response.data?.hsns || [])
+            .map(item => item.hsn)
+            .filter(hsn => hsn !== null && hsn !== undefined);
 
           if (hsns.length === 0) {
             // Category empty -> Switch to Global Mode
             setIsGlobalMode(true);
             const globalSearchResponse = await hsnService.search('');
             if (globalSearchResponse.status) {
-              setAllData(globalSearchResponse.data);
+              setAllData((globalSearchResponse.data || []).filter(item => item !== null));
             }
           } else {
             // Category has data -> Stay in Local Mode
@@ -114,7 +116,7 @@ const GstSelectModal = ({
       try {
         const response = await hsnService.search(searchText);
         if (response.status) {
-          setAllData(response.data);
+          setAllData((response.data || []).filter(item => item !== null));
         }
       } catch (error) {
         console.error('Global search error:', error);
@@ -136,40 +138,48 @@ const GstSelectModal = ({
 
   // Local filtering for Category mode, or direct data for Global mode
   const filteredData = useMemo(() => {
-    if (isGlobalMode) return allData;
+    const safeAllData = (allData || []).filter(item => item && item.id);
 
-    if (!query.trim()) return allData;
+    if (isGlobalMode) return safeAllData;
+
+    if (!query.trim()) return safeAllData;
     const lowerQuery = query.toLowerCase();
-    return allData.filter(
+    return safeAllData.filter(
       item =>
-        item.hsnCode?.toLowerCase().includes(lowerQuery) ||
-        item.description?.toLowerCase().includes(lowerQuery),
+        item?.hsnCode?.toLowerCase().includes(lowerQuery) ||
+        item?.description?.toLowerCase().includes(lowerQuery),
     );
   }, [allData, query, isGlobalMode]);
 
   // Memoized sorted data: selected item always on top
   const sortedData = useMemo(() => {
     if (!filteredData.length) return [];
-    if (!value || !filteredData.find(item => item.id === value.id))
-      return filteredData;
 
-    const selectedItem = filteredData.find(item => item.id === value.id);
-    const otherItems = filteredData.filter(item => item.id !== value.id);
-    return selectedItem ? [selectedItem, ...otherItems] : filteredData;
+    const selectedId = value?.id;
+    if (!selectedId) return filteredData;
+
+    const selectedItem = filteredData.find(item => item.id === selectedId);
+    if (!selectedItem) return filteredData;
+
+    const otherItems = filteredData.filter(item => item.id !== selectedId);
+    return [selectedItem, ...otherItems];
   }, [filteredData, value]);
 
   // Memoized item renderer
   const renderItem = useCallback(
-    ({item}) => (
-      <MemoizedListItem
-        item={item}
-        isSelected={value?.id === item.id}
-        onSelect={() => {
-          setValue(item);
-          handleCancel();
-        }}
-      />
-    ),
+    ({item}) => {
+      if (!item) return null;
+      return (
+        <MemoizedListItem
+          item={item}
+          isSelected={value?.id === item.id}
+          onSelect={() => {
+            setValue(item);
+            handleCancel();
+          }}
+        />
+      );
+    },
     [value, setValue, handleCancel],
   );
 

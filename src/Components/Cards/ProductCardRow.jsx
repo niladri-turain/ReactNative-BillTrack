@@ -25,9 +25,23 @@ const ProductCardRow = ({item, onpressCard = () => {}}) => {
       <View style={styles.leftCOntainer}>
         <Image
           source={
-            item.image
-              ? {uri: `${API_URL}files/product/${item.image}`}
-              : require('./../../../asset/images/emptyimg.jpg')
+            (() => {
+              const imgPath = item?.image;
+              if (!imgPath)
+                return require('./../../../asset/images/emptyimg.jpg');
+
+              let uri = imgPath;
+              if (uri.startsWith('http')) {
+                // Fix double prefix and upgrade to https
+                const parts = uri.split('http');
+                uri = 'http' + parts[parts.length - 1];
+                uri = uri.replace('http://', 'https://');
+              } else {
+                // Relative path
+                uri = `${API_URL}files/product/${uri}`;
+              }
+              return {uri};
+            })()
           }
           style={styles.image}
           resizeMode="cover"

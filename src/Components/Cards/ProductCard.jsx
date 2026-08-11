@@ -57,10 +57,12 @@ const ProductCard = memo(
                   uri = uri.replace('http://', 'https://');
                 } else {
                   // Fallback for relative paths
+                  // Use 'logo' folder if it came from master, otherwise 'product'
                   const folder = item?.logo ? 'logo' : 'product';
                   uri = `${API_URL}files/${folder}/${uri}`;
                 }
-                return {uri};
+                // Encode spaces and special characters in URL
+                return {uri: uri.replace(/ /g, '%20')};
               })()
             }
             resizeMode="cover"
