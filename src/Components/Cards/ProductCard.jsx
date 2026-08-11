@@ -24,12 +24,14 @@ const ProductCard = memo(
     editFunction = () => {},
   }) => {
     const PADDING = 8;
-    useMemo(() => {
-      imageWidth = width - PADDING * 2;
-      imageHeight = (imageWidth * 3) / 4;
-      buttonSize = width * 0.177;
-      iconSize = width * 0.088;
-      bottomMarginTop = width * 0.177;
+    const {imageHeight, buttonSize, iconSize, bottomMarginTop} = useMemo(() => {
+      const imageWidth = width - PADDING * 2;
+      return {
+        imageHeight: (imageWidth * 3) / 4,
+        buttonSize: width * 0.177,
+        iconSize: width * 0.088,
+        bottomMarginTop: width * 0.177,
+      };
     }, [width]);
 
     return (
@@ -41,9 +43,25 @@ const ProductCard = memo(
           <Image
             style={[styles.image, {height: imageHeight}]}
             source={
-              item?.image
-                ? {uri: `${API_URL}files/product/${item?.image}`}
-                : require('./../../../asset/images/emptyimg.jpg')
+              (() => {
+                const imgPath = item?.logo || item?.image;
+                if (!imgPath)
+                  return require('./../../../asset/images/emptyimg.jpg');
+
+                let uri = imgPath;
+                if (uri.includes('http')) {
+                  // Fix double prefix/nested http
+                  const parts = uri.split('http');
+                  uri = 'http' + parts[parts.length - 1];
+                  // Upgrade to https for iOS compatibility
+                  uri = uri.replace('http://', 'https://');
+                } else {
+                  // Fallback for relative paths
+                  const folder = item?.logo ? 'logo' : 'product';
+                  uri = `${API_URL}files/${folder}/${uri}`;
+                }
+                return {uri};
+              })()
             }
             resizeMode="cover"
           />
@@ -52,7 +70,7 @@ const ProductCard = memo(
         <Text
           style={[styles.titleText, {fontSize: font(12)}]}
           numberOfLines={2}>
-          {item?.title}
+          {item?.name || item?.title}
         </Text>
         <View style={[styles.bottomContainer, {marginTop: bottomMarginTop}]}>
           <Text style={[styles.priceText, {fontSize: font(12)}]}>

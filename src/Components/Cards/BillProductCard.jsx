@@ -79,8 +79,20 @@ const BillProductCard = memo(
           <Image
             style={[styles.image, {height: imageHeight}]}
             source={
-              item?.logo
-                ? {uri: `${API_URL}files/product/${item.logo}`}
+              item?.logo || item?.image
+                ? (() => {
+                    let uri = item?.logo || item?.image;
+                    if (uri.startsWith('http')) {
+                      // Fix double prefix and upgrade to https
+                      const parts = uri.split('http');
+                      uri = 'http' + parts[parts.length - 1];
+                      uri = uri.replace('http://', 'https://');
+                    } else {
+                      // Relative path
+                      uri = `${API_URL}files/product/${uri}`;
+                    }
+                    return {uri};
+                  })()
                 : require('./../../../asset/images/emptyimg.jpg')
             }
             resizeMode="cover"

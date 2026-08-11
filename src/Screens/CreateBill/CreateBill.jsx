@@ -23,7 +23,9 @@ import {
   RadioInput,
   SecondaryHeader,
   SimpleTextInput,
+  StepGuide,
 } from '../../Components';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import BottomSheet, {
   BottomSheetBackdrop,
@@ -103,6 +105,7 @@ const CreateBill = () => {
   const {getByKey} = useAppSettings();
   const token = useAuthToken();
   const {Products, resetProductCount} = useProduct();
+  const product = Products || [];
   const [quantity, setQuantity] = useState(0);
   const [totalPrice, setTotalPrice] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('cash');
@@ -113,6 +116,79 @@ const CreateBill = () => {
   const [isDiscountOpen, setIsDiscountOpen] = useState(false);
 
   const discountAnim = useSharedValue(0);
+
+  // Guided Tour State
+  const [showGuide, setShowGuide] = useState(false);
+  const [guideStep, setGuideStep] = useState(0);
+  const [guideTargets, setGuideTargets] = useState({});
+
+  const firstProductRef = useRef(null);
+  const createButtonRef = useRef(null);
+  const phoneNumberRef = useRef(null);
+  const sendButtonRef = useRef(null);
+
+  const measureRef = (key, ref) => {
+    if (ref.current) {
+      ref.current.measure((x, y, width, height, pageX, pageY) => {
+        if (pageX || pageY) {
+          setGuideTargets(prev => ({
+            ...prev,
+            [key]: {x: pageX, y: pageY, width, height},
+          }));
+        }
+      });
+    }
+  };
+
+  useEffect(() => {
+    const checkStep1 = async () => {
+      const hasSeen = await AsyncStorage.getItem('hasSeenCreateBillStep1');
+      if (!hasSeen && product.length > 0) {
+        setGuideStep(1);
+        setShowGuide(true);
+      }
+    };
+    if (guideStep === 0) checkStep1();
+  }, [product?.length]);
+
+  useEffect(() => {
+    const checkStep2 = async () => {
+      const hasSeen = await AsyncStorage.getItem('hasSeenCreateBillStep2');
+      if (!hasSeen && quantity > 0 && guideStep !== 3) {
+        // Re-measure create button as it might have moved or just appeared
+        setTimeout(() => measureRef('create', createButtonRef), 200);
+        setGuideStep(2);
+        setShowGuide(true);
+      }
+    };
+    checkStep2();
+  }, [quantity]);
+
+  const handleOpenBottomSheet = useCallback(() => {
+    bottomSheetRef.current?.expand();
+    Keyboard.dismiss();
+    const checkStep3 = async () => {
+      const hasSeen = await AsyncStorage.getItem('hasSeenCreateBillStep3');
+      if (!hasSeen) {
+        setGuideStep(3);
+        setShowGuide(true);
+        setTimeout(() => measureRef('send', sendButtonRef), 500);
+      }
+    };
+    checkStep3();
+  });
+
+  const nextStep = async () => {
+    setShowGuide(false);
+    if (guideStep === 1) {
+      await AsyncStorage.setItem('hasSeenCreateBillStep1', 'true');
+    } else if (guideStep === 2) {
+      await AsyncStorage.setItem('hasSeenCreateBillStep2', 'true');
+    } else if (guideStep === 3) {
+      await AsyncStorage.setItem('hasSeenCreateBillStep3', 'true');
+    }
+    setGuideStep(0);
+  };
 
   // Sync shared value for color/border animation
   useEffect(() => {
@@ -151,8 +227,6 @@ const CreateBill = () => {
   const isPremiumPlanAndActive = useSubscription('isPremiumPlanAndActive');
   const isGstEnabled = useGstEnabled();
 
-  const product = Products;
-
   // STATE VARIABLES
   const [phoneNumber, setPhoneNumber] = useState('');
 
@@ -171,10 +245,6 @@ const CreateBill = () => {
     bottomSheetRef.current?.close();
     Keyboard.dismiss();
   }, []);
-  const handleOpenBottomSheet = useCallback(() => {
-    bottomSheetRef.current?.expand();
-    Keyboard.dismiss();
-  });
 
   const renderBackdrop = useMemo(
     () => props =>
@@ -473,14 +543,20 @@ const CreateBill = () => {
             data={filteredProduct.filter(p => p.price)}
             keyExtractor={(_, index) => index + '_create_bill_item'}
             renderItem={({item}, index) => (
-              <BillProductCard
-                width={ITEM_WIDTH}
-                item={item}
-                setQuantity={setQuantity}
-                setTotalPrice={setTotalPrice}
-                key={index + '_bill_card'}
-                hasHsnError={productsWithHsnError.includes(item.id)}
-              />
+              <View
+                ref={index === 0 ? firstProductRef : null}
+                onLayout={
+                  index === 0 ? () => measureRef('product', firstProductRef) : null
+                }>
+                <BillProductCard
+                  width={ITEM_WIDTH}
+                  item={item}
+                  setQuantity={setQuantity}
+                  setTotalPrice={setTotalPrice}
+                  key={index + '_bill_card'}
+                  hasHsnError={productsWithHsnError.includes(item.id)}
+                />
+              </View>
             )}
             numColumns={NUM_COLUMNS}
             columnWrapperStyle={styles.columnWrapperStyle}
@@ -492,6 +568,8 @@ const CreateBill = () => {
             saveButtonFunciton={handleSave}
             cashButtonFunction={openPaymentModal}
             paymentMode={paymentMethod}
+            createButtonRef={createButtonRef}
+            onLayout={() => measureRef('create', createButtonRef)}
           />
           {quantity > 0 && (
             <Animated.View
@@ -580,7 +658,10 @@ const CreateBill = () => {
             <Text style={styles.bottomSheetSubTitleText}>
               For sending sms & reminders
             </Text>
-            <View style={styles.bottomSheetPhoneContainer}>
+            <View
+              ref={phoneNumberRef}
+              onLayout={() => measureRef('phone', phoneNumberRef)}
+              style={styles.bottomSheetPhoneContainer}>
               <Text
                 style={{
                   fontSize: 12,
@@ -607,6 +688,8 @@ const CreateBill = () => {
             </View>
             <View style={styles.bottomSheetButtonContaienr}>
               <TouchableOpacity
+                ref={sendButtonRef}
+                onLayout={() => measureRef('send', sendButtonRef)}
                 style={[
                   styles.bottomSheetButton,
                   {
@@ -637,6 +720,22 @@ const CreateBill = () => {
             </View>
           </BottomSheetView>
         </BottomSheet>
+        {showGuide && guideTargets.create && guideStep === 2 && quantity > 0 && (
+          <StepGuide
+            target={guideTargets.create}
+            text="Once added, tap CREATE to proceed"
+            onNext={nextStep}
+            arrowPosition="bottom"
+          />
+        )}
+        {showGuide && (guideTargets.send || guideTargets.phone) && guideStep === 3 && (
+          <StepGuide
+            target={guideTargets.send || guideTargets.phone}
+            text="Enter phone number and tap SEND or PRINT to generate bill"
+            onNext={nextStep}
+            arrowPosition="bottom"
+          />
+        )}
         <CommonModal
           visible={isPaymentModalVisible}
           handleClose={closePaymentModal}>

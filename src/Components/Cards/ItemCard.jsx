@@ -1,4 +1,4 @@
-import React, {useState, useCallback, memo} from 'react';
+import React, {useState, useCallback, memo, useMemo} from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   FlatList,
+  Image,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -18,13 +19,39 @@ import DottedDivider from '../Dividers/DottedDivider';
 import {font, icon, padding} from '../../utils/responsive';
 import {colors} from '../../utils/colors';
 import {fonts} from '../../utils/fonts';
+import {API_URL} from '../../utils/config';
 
 const SelectableItem = memo(({item, isSelected, handleSelectAndDeselect}) => {
+  const imageSource = useMemo(() => {
+    const imgPath = item?.logo || item?.image;
+    if (!imgPath) return require('./../../../asset/images/emptyimg.jpg');
+
+    let uri = imgPath;
+    if (uri.includes('http')) {
+      const parts = uri.split('http');
+      uri = 'http' + parts[parts.length - 1];
+      uri = uri.replace('http://', 'https://');
+    } else {
+      const folder = item?.logo ? 'logo' : 'product';
+      uri = `${API_URL}files/${folder}/${uri}`;
+    }
+    return {uri};
+  }, [item]);
+
   return (
     <TouchableOpacity
       style={styles.selectableCrd}
       onPress={() => handleSelectAndDeselect(item)}>
-      <Text style={styles.subNameText}>{item?.name}</Text>
+      <View style={styles.leftContent}>
+        <View style={styles.imageBox}>
+          <Image
+            source={imageSource}
+            style={styles.productImage}
+            resizeMode="cover"
+          />
+        </View>
+        <Text style={styles.subNameText}>{item?.name}</Text>
+      </View>
 
       <View
         style={[
@@ -123,7 +150,7 @@ const ItemCard = ({
         style={[styles.cardHeader, !expanded && {backgroundColor: '#fff'}]}
         onPress={toggleExpand}
         disabled={isMeasuring}>
-        <Text style={styles.cardHeaderTitle}>{products?.name}</Text>
+        <Text style={styles.cardHeaderTitle}>{products?.categoryName}</Text>
         <Animated.View
           style={{
             transform: [
@@ -220,15 +247,35 @@ const styles = StyleSheet.create({
     fontFamily: fonts.inMedium,
   },
   selectableCrd: {
-    padding: padding(16),
+    padding: padding(12),
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  leftContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: padding(10),
+  },
+  imageBox: {
+    width: icon(35),
+    height: icon(35),
+    borderRadius: 4,
+    overflow: 'hidden',
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: colors.border + '40',
+  },
+  productImage: {
+    width: '100%',
+    height: '100%',
+  },
   subNameText: {
-    fontSize: font(14),
+    fontSize: font(13),
     fontFamily: fonts.inRegular,
     flex: 1,
+    color: '#000',
   },
   checkbox: {
     width: icon(20),

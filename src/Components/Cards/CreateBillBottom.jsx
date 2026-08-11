@@ -21,6 +21,8 @@ const CreateBillBottom = memo(
     saveButtonFunciton,
     paymentMode = 'cash',
     cashButtonFunction,
+    createButtonRef,
+    onLayout,
   }) => {
     const {width} = useWindowDimensions();
 
@@ -68,6 +70,8 @@ const CreateBillBottom = memo(
             <Ionicons name="caret-down" size={8} color={colors.sucess} />
           </TouchableOpacity>
           <TouchableOpacity
+            ref={createButtonRef}
+            onLayout={onLayout}
             style={[
               styles.bottomButton,
               {

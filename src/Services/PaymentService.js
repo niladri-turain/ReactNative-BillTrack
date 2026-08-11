@@ -7,17 +7,17 @@ class PaymentService {
   }
 
   async createOrder(amount) {
+    const uri = this.baseUrl + 'create-order';
     try {
-      const uri = this.baseUrl + 'create-order';
       const payload = {
         amount: amount,
       };
       const response = await axios.post(uri, payload);
-      const data = await response.data;
-      return data;
+      console.log(`[PaymentService] POST ${uri} - Status: ${response.status}`);
+      return response.data;
     } catch (error) {
-      const response = error.response;
-      const data = await response.data;
+      console.log(`[PaymentService] POST ${uri} - Error Status: ${error.response?.status}`);
+      const data = error.response?.data;
       return data;
     }
   }

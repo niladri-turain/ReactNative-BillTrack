@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Layout} from '../Layout';
 import {
   BottomSheetInput,
@@ -25,7 +25,9 @@ import {
   SecondaryHeader,
   ShimmerProductCard,
   SimpleTextInput,
+  StepGuide,
 } from '../../Components';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   font,
   gap,
@@ -90,6 +92,45 @@ const Product = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Step Guide
+  const [guideStep, setGuideStep] = useState(0);
+  const [guideTargetLayout, setGuideTargetLayout] = useState(null);
+  const addItemButtonRef = useRef(null);
+  const addModalButtonRef = useRef(null);
+
+  const measureAndShow = (ref, step) => {
+    if (ref.current) {
+      ref.current.measure((x, y, width, height, pageX, pageY) => {
+        if (pageX || pageY) {
+          setGuideTargetLayout({x: pageX, y: pageY, width, height});
+          setGuideStep(step);
+        }
+      });
+    }
+  };
+
+  useEffect(() => {
+    const checkGuide = async () => {
+      const hasSeenStep1 = await AsyncStorage.getItem('hasSeenProductStep1');
+      if (!hasSeenStep1 && Products.length === 0 && !isLoading) {
+        setTimeout(() => {
+          measureAndShow(addItemButtonRef, 1);
+        }, 1000);
+      }
+    };
+    checkGuide();
+  }, [Products.length, isLoading]);
+
+  const closeGuide = async () => {
+    if (guideStep === 1) {
+      setGuideStep(0);
+      await AsyncStorage.setItem('hasSeenProductStep1', 'true');
+    } else if (guideStep === 2) {
+      setGuideStep(0);
+      await AsyncStorage.setItem('hasSeenProductStep2', 'true');
+    }
+  };
+
   // Loading state
   const [isLoading, setIsLoading] = useState(Products.length === 0);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
@@ -116,6 +157,19 @@ const Product = () => {
 
   const handleOpenModal = () => {
     setShowModal(true);
+    const checkStep2 = async () => {
+      const hasSeenStep2 = await AsyncStorage.getItem('hasSeenProductStep2');
+      if (!hasSeenStep2) {
+        setTimeout(() => {
+          measureAndShow(addModalButtonRef, 2);
+        }, 800);
+      }
+    };
+    checkStep2();
+    if (guideStep === 1) {
+      setGuideStep(0);
+      AsyncStorage.setItem('hasSeenProductStep1', 'true');
+    }
   };
 
   const handleCloseModal = () => {
@@ -463,6 +517,7 @@ const Product = () => {
         ListEmptyComponent={() => <EmptyProductComponent />}
       />
       <TouchableOpacity
+        ref={addItemButtonRef}
         style={styles.addBtn}
         onPress={() => {
           setIsNewProduct(true);
@@ -471,6 +526,15 @@ const Product = () => {
         <Text style={styles.addBtnText}>Add New Item</Text>
         <Lucide name="plus" size={10} color={'#fff'} />
       </TouchableOpacity>
+
+      <StepGuide
+        visible={guideStep === 1}
+        onClose={closeGuide}
+        targetLayout={guideTargetLayout}
+        text="to add product"
+        arrowPosition="bottom"
+      />
+
       <Modal
         visible={showModal}
         animationType="slide"
@@ -484,7 +548,19 @@ const Product = () => {
                 source={
                   productImage
                     ? typeof productImage === 'string'
-                      ? {uri: `${API_URL}files/product/${productImage}`}
+                      ? (() => {
+                          let uri = productImage;
+                          if (uri.includes('http')) {
+                            // Fix double prefix and upgrade to https
+                            const parts = uri.split('http');
+                            uri = 'http' + parts[parts.length - 1];
+                            uri = uri.replace('http://', 'https://');
+                          } else {
+                            // Relative path - default to product folder
+                            uri = `${API_URL}files/product/${uri}`;
+                          }
+                          return {uri};
+                        })()
                       : {uri: productImage?.path}
                     : require('./../../../asset/images/emptyimg.jpg')
                 }
@@ -593,6 +669,7 @@ const Product = () => {
                 )}
               </TouchableOpacity>
               <TouchableOpacity
+                ref={addModalButtonRef}
                 style={styles.saveBtn}
                 onPress={handleSave}
                 disabled={isSaveLoading}>
@@ -607,6 +684,13 @@ const Product = () => {
             </View>
           </Pressable>
         </Pressable>
+        <StepGuide
+          visible={guideStep === 2}
+          onClose={closeGuide}
+          targetLayout={guideTargetLayout}
+          text={isNewProduct ? 'add the product' : 'update product'}
+          arrowPosition="bottom"
+        />
       </Modal>
       <ProductUnitModal
         visible={unitModalVisible}

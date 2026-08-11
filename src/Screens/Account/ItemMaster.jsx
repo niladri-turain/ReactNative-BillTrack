@@ -15,6 +15,7 @@ import {fonts} from '../../utils/fonts';
 import ItemCard from '../../Components/Cards/ItemCard';
 import {productService} from '../../Services/ProductService';
 import {useAuthToken, useGstEnabled} from '../../Contexts/AuthContext';
+import {useProduct} from '../../Contexts/ProductContexts';
 import ToastService from '../../Components/Toasts/ToastService';
 import {useNavigation} from '@react-navigation/native';
 
@@ -22,12 +23,17 @@ const ItemMaster = () => {
   const isGstEnbaled = useGstEnabled();
   const navigation = useNavigation();
   const token = useAuthToken();
+  const {Products} = useProduct();
 
   const [products, setProducts] = useState([]);
   const [selectedItems, setSelectedItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [query, setQuery] = useState('');
+
+  const existingProductNames = useMemo(() => {
+    return new Set(Products.map(p => p.name?.toLowerCase().trim()));
+  }, [Products]);
 
   /** Fetch Items */
   const fetchItems = useCallback(async () => {
@@ -44,6 +50,33 @@ const ItemMaster = () => {
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
+
+  /** Sync selected items with already existing products */
+  useEffect(() => {
+    if (products.length > 0 && Products.length > 0) {
+      const existingNames = new Set(
+        Products.map(p => p.name?.toLowerCase().trim()),
+      );
+
+      const toSelect = [];
+      products.forEach(category => {
+        category.products.forEach(p => {
+          if (existingNames.has(p.name?.toLowerCase().trim())) {
+            toSelect.push(p);
+          }
+        });
+      });
+
+      if (toSelect.length > 0) {
+        setSelectedItems(prev => {
+          const currentIds = new Set(prev.map(item => item.id));
+          const newItems = toSelect.filter(item => !currentIds.has(item.id));
+          if (newItems.length === 0) return prev;
+          return [...prev, ...newItems];
+        });
+      }
+    }
+  }, [products, Products]);
 
   /** Handle Set Price */
   const handleSetPrice = useCallback(async () => {
@@ -73,13 +106,36 @@ const ItemMaster = () => {
       return;
     }
 
-    const finalPayload = selectedItems.map(item => ({
-      name: item?.name,
-      hsnId: isGstEnbaled ? item?.hsnId : null,
-      unitType: item?.unitType,
-      description: item?.description,
-      logo: item?.logo,
-    }));
+    const finalPayload = selectedItems
+      .filter(item => {
+        // Only send items that don't exist in the current product list yet
+        const exists = Products.some(
+          p => p.name?.toLowerCase().trim() === item.name?.toLowerCase().trim(),
+        );
+        return !exists;
+      })
+      .map(item => ({
+        productSuggestionId: item?.id,
+        name: item?.name,
+        hsnId: isGstEnbaled ? item?.hsnId : null,
+        unitType: item?.unit?.shortName,
+        description: item?.description,
+        logo: item?.logo,
+      }));
+
+    if (finalPayload.length === 0 && selectedItems.length > 0) {
+      ToastService.show({
+        message: 'Selected products are already in your list',
+        type: 'info',
+        position: 'top',
+      });
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'Product'}],
+      });
+      return;
+    }
+
     try {
       setIsSaveLoading(true);
       const data = await productService.createMultipleProduct(
@@ -117,7 +173,7 @@ const ItemMaster = () => {
 
     return products
       .map(category => {
-        const categoryMatch = category.name.toLowerCase().includes(q);
+        const categoryMatch = category.categoryName.toLowerCase().includes(q);
 
         const filteredProducts = category.products.filter(p =>
           p.name.toLowerCase().includes(q),
@@ -149,14 +205,15 @@ const ItemMaster = () => {
         expandable={index === 0}
         selectedItems={selectedItems}
         setSelectedItem={setSelectedItems}
+        existingProductNames={existingProductNames}
       />
     ),
-    [selectedItems],
+    [selectedItems, existingProductNames],
   );
 
   /** Stable keyExtractor */
   const keyExtractor = useCallback(
-    (item, index) => item?.id?.toString() || `${index}_itemCard`,
+    (item, index) => item?.categoryId?.toString() || `${index}_itemCard`,
     [],
   );
 
@@ -197,7 +254,7 @@ const ItemMaster = () => {
           {isSaveLoading ? (
             <ActivityIndicator color="#fff" size={'small'} />
           ) : (
-            <Text style={styles.btnText}>SET PRICE</Text>
+            <Text style={styles.btnText}>Add Product</Text>
           )}
         </TouchableOpacity>
       </View>
