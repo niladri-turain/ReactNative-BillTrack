@@ -28,7 +28,8 @@ const AppUpdateModal = () => {
        console.log("currentVersion", currentVersion);
        console.log("latestVersion", latestVersion);
       
-      const shouldUpdate = res?.isNeeded;
+      // FOR TESTING: forcing it to true
+      const shouldUpdate = true; // res?.isNeeded;
 
       if (shouldUpdate) {
         let url = '';
