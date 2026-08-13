@@ -21,27 +21,39 @@ import {colors} from '../../utils/colors';
 import {fonts} from '../../utils/fonts';
 import {API_URL} from '../../utils/config';
 
-const SelectableItem = memo(({item, isSelected, handleSelectAndDeselect}) => {
-  const imageSource = useMemo(() => {
-    const imgPath = item?.logo || item?.image;
-    if (!imgPath) return require('./../../../asset/images/emptyimg.jpg');
+import ToastService from '../Toasts/ToastService';
 
-    let uri = imgPath;
-    if (uri.includes('http')) {
-      const parts = uri.split('http');
-      uri = 'http' + parts[parts.length - 1];
-      uri = uri.replace('http://', 'https://');
-    } else {
-      const folder = item?.logo ? 'logo' : 'product';
-      uri = `${API_URL}files/${folder}/${uri}`;
-    }
-    return {uri};
-  }, [item]);
+const SelectableItem = memo(
+  ({item, isSelected, handleSelectAndDeselect, isExisting}) => {
+    const imageSource = useMemo(() => {
+      const imgPath = item?.logo || item?.image;
+      if (!imgPath) return require('./../../../asset/images/emptyimg.jpg');
+
+      let uri = imgPath;
+      if (uri.includes('http')) {
+        const parts = uri.split('http');
+        uri = 'http' + parts[parts.length - 1];
+        uri = uri.replace('http://', 'https://');
+      } else {
+        const folder = item?.logo ? 'logo' : 'product';
+        uri = `${API_URL}files/${folder}/${uri}`;
+      }
+      return {uri};
+    }, [item]);
 
   return (
     <TouchableOpacity
       style={styles.selectableCrd}
-      onPress={() => handleSelectAndDeselect(item)}>
+      onPress={() => {
+        if (isExisting) {
+          ToastService.show({
+            message: 'Product already added to your list',
+            type: 'info',
+          });
+          return;
+        }
+        handleSelectAndDeselect(item);
+      }}>
       <View style={styles.leftContent}>
         <View style={styles.imageBox}>
           <Image
@@ -57,6 +69,7 @@ const SelectableItem = memo(({item, isSelected, handleSelectAndDeselect}) => {
         style={[
           styles.checkbox,
           isSelected && {backgroundColor: colors.sucess},
+          isExisting && {opacity: 0.6},
         ]}>
         {isSelected && <Octicons name="check" color={'#fff'} size={icon(16)} />}
       </View>
@@ -69,6 +82,7 @@ const ItemCard = ({
   products,
   selectedItems = [],
   setSelectedItem,
+  existingProductNames = new Set(),
 }) => {
   const hasItems = products?.products?.length > 0;
 
@@ -115,14 +129,20 @@ const ItemCard = ({
   };
 
   const renderItem = useCallback(
-    ({item}) => (
-      <SelectableItem
-        item={item}
-        isSelected={selectedItems.some(i => i.id === item.id)}
-        handleSelectAndDeselect={handleSelectAndDeselect}
-      />
-    ),
-    [selectedItems, handleSelectAndDeselect],
+    ({item}) => {
+      const isExisting = existingProductNames.has(
+        item?.name?.toLowerCase().trim(),
+      );
+      return (
+        <SelectableItem
+          item={item}
+          isSelected={selectedItems.some(i => i.id === item.id)}
+          handleSelectAndDeselect={handleSelectAndDeselect}
+          isExisting={isExisting}
+        />
+      );
+    },
+    [selectedItems, handleSelectAndDeselect, existingProductNames],
   );
 
   const keyExtractor = useCallback((item, index) => index.toString(), []);
