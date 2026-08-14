@@ -11,6 +11,7 @@ import {
   TextInput,
   ToastAndroid,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
@@ -94,7 +95,13 @@ const ITEM_WIDTH =
 const PAYMENT_OPTIONS = ['cash', 'card', 'upi'];
 
 const CreateBill = () => {
+  const {width: screenWidth, height: screenHeight} = useWindowDimensions();
   const inset = useSafeAreaInsets();
+
+  // Bottom bar height matches tab bar: 85 + inset.bottom
+  const bottomBarHeight = 85 + inset.bottom;
+  const floatingButtonBottom = bottomBarHeight + padding(20);
+
   const addInvoices = useInvoice('addInvoice');
   const {printer} = usePrinter();
   const business = useBusiness();
@@ -575,7 +582,11 @@ const CreateBill = () => {
             <Animated.View
               // This automatically animates width/height changes smoothly
               layout={LinearTransition.springify().damping(15).stiffness(120)}
-              style={[styles.floatingButton, floatingButtonAnimStyle]}>
+              style={[
+                styles.floatingButton,
+                floatingButtonAnimStyle,
+                {bottom: floatingButtonBottom},
+              ]}>
               {isDiscountOpen ? (
                 <Animated.View
                   key="discount-open" // Key is required for entering/exiting to work reliably
@@ -825,12 +836,16 @@ const styles = StyleSheet.create({
   floatingButton: {
     position: 'absolute',
     zIndex: 1000,
-    bottom: padding(100),
     alignSelf: 'center',
     backgroundColor: colors.sucess,
     paddingVertical: padding(8),
     paddingHorizontal: padding(16),
     borderRadius: 50,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
   },
   floatingButtonContainer: {
     flexDirection: 'row',
