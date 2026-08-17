@@ -15,10 +15,18 @@ class SalesReportService {
           Authorization: `Bearer ${token}`,
         },
       });
-      const data = await response.data;
+      console.log('--- getSalesReportByPeriod ---');
+      console.log('URL:', uri);
+      console.log('Status:', response.status);
+      console.log('Response:', response.data);
+
+      const data = response.data;
       return data;
     } catch (error) {
-      const data = await error.response.data;
+      console.log('--- getSalesReportByPeriod ERROR ---');
+      console.log('Status:', error.response?.status);
+      console.log('Error Data:', error.response?.data);
+      const data = error.response?.data || {status: false, message: error.message};
       return data;
     }
   }
@@ -26,20 +34,32 @@ class SalesReportService {
   // Get Sales Report By Date Range
   async getSalesReportByDateRange({token, startDate, endDate, type}) {
     try {
+      const url = 'https://test.api.smscannon.in/api/v1/invoice/generate';
       const payload = {
         fromDate: startDate,
         toDate: endDate,
         format: type,
       };
-      const response = await axios.post('https://test.api.smscannon.in/api/v1/invoice/generate', payload, {
+      console.log('--- getSalesReportByDateRange ---');
+      console.log('URL:', url);
+      console.log('Body:', payload);
+
+      const response = await axios.post(url, payload, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      const data = await response.data;
+
+      console.log('Status:', response.status);
+      console.log('Response:', response.data);
+
+      const data = response.data;
       return data;
     } catch (error) {
-      const data = await error.response.data;
+      console.log('--- getSalesReportByDateRange ERROR ---');
+      console.log('Status:', error.response?.status);
+      console.log('Error Data:', error.response?.data);
+      const data = error.response?.data || {status: false, message: error.message};
       return data;
     }
   }
