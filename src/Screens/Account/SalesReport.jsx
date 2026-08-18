@@ -96,7 +96,7 @@ const SalesReport = memo(() => {
           : selectedPriod.trim().toLowerCase().replace(/\s+/g, '');
 
       if (period === '1year') {
-        period = 'year';
+        period = '1year';
       }
 
       const data = await salesReportService.getSalesReportByPeriod(

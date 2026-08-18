@@ -10,22 +10,25 @@ class SalesReportService {
   async getSalesReportByPeriod(token, period = 'today') {
     try {
       const uri = `${this.baseUrl}sales?period=${period}`;
-      const response = await axios.get(uri, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
+
       console.log('--- getSalesReportByPeriod ---');
       console.log('URL:', uri);
-      console.log('Status:', response.status);
+      console.log('Headers:', headers);
+
+      const response = await axios.get(uri, {headers});
+
+      console.log('Status Code:', response.status);
       console.log('Response:', response.data);
 
       const data = response.data;
       return data;
     } catch (error) {
-      console.log('--- getSalesReportByPeriod ERROR ---');
-      console.log('Status:', error.response?.status);
-      console.log('Error Data:', error.response?.data);
+      console.error('--- getSalesReportByPeriod ERROR ---');
+      console.error('Status Code:', error.response?.status);
+      console.error('Error Data:', error.response?.data);
       const data = error.response?.data || {status: false, message: error.message};
       return data;
     }
@@ -40,25 +43,26 @@ class SalesReportService {
         toDate: endDate,
         format: type,
       };
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
+
       console.log('--- getSalesReportByDateRange ---');
       console.log('URL:', url);
+      console.log('Headers:', headers);
       console.log('Body:', payload);
 
-      const response = await axios.post(url, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.post(url, payload, {headers});
 
-      console.log('Status:', response.status);
+      console.log('Status Code:', response.status);
       console.log('Response:', response.data);
 
       const data = response.data;
       return data;
     } catch (error) {
-      console.log('--- getSalesReportByDateRange ERROR ---');
-      console.log('Status:', error.response?.status);
-      console.log('Error Data:', error.response?.data);
+      console.error('--- getSalesReportByDateRange ERROR ---');
+      console.error('Status Code:', error.response?.status);
+      console.error('Error Data:', error.response?.data);
       const data = error.response?.data || {status: false, message: error.message};
       return data;
     }
