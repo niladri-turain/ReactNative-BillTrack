@@ -153,13 +153,13 @@ const SalesReport = memo(() => {
       setIsDownloadLoading(true);
       const type = selectedDownloadType.toLowerCase();
 
-      const response = await salesReportService.exportSalesReport({
+      const config = await salesReportService.exportSalesReport({
         token,
         period,
         type,
       });
 
-      if (response?.status && response?.data) {
+      if (config?.status && config?.url) {
         let extension = '';
         if (type === 'excel') {
           extension = '.xlsx';
@@ -176,34 +176,48 @@ const SalesReport = memo(() => {
             : RNFS.DocumentDirectoryPath
         }/${fileName}`;
 
-        // write file (base64)
-        await RNFS.writeFile(filePath, response.data, 'base64');
+        const options = {
+          fromUrl: config.url,
+          toFile: filePath,
+          headers: {
+            Authorization: `Bearer ${config.token}`,
+          },
+        };
 
-        if (Platform.OS === 'android') {
-          await RNFS.scanFile(filePath);
-        }
+        const result = await RNFS.downloadFile(options).promise;
 
-        ToastService.show({
-          message: 'Report downloaded successfully',
-          type: 'success',
-          duration: 2000,
-        });
+        if (result.statusCode === 200) {
+          if (Platform.OS === 'android') {
+            await RNFS.scanFile(filePath);
+          }
 
-        // Open the file
-        try {
-          const fileUri =
-            Platform.OS === 'android' ? 'file://' + filePath : filePath;
-          await Linking.openURL(fileUri);
-        } catch (err) {
-          console.warn('Could not open file automatically:', err);
           ToastService.show({
-            message: 'Report saved to downloads',
+            message: 'Report downloaded successfully',
             type: 'success',
+            duration: 2000,
+          });
+
+          // Open the file
+          try {
+            const fileUri =
+              Platform.OS === 'android' ? 'file://' + filePath : filePath;
+            await Linking.openURL(fileUri);
+          } catch (err) {
+            console.warn('Could not open file automatically:', err);
+            ToastService.show({
+              message: 'Report saved to downloads',
+              type: 'success',
+            });
+          }
+        } else {
+          ToastService.show({
+            message: 'Failed to download report',
+            type: 'error',
           });
         }
       } else {
         ToastService.show({
-          message: response?.message || 'Failed to download report',
+          message: config?.message || 'Failed to initialize download',
           type: 'error',
         });
       }
