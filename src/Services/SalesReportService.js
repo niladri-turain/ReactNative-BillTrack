@@ -39,12 +39,19 @@ class SalesReportService {
   async exportSalesReport({token, period, type}) {
     try {
       const uri = `${this.baseUrl}sales/export/${type}?period=${period}`;
+
+      console.log('--- exportSalesReport ---');
+      console.log('Params:', {period, type});
+      console.log('URL:', uri);
+
       return {
         status: true,
         url: uri,
         token: token,
       };
     } catch (error) {
+      console.error('--- exportSalesReport ERROR ---');
+      console.error(error);
       return {status: false, message: error.message};
     }
   }

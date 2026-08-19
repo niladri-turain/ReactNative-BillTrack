@@ -150,6 +150,10 @@ const SalesReport = memo(() => {
 
   const handleDownloadReport = async period => {
     try {
+      console.log('--- UI handleDownloadReport ---');
+      console.log('Period:', period);
+      console.log('Type:', selectedDownloadType);
+
       setIsDownloadLoading(true);
       const type = selectedDownloadType.toLowerCase();
 
@@ -158,6 +162,8 @@ const SalesReport = memo(() => {
         period,
         type,
       });
+
+      console.log('Export Config Result:', config);
 
       if (config?.status && config?.url) {
         let extension = '';
@@ -185,8 +191,10 @@ const SalesReport = memo(() => {
         };
 
         const result = await RNFS.downloadFile(options).promise;
+        console.log('RNFS Download Result:', result);
 
         if (result.statusCode === 200) {
+          // On Android, scan the file so it appears in the system gallery/downloads
           if (Platform.OS === 'android') {
             await RNFS.scanFile(filePath);
           }
@@ -197,18 +205,24 @@ const SalesReport = memo(() => {
             duration: 2000,
           });
 
-          // Open the file
-          try {
-            const fileUri =
-              Platform.OS === 'android' ? 'file://' + filePath : filePath;
-            await Linking.openURL(fileUri);
-          } catch (err) {
-            console.warn('Could not open file automatically:', err);
-            ToastService.show({
-              message: 'Report saved to downloads',
-              type: 'success',
-            });
-          }
+          // Automatically open/view the file
+          setTimeout(async () => {
+            try {
+              const fileUri =
+                Platform.OS === 'android' ? 'file://' + filePath : filePath;
+
+              // On Android, using Linking.openURL with file:// often fails due to FileUriExposedException.
+              // Since we've disabled StrictMode in MainApplication.kt, this should now work.
+              await Linking.openURL(fileUri);
+            } catch (err) {
+              console.warn('Could not open file automatically:', err);
+              // Fallback: If Linking fails, users can still find it in downloads
+              ToastService.show({
+                message: 'Report saved. You can open it from your downloads.',
+                type: 'info',
+              });
+            }
+          }, 500);
         } else {
           ToastService.show({
             message: 'Failed to download report',
