@@ -55,13 +55,18 @@ const ANIMATION_CONFIG = { duration: 300 };
 
 // Memoized ListFooterComponent
 const ListFooterComponent = memo(({ isLoading, paginationHasNextPage, pageNumber, hasInvoices, onLoadMore }) => {
-  if (isLoading) {
+  if (isLoading && pageNumber > 0) {
     return (
       <View style={styles.footerLoader}>
         <Loader />
       </View>
     );
   }
+
+  if (isLoading || !hasInvoices) {
+    return null;
+  }
+
   if (paginationHasNextPage) {
     return (
       <View style={styles.loadMoreContainer}>
@@ -71,7 +76,8 @@ const ListFooterComponent = memo(({ isLoading, paginationHasNextPage, pageNumber
       </View>
     );
   }
-  if (!paginationHasNextPage && pageNumber > 0 && hasInvoices) {
+
+  if (pageNumber > 0) {
     return (
       <View style={styles.noMoreContainer}>
         <Text style={styles.noMoreText}>No more invoices</Text>
@@ -100,13 +106,13 @@ const SortOption = memo(({ label, value, isSelected, onSelect, isLast }) => (
 const Invoice = () => {
   const token = useAuthToken();
   const subscription = useSubscription();
-  const { invoices, resetInvoices } = useInvoice();
+  const { invoices, resetInvoices, invoicesFetched } = useInvoice();
 
   // STATE VARIABLES
   const [sortBy, setSortBy] = useState('date_desc');
   const [pageNumber, setPageNumber] = useState(0);
-  const [isLoading, setIsLoading] = useState(invoices.length === 0);
-  const [isInitialLoad, setIsInitialLoad] = useState(invoices.length === 0);
+  const [isLoading, setIsLoading] = useState(!invoicesFetched);
+  const [isInitialLoad, setIsInitialLoad] = useState(!invoicesFetched);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [paginationTotalPage, setPaginationTotalPage] = useState(0);
   const [paginationHasNextPage, setPaginationHasNextPage] = useState(false);
@@ -174,13 +180,13 @@ const Invoice = () => {
 
   useFocusEffect(
     useCallback(() => {
-      if (invoices.length === 0) {
+      if (!invoicesFetched) {
         fetchInvoices(0);
-      } else if (invoices.length !== lastInvoicesLength && pageNumber === 0) {
+      } else if (pageNumber === 0 && invoices.length > 0) {
+        // Only silent refresh if we already have data
         fetchInvoices(0, true);
-        setLastInvoicesLength(invoices.length);
       }
-    }, [fetchInvoices, invoices.length, lastInvoicesLength, pageNumber]),
+    }, [fetchInvoices, invoicesFetched, invoices.length, pageNumber]),
   );
 
   const handleLoadMore = useCallback(async () => {
@@ -257,11 +263,11 @@ const Invoice = () => {
         isLoading={isLoading}
         paginationHasNextPage={paginationHasNextPage}
         pageNumber={pageNumber}
-        hasInvoices={invoices.length > 0}
+        hasInvoices={filteredInvoices.length > 0 && filteredInvoices !== SHIMMER_DATA}
         onLoadMore={handleLoadMore}
       />
     ),
-    [isLoading, paginationHasNextPage, pageNumber, invoices.length, handleLoadMore],
+    [isLoading, paginationHasNextPage, pageNumber, filteredInvoices, handleLoadMore],
   );
 
   const refreshControl = useMemo(
@@ -291,7 +297,7 @@ const Invoice = () => {
     return data.filter(invoice =>
       invoice?.invoiceNumber?.toLowerCase().includes(query.toLowerCase()) || invoice?.customerNumber?.toLowerCase().includes(query.toLowerCase()),
     );
-  }, [isLoading, pageNumber, invoices, query]);
+  }, [isLoading, pageNumber, invoices, query, isInitialLoad]);
 
   const applySorting = async () => {
     setPageNumber(0);
@@ -315,6 +321,7 @@ const Invoice = () => {
           handleRestartClick={onRefresh}
         />
         <FlatList
+          style={{ flex: 1 }}
           contentContainerStyle={[styles.container, { flexGrow: 1 }]}
           ListHeaderComponent={ListHeaderComponent}
           data={filteredInvoices}

@@ -29,42 +29,32 @@ class SalesReportService {
       console.error('--- getSalesReportByPeriod ERROR ---');
       console.error('Status Code:', error.response?.status);
       console.error('Error Data:', error.response?.data);
-      const data = error.response?.data || {status: false, message: error.message};
+      const data =
+        error.response?.data || {status: false, message: error.message};
       return data;
     }
   }
 
-  // Get Sales Report By Date Range
-  async getSalesReportByDateRange({token, startDate, endDate, type}) {
+  // Export Sales Report (PDF/Excel)
+  async exportSalesReport({token, period, type}) {
     try {
-      const url = 'https://test.api.smscannon.in/api/v1/invoice/generate';
-      const payload = {
-        fromDate: startDate,
-        toDate: endDate,
-        format: type,
-      };
+      const uri = `${this.baseUrl}sales/export/${type}?period=${period}`;
       const headers = {
         Authorization: `Bearer ${token}`,
       };
 
-      console.log('--- getSalesReportByDateRange ---');
-      console.log('URL:', url);
-      console.log('Headers:', headers);
-      console.log('Body:', payload);
+      console.log('--- exportSalesReport ---');
+      console.log('URL:', uri);
 
-      const response = await axios.post(url, payload, {headers});
+      const response = await axios.get(uri, {headers});
 
       console.log('Status Code:', response.status);
-      console.log('Response:', response.data);
 
-      const data = response.data;
-      return data;
+      return response.data;
     } catch (error) {
-      console.error('--- getSalesReportByDateRange ERROR ---');
+      console.error('--- exportSalesReport ERROR ---');
       console.error('Status Code:', error.response?.status);
-      console.error('Error Data:', error.response?.data);
-      const data = error.response?.data || {status: false, message: error.message};
-      return data;
+      return error.response?.data || {status: false, message: error.message};
     }
   }
 }

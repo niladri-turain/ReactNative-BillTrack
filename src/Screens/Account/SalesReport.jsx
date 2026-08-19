@@ -1,5 +1,7 @@
 import {
   ActivityIndicator,
+  Linking,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -45,17 +47,10 @@ const SalesReport = memo(() => {
 
   const [selectedPriod, setSelectedPriod] = useState('Monthly');
   const [selectedDownload, setSelectedDownload] = useState('Today');
-  const [selectedDownloadType, setSelectedDownloadType] = useState('Excel');
+  const [selectedDownloadType, setSelectedDownloadType] = useState('PDF');
   const [chartData, setChartData] = useState(null);
   const [currentSalesPercentage, setCurrentSalesPercentage] = useState(0);
   const [previousSalesPercentage, setPreviousSalesPercentage] = useState(0);
-  const [reportStartDate, setReportStartDate] = useState(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 1);
-    return date;
-  });
-  const [reportEndDate, setReportEndDate] = useState(new Date());
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Loading State
   const [isLoading, setIsLaoding] = useState(false);
@@ -146,116 +141,84 @@ const SalesReport = memo(() => {
   };
 
   const handleDownload = () => {
-    let startDate = null;
-    let endDate = null;
-
-    if (selectedDownload === 'Today') {
-      startDate = new Date();
-      startDate.setHours(0, 0, 0, 0);
-
-      endDate = new Date();
-      endDate.setHours(23, 59, 59, 999);
-    } else if (selectedDownload === 'Week') {
-      endDate = new Date();
-      endDate.setHours(23, 59, 59, 999);
-
-      startDate = new Date();
-      startDate.setDate(startDate.getDate() - 6);
-      startDate.setHours(0, 0, 0, 0);
-    } else if (selectedDownload === 'Month') {
-      endDate = new Date();
-      endDate.setHours(23, 59, 59, 999);
-
-      startDate = new Date();
-      startDate.setDate(startDate.getDate() - 29);
-      startDate.setHours(0, 0, 0, 0);
-    } else if (selectedDownload === 'Year') {
-      endDate = new Date();
-      endDate.setHours(23, 59, 59, 999);
-
-      startDate = new Date();
-      startDate.setFullYear(startDate.getFullYear() - 1);
-      startDate.setHours(0, 0, 0, 0);
-    } else {
-      setIsModalOpen(true);
-      return;
+    let period = selectedDownload.toLowerCase();
+    if (period === 'year') {
+      period = '1year';
     }
-
-    if (startDate && endDate) {
-      handleDownloadReport(endDate, startDate);
-    } else {
-      handleDownloadReport(reportStartDate, reportEndDate);
-    }
+    handleDownloadReport(period);
   };
 
-  const handleDownloadReport = async (endDate, startDate) => {
+  const handleDownloadReport = async period => {
     try {
       setIsDownloadLoading(true);
-      const data = await salesReportService.getSalesReportByDateRange({
-        token: token,
-        endDate: formatDateYYYYMMDD(endDate),
-        startDate: formatDateYYYYMMDD(startDate),
-        type: selectedDownloadType.toLowerCase(),
+      const type = selectedDownloadType.toLowerCase();
+
+      const response = await salesReportService.exportSalesReport({
+        token,
+        period,
+        type,
       });
-      let extainsion = '';
-      if (selectedDownloadType.toLowerCase() === 'excel') {
-        extainsion = '.xlsx';
-      } else if (selectedDownloadType.toLowerCase() === 'pdf') {
-        extainsion = '.pdf';
+
+      if (response?.status && response?.data) {
+        let extension = '';
+        if (type === 'excel') {
+          extension = '.xlsx';
+        } else if (type === 'pdf') {
+          extension = '.pdf';
+        } else {
+          extension = '.csv';
+        }
+
+        const fileName = `Sales_Report_${period}_${Date.now()}${extension}`;
+        const filePath = `${
+          Platform.OS === 'android'
+            ? RNFS.DownloadDirectoryPath
+            : RNFS.DocumentDirectoryPath
+        }/${fileName}`;
+
+        // write file (base64)
+        await RNFS.writeFile(filePath, response.data, 'base64');
+
+        if (Platform.OS === 'android') {
+          await RNFS.scanFile(filePath);
+        }
+
+        ToastService.show({
+          message: 'Report downloaded successfully',
+          type: 'success',
+          duration: 2000,
+        });
+
+        // Open the file
+        try {
+          const fileUri =
+            Platform.OS === 'android' ? 'file://' + filePath : filePath;
+          await Linking.openURL(fileUri);
+        } catch (err) {
+          console.warn('Could not open file automatically:', err);
+          ToastService.show({
+            message: 'Report saved to downloads',
+            type: 'success',
+          });
+        }
       } else {
-        extainsion = '.csv';
+        ToastService.show({
+          message: response?.message || 'Failed to download report',
+          type: 'error',
+        });
       }
-      const filePath = `${
-        RNFS.DownloadDirectoryPath
-      }/Sales_Report_${formatDateYYYYMMDD(startDate)}_to_${formatDateYYYYMMDD(
-        endDate,
-      )}_${Date.now()}${extainsion}`;
-
-      // write file
-      await RNFS.writeFile(filePath, data, 'base64');
     } catch (error) {
-    } finally {
-      setIsDownloadLoading(false);
+      console.error('Download error:', error);
       ToastService.show({
-        message: 'Report downloaded successfully',
-        type: 'success',
-        duration: 2000,
+        message: 'Something went wrong',
+        type: 'error',
       });
-      setTimeout(() => {
-        handleCloseModal();
-        handleCloseBottomSheet();
-      }, 500);
-    }
-  };
-
-  const handleApplyDownload = async () => {
-    try {
-      setIsDownloadLoading(true);
-      handleDownloadReport(reportEndDate, reportStartDate);
-    } catch (error) {
     } finally {
       setIsDownloadLoading(false);
+      handleCloseBottomSheet();
     }
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-  };
-
-  const formatDateYYYYMMDD = date => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  };
-
-  function formatDate(date) {
-    return date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-  }
 
   return (
     <GestureHandlerRootView style={{flex: 1}}>
@@ -277,9 +240,11 @@ const SalesReport = memo(() => {
                 <Text style={styles.downloadText}>
                   Download detailed report
                 </Text>
-                <Text style={styles.clickText}>
-                  Click to choose date range & file type
-                </Text>
+                <TouchableOpacity onPress={handleOpenBottomSheet}>
+                  <Text style={styles.clickText}>
+                    Click to choose period & file type
+                  </Text>
+                </TouchableOpacity>
               </View>
               <TouchableOpacity
                 style={styles.downloadBtn}
@@ -423,7 +388,7 @@ const SalesReport = memo(() => {
           </View>
           <DottedDivider marginVertical={0} borderWidth={0.8} />
           <View style={styles.bottomSheetSelectedContainer}>
-            {['Today', 'Week', 'Month', 'Year', 'Custom'].map(item => (
+            {['Today', 'Week', 'Month', 'Year'].map(item => (
               <TouchableOpacity
                 key={item + 'first'}
                 style={[
@@ -476,67 +441,6 @@ const SalesReport = memo(() => {
           </TouchableOpacity>
         </BottomSheetView>
       </BottomSheet>
-      <CommonModal visible={isModalOpen} animationType="slide">
-        <View style={styles.modalContainer}>
-          <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-            <Text style={{fontSize: font(18), fontFamily: fonts.inMedium}}>
-              Select Date Range
-            </Text>
-            <TouchableOpacity onPress={handleCloseModal}>
-              <AntDesign name="close" size={icon(18)} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.modalDateContainer}>
-            <Text style={styles.modalDateText}>Start Date</Text>
-            <TouchableOpacity
-              style={styles.modalDateButton}
-              onPress={() => {
-                DateTimePickerAndroid.open({
-                  value: reportStartDate,
-                  display: 'calendar',
-                  maximumDate: new Date(),
-                  minimumDate: new Date().setDate(new Date().getDate() - 180),
-                  onChange: (event, date) => {
-                    if (event.type === 'set') {
-                      setReportStartDate(date);
-                    }
-                  },
-                });
-              }}>
-              <Text>{formatDate(reportStartDate)}</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.modalDateContainer}>
-            <Text style={styles.modalDateText}>End Date</Text>
-            <TouchableOpacity
-              style={styles.modalDateButton}
-              onPress={() => {
-                DateTimePickerAndroid.open({
-                  value: reportEndDate,
-                  maximumDate: new Date(),
-                  minimumDate: reportStartDate,
-                  onChange: (event, date) => {
-                    if (event.type === 'set') {
-                      setReportEndDate(date);
-                    }
-                  },
-                });
-              }}>
-              <Text>{formatDate(reportEndDate)}</Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity
-            style={styles.modalApplyButton}
-            disabled={isDownloadLoading}
-            onPress={handleApplyDownload}>
-            {isDownloadLoading ? (
-              <ActivityIndicator size="small" color={'#fff'} />
-            ) : (
-              <Text style={styles.modalApplyButtonText}>Apply</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </CommonModal>
     </GestureHandlerRootView>
   );
 });

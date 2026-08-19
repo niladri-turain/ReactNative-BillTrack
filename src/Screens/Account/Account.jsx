@@ -35,6 +35,7 @@ import {
   useUpdateUserFields,
   useUpdateBusinessFields,
   useUser,
+  useGstEnabled,
 } from '../../Contexts/AuthContext';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import {validateEmail, validateIndianPhone, validateName} from '../../utils/validator';
@@ -64,6 +65,7 @@ const Account = memo(() => {
   const userId = useUser('id');
   const logoUrl = useBusiness('logoUrl');
   const token = useAuthToken();
+  const isGstEnabled = useGstEnabled();
   const {logout, resetBusiness} = useAuth();
   const updateUserFields = useUpdateUserFields();
   const updateBusinessFields = useUpdateBusinessFields();
@@ -555,6 +557,7 @@ const Account = memo(() => {
             value={name}
             setValue={setName}
             hasError={name.length > 0 && !validateName(name)}
+            disabled={isGstEnabled}
           />
           <View>
             <View style={{position: 'relative'}}>

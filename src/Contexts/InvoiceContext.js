@@ -1,33 +1,37 @@
-import {createContext, useContext, useMemo, useState} from 'react';
+import {createContext, useCallback, useContext, useMemo, useState} from 'react';
 
 const InvoiceContext = createContext();
 
 const InvoiceProvider = ({children}) => {
   const [invoices, setInvoices] = useState([]);
+  const [invoicesFetched, setInvoicesFetched] = useState(false);
   const [salesData, setSalesData] = useState(null);
 
-  const addInvoice = invoice => {
+  const addInvoice = useCallback(invoice => {
     setInvoices(prevInvoices => [invoice, ...prevInvoices]);
-  };
+  }, []);
 
-  const resetInvoices = (invoices = []) => {
+  const resetInvoices = useCallback((invoices = []) => {
     setInvoices(invoices);
-  };
+    setInvoicesFetched(true);
+  }, []);
 
-  const clearInvoice = () => {
+  const clearInvoice = useCallback(() => {
     setInvoices([]);
-  };
+    setInvoicesFetched(false);
+  }, []);
 
   const value = useMemo(
     () => ({
       invoices,
+      invoicesFetched,
       addInvoice,
       resetInvoices,
       clearInvoice,
       salesData,
       setSalesData,
     }),
-    [invoices, salesData],
+    [invoices, invoicesFetched, addInvoice, resetInvoices, clearInvoice, salesData],
   );
 
   return (

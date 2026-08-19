@@ -54,13 +54,18 @@ const ANIMATION_CONFIG = {duration: 300};
 
 // Memoized ListFooterComponent
 const ListFooterComponent = memo(({isLoading, paginationHasNextPage, pageNumber, hasInvoices, onLoadMore}) => {
-  if (isLoading) {
+  if (isLoading && pageNumber > 0) {
     return (
       <View style={styles.footerLoader}>
         <Loader />
       </View>
     );
   }
+
+  if (isLoading || !hasInvoices) {
+    return null;
+  }
+
   if (paginationHasNextPage) {
     return (
       <View style={styles.loadMoreContainer}>
@@ -70,7 +75,8 @@ const ListFooterComponent = memo(({isLoading, paginationHasNextPage, pageNumber,
       </View>
     );
   }
-  if (!paginationHasNextPage && pageNumber > 0 && hasInvoices) {
+
+  if (pageNumber > 0) {
     return (
       <View style={styles.noMoreContainer}>
         <Text style={styles.noMoreText}>No more invoices</Text>
@@ -258,11 +264,11 @@ const CancelInvoiceList = memo(() => {
         isLoading={isLoading}
         paginationHasNextPage={paginationHasNextPage}
         pageNumber={pageNumber}
-        hasInvoices={invoices.length > 0}
+        hasInvoices={filteredInvoices.length > 0 && filteredInvoices !== SHIMMER_DATA}
         onLoadMore={handleLoadMore}
       />
     ),
-    [isLoading, paginationHasNextPage, pageNumber, invoices.length, handleLoadMore],
+    [isLoading, paginationHasNextPage, pageNumber, filteredInvoices, handleLoadMore],
   );
 
   const refreshControl = useMemo(
@@ -316,7 +322,8 @@ const CancelInvoiceList = memo(() => {
           handleRestartClick={onRefresh}
         />
         <FlatList
-          contentContainerStyle={styles.container}
+          style={{flex: 1}}
+          contentContainerStyle={[styles.container, {flexGrow: 1}]}
           ListHeaderComponent={ListHeaderComponent}
           data={filteredInvoices}
           keyExtractor={keyExtractor}
