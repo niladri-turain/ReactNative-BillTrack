@@ -39,7 +39,8 @@ import AntDesign from '@react-native-vector-icons/ant-design';
 import {useAuthToken} from '../../Contexts/AuthContext';
 import {salesReportService} from '../../Services/SalesReportService';
 import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
-import RNFS from 'react-native-fs';
+import ReactNativeBlobUtil from 'react-native-blob-util';
+import FileViewer from 'react-native-file-viewer';
 import ToastService from '../../Components/Toasts/ToastService';
 
 const SalesReport = memo(() => {
@@ -157,15 +158,15 @@ const SalesReport = memo(() => {
       setIsDownloadLoading(true);
       const type = selectedDownloadType.toLowerCase();
 
-      const config = await salesReportService.exportSalesReport({
+      const configResult = await salesReportService.exportSalesReport({
         token,
         period,
         type,
       });
 
-      console.log('Export Config Result:', config);
+      console.log('Export Config Result:', configResult);
 
-      if (config?.status && config?.url) {
+      if (configResult?.status && configResult?.url) {
         let extension = '';
         if (type === 'excel') {
           extension = '.xlsx';
@@ -176,62 +177,57 @@ const SalesReport = memo(() => {
         }
 
         const fileName = `Sales_Report_${period}_${Date.now()}${extension}`;
-        const filePath = `${
-          Platform.OS === 'android'
-            ? RNFS.DownloadDirectoryPath
-            : RNFS.DocumentDirectoryPath
+        const {fs, config} = ReactNativeBlobUtil;
+        const path = `${
+          Platform.OS === 'android' ? fs.dirs.DownloadDir : fs.dirs.DocumentDir
         }/${fileName}`;
 
-        const options = {
-          fromUrl: config.url,
-          toFile: filePath,
-          headers: {
-            Authorization: `Bearer ${config.token}`,
+        const response = await config({
+          fileCache: true,
+          path: path,
+          addAndroidDownloads: {
+            useDownloadManager: true,
+            notification: true,
+            path: path,
+            description: 'Downloading report...',
+            mime:
+              type === 'excel'
+                ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                : type === 'pdf'
+                ? 'application/pdf'
+                : 'text/csv',
+            mediaScannable: true,
           },
-        };
+        }).fetch('GET', configResult.url, {
+          Authorization: `Bearer ${configResult.token}`,
+        });
 
-        const result = await RNFS.downloadFile(options).promise;
-        console.log('RNFS Download Result:', result);
+        const filePath = response.path();
+        console.log('Download path:', filePath);
 
-        if (result.statusCode === 200) {
-          // On Android, scan the file so it appears in the system gallery/downloads
-          if (Platform.OS === 'android') {
-            await RNFS.scanFile(filePath);
+        ToastService.show({
+          message: 'Report downloaded successfully',
+          type: 'success',
+          duration: 2000,
+        });
+
+        // Automatically open the file
+        setTimeout(async () => {
+          try {
+            await FileViewer.open(filePath, {
+              showOpenWithDialog: true,
+            });
+          } catch (err) {
+            console.warn('Could not open file automatically:', err);
+            ToastService.show({
+              message: 'Report saved. You can open it from your downloads.',
+              type: 'info',
+            });
           }
-
-          ToastService.show({
-            message: 'Report downloaded successfully',
-            type: 'success',
-            duration: 2000,
-          });
-
-          // Automatically open/view the file
-          setTimeout(async () => {
-            try {
-              const fileUri =
-                Platform.OS === 'android' ? 'file://' + filePath : filePath;
-
-              // On Android, using Linking.openURL with file:// often fails due to FileUriExposedException.
-              // Since we've disabled StrictMode in MainApplication.kt, this should now work.
-              await Linking.openURL(fileUri);
-            } catch (err) {
-              console.warn('Could not open file automatically:', err);
-              // Fallback: If Linking fails, users can still find it in downloads
-              ToastService.show({
-                message: 'Report saved. You can open it from your downloads.',
-                type: 'info',
-              });
-            }
-          }, 500);
-        } else {
-          ToastService.show({
-            message: 'Failed to download report',
-            type: 'error',
-          });
-        }
+        }, 500);
       } else {
         ToastService.show({
-          message: config?.message || 'Failed to initialize download',
+          message: configResult?.message || 'Failed to initialize download',
           type: 'error',
         });
       }
