@@ -54,13 +54,38 @@ const STICKY_HEADER_INDICES = [0];
 const ANIMATION_CONFIG = { duration: 300 };
 
 // Memoized ListFooterComponent
-const ListFooterComponent = memo(({ isLoading, paginationHasNextPage, pageNumber }) =>
-  paginationHasNextPage && isLoading && pageNumber > 0 ? (
-    <View style={styles.footerLoader}>
-      <Loader />
-    </View>
-  ) : null,
-);
+const ListFooterComponent = memo(({ isLoading, paginationHasNextPage, pageNumber, hasInvoices, onLoadMore }) => {
+  if (isLoading && pageNumber > 0) {
+    return (
+      <View style={styles.footerLoader}>
+        <Loader />
+      </View>
+    );
+  }
+
+  if (isLoading || !hasInvoices) {
+    return null;
+  }
+
+  if (paginationHasNextPage) {
+    return (
+      <View style={styles.loadMoreContainer}>
+        <TouchableOpacity style={styles.loadMoreButton} onPress={onLoadMore}>
+          <Text style={styles.loadMoreButtonText}>Load More</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (pageNumber > 0) {
+    return (
+      <View style={styles.noMoreContainer}>
+        <Text style={styles.noMoreText}>No more invoices</Text>
+      </View>
+    );
+  }
+  return null;
+});
 
 // Memoized SortOption Component
 const SortOption = memo(({ label, value, isSelected, onSelect, isLast }) => (
@@ -81,13 +106,13 @@ const SortOption = memo(({ label, value, isSelected, onSelect, isLast }) => (
 const Invoice = () => {
   const token = useAuthToken();
   const subscription = useSubscription();
-  const { invoices, resetInvoices } = useInvoice();
+  const { invoices, resetInvoices, invoicesFetched } = useInvoice();
 
   // STATE VARIABLES
   const [sortBy, setSortBy] = useState('date_desc');
   const [pageNumber, setPageNumber] = useState(0);
-  const [isLoading, setIsLoading] = useState(invoices.length === 0);
-  const [isInitialLoad, setIsInitialLoad] = useState(invoices.length === 0);
+  const [isLoading, setIsLoading] = useState(!invoicesFetched);
+  const [isInitialLoad, setIsInitialLoad] = useState(!invoicesFetched);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [paginationTotalPage, setPaginationTotalPage] = useState(0);
   const [paginationHasNextPage, setPaginationHasNextPage] = useState(false);
@@ -132,8 +157,8 @@ const Invoice = () => {
         }
         const data =
           sortBy === 'cancelled'
-            ? await invoiceService.getCancelInvoices(token, page, 8, 'date_desc')
-            : await invoiceService.getInvoices(token, page, 8, sortBy);
+            ? await invoiceService.getCancelInvoices(token, page, 10, 'date_desc')
+            : await invoiceService.getInvoices(token, page, 10, sortBy);
         if (data?.status) {
           if (page === 0) {
             resetInvoices(data?.data || []);
@@ -153,24 +178,24 @@ const Invoice = () => {
     [token, sortBy, resetInvoices],
   );
 
-  const fetchMore = useCallback(
-    async nextPage => {
-      if (isLoading) return;
-      await fetchInvoices(nextPage);
-    },
-    [isLoading, fetchInvoices],
-  );
-
   useFocusEffect(
     useCallback(() => {
-      if (invoices.length === 0) {
+      if (!invoicesFetched) {
         fetchInvoices(0);
-      } else if (invoices.length !== lastInvoicesLength) {
+      } else if (pageNumber === 0 && invoices.length > 0) {
+        // Only silent refresh if we already have data
         fetchInvoices(0, true);
-        setLastInvoicesLength(invoices.length);
       }
-    }, [fetchInvoices, invoices.length, lastInvoicesLength]),
+    }, [fetchInvoices, invoicesFetched, invoices.length, pageNumber]),
   );
+
+  const handleLoadMore = useCallback(async () => {
+    if (paginationHasNextPage && !isLoading) {
+      const nextPage = pageNumber + 1;
+      setPageNumber(nextPage);
+      await fetchInvoices(nextPage);
+    }
+  }, [paginationHasNextPage, isLoading, pageNumber, fetchInvoices]);
 
   /* ON REFRESH OPTIMIZATION */
   const onRefresh = useCallback(async () => {
@@ -180,19 +205,6 @@ const Invoice = () => {
     setIsRefreshing(false);
     setSortBy('date_desc');
   }, [fetchInvoices]);
-
-  const onEndReached = useCallback(() => {
-    if (paginationHasNextPage && !isLoading && invoices.length > 0) {
-      setPageNumber(prev => prev + 1);
-    }
-  }, [paginationHasNextPage, isLoading, invoices.length]);
-
-  useEffect(() => {
-    if (pageNumber > 0) {
-      fetchMore(pageNumber);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageNumber]);
 
   // Memoized header component
   const ListHeaderComponent = useMemo(
@@ -251,9 +263,11 @@ const Invoice = () => {
         isLoading={isLoading}
         paginationHasNextPage={paginationHasNextPage}
         pageNumber={pageNumber}
+        hasInvoices={filteredInvoices.length > 0 && filteredInvoices !== SHIMMER_DATA}
+        onLoadMore={handleLoadMore}
       />
     ),
-    [isLoading, paginationHasNextPage, pageNumber],
+    [isLoading, paginationHasNextPage, pageNumber, filteredInvoices, handleLoadMore],
   );
 
   const refreshControl = useMemo(
@@ -283,7 +297,7 @@ const Invoice = () => {
     return data.filter(invoice =>
       invoice?.invoiceNumber?.toLowerCase().includes(query.toLowerCase()) || invoice?.customerNumber?.toLowerCase().includes(query.toLowerCase()),
     );
-  }, [isLoading, pageNumber, invoices, query]);
+  }, [isLoading, pageNumber, invoices, query, isInitialLoad]);
 
   const applySorting = async () => {
     setPageNumber(0);
@@ -307,6 +321,7 @@ const Invoice = () => {
           handleRestartClick={onRefresh}
         />
         <FlatList
+          style={{ flex: 1 }}
           contentContainerStyle={[styles.container, { flexGrow: 1 }]}
           ListHeaderComponent={ListHeaderComponent}
           data={filteredInvoices}
@@ -318,8 +333,6 @@ const Invoice = () => {
           maxToRenderPerBatch={5}
           windowSize={5}
           initialNumToRender={5}
-          onEndReached={onEndReached}
-          onEndReachedThreshold={0.5}
           ListFooterComponent={renderFooter}
           ListEmptyComponent={<EmptyListCard title="" />}
         />
@@ -444,6 +457,33 @@ const styles = StyleSheet.create({
   footerLoader: {
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: padding(10),
+  },
+  loadMoreContainer: {
+    paddingVertical: padding(20),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadMoreButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: padding(20),
+    paddingVertical: padding(10),
+    borderRadius: 5,
+  },
+  loadMoreButtonText: {
+    color: '#fff',
+    fontSize: font(14),
+    fontFamily: fonts.inMedium,
+  },
+  noMoreContainer: {
+    paddingVertical: padding(20),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noMoreText: {
+    fontSize: font(12),
+    fontFamily: fonts.inMedium,
+    color: '#00000060',
   },
 });
 

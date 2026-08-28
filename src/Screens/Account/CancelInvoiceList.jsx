@@ -53,13 +53,38 @@ const STICKY_HEADER_INDICES = [0];
 const ANIMATION_CONFIG = {duration: 300};
 
 // Memoized ListFooterComponent
-const ListFooterComponent = memo(({isLoading, paginationHasNextPage}) =>
-  paginationHasNextPage && isLoading ? (
-    <View style={styles.footerLoader}>
-      <Loader />
-    </View>
-  ) : null,
-);
+const ListFooterComponent = memo(({isLoading, paginationHasNextPage, pageNumber, hasInvoices, onLoadMore}) => {
+  if (isLoading && pageNumber > 0) {
+    return (
+      <View style={styles.footerLoader}>
+        <Loader />
+      </View>
+    );
+  }
+
+  if (isLoading || !hasInvoices) {
+    return null;
+  }
+
+  if (paginationHasNextPage) {
+    return (
+      <View style={styles.loadMoreContainer}>
+        <TouchableOpacity style={styles.loadMoreButton} onPress={onLoadMore}>
+          <Text style={styles.loadMoreButtonText}>Load More</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (pageNumber > 0) {
+    return (
+      <View style={styles.noMoreContainer}>
+        <Text style={styles.noMoreText}>No more invoices</Text>
+      </View>
+    );
+  }
+  return null;
+});
 
 // Memoized SortOption Component
 const SortOption = memo(({label, value, isSelected, onSelect, isLast}) => (
@@ -120,7 +145,7 @@ const CancelInvoiceList = memo(() => {
     async (page = 0) => {
       try {
         setIsLoading(true);
-        const data = await invoiceService.getCancelInvoices(token, page, 8, sortBy);
+        const data = await invoiceService.getCancelInvoices(token, page, 10, sortBy);
         if (data?.status) {
           setInvoices(data?.data);
           const pagination = data?.pagination;
@@ -133,7 +158,7 @@ const CancelInvoiceList = memo(() => {
         setIsLoading(false);
       }
     },
-    [token,sortBy],
+    [token, sortBy],
   );
 
   const fetchMore = useCallback(
@@ -142,7 +167,7 @@ const CancelInvoiceList = memo(() => {
 
       try {
         setIsLoading(true);
-        const data = await invoiceService.getCancelInvoices(token, nextPage, 8,sortBy);
+        const data = await invoiceService.getCancelInvoices(token, nextPage, 10, sortBy);
         if (data?.status) {
           setInvoices(prev => [...prev, ...data?.data]);
           const pagination = data?.pagination;
@@ -172,18 +197,15 @@ const CancelInvoiceList = memo(() => {
     setSortBy('date_desc');
   }, [fetchInvoices]);
 
-  const onEndReached = useCallback(() => {
-    if (paginationHasNextPage && !isLoading && invoices.length > 0) {
-      setPageNumber(prev => prev + 1);
+  const handleLoadMore = useCallback(async () => {
+    if (paginationHasNextPage && !isLoading) {
+      const nextPage = pageNumber + 1;
+      setPageNumber(nextPage);
+      await fetchMore(nextPage);
     }
-  }, [paginationHasNextPage, isLoading, invoices.length]);
+  }, [paginationHasNextPage, isLoading, pageNumber, fetchMore]);
 
-  useEffect(() => {
-    if (pageNumber > 0) {
-      fetchMore(pageNumber);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageNumber]);
+  // Removed useEffect for pageNumber to prevent double calls and ensure explicit triggers
 
   // Memoized header component
   const ListHeaderComponent = useMemo(
@@ -241,9 +263,12 @@ const CancelInvoiceList = memo(() => {
       <ListFooterComponent
         isLoading={isLoading}
         paginationHasNextPage={paginationHasNextPage}
+        pageNumber={pageNumber}
+        hasInvoices={filteredInvoices.length > 0 && filteredInvoices !== SHIMMER_DATA}
+        onLoadMore={handleLoadMore}
       />
     ),
-    [isLoading, paginationHasNextPage],
+    [isLoading, paginationHasNextPage, pageNumber, filteredInvoices, handleLoadMore],
   );
 
   const refreshControl = useMemo(
@@ -297,7 +322,8 @@ const CancelInvoiceList = memo(() => {
           handleRestartClick={onRefresh}
         />
         <FlatList
-          contentContainerStyle={styles.container}
+          style={{flex: 1}}
+          contentContainerStyle={[styles.container, {flexGrow: 1}]}
           ListHeaderComponent={ListHeaderComponent}
           data={filteredInvoices}
           keyExtractor={keyExtractor}
@@ -308,10 +334,8 @@ const CancelInvoiceList = memo(() => {
           maxToRenderPerBatch={5}
           windowSize={5}
           initialNumToRender={5}
-          onEndReached={onEndReached}
-          onEndReachedThreshold={0.5}
           ListFooterComponent={renderFooter}
-          ListEmptyComponent={<EmptyListCard title="No Cancelled Invoice Found" />}
+          ListEmptyComponent={<EmptyListCard title="" />}
         />
       </Layout>
       <BottomSheet
@@ -434,6 +458,33 @@ const styles = StyleSheet.create({
   footerLoader: {
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: padding(10),
+  },
+  loadMoreContainer: {
+    paddingVertical: padding(20),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadMoreButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: padding(20),
+    paddingVertical: padding(10),
+    borderRadius: 5,
+  },
+  loadMoreButtonText: {
+    color: '#fff',
+    fontSize: font(14),
+    fontFamily: fonts.inMedium,
+  },
+  noMoreContainer: {
+    paddingVertical: padding(20),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noMoreText: {
+    fontSize: font(12),
+    fontFamily: fonts.inMedium,
+    color: '#00000060',
   },
 });
 

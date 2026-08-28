@@ -1,6 +1,6 @@
 {
   "name": "BillTrack",
-  "version": "1.13",
+  "version": "1.15",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
@@ -32,8 +32,10 @@
     "axios": "^1.13.2",
     "react": "19.0.0",
     "react-native": "0.79.2",
+    "react-native-blob-util": "^0.19.11",
     "react-native-bluetooth-classic": "^1.73.0-rc.17",
     "react-native-device-info": "^15.0.1",
+    "react-native-file-viewer": "^2.1.5",
     "react-native-fs": "^2.20.0",
     "react-native-gesture-handler": "^2.26.0",
     "react-native-gifted-charts": "^1.4.64",

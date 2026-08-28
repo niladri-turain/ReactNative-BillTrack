@@ -84,8 +84,8 @@ android {
         applicationId "com.billtrack"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 13002
-        versionName "1.14"
+        versionCode 13003
+        versionName "1.15"
     }
 
     splits {
