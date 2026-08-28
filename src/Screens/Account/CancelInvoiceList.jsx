@@ -335,7 +335,7 @@ const CancelInvoiceList = memo(() => {
           windowSize={5}
           initialNumToRender={5}
           ListFooterComponent={renderFooter}
-          ListEmptyComponent={<EmptyListCard title="No Cancelled Invoice Found" />}
+          ListEmptyComponent={<EmptyListCard title="" />}
         />
       </Layout>
       <BottomSheet
