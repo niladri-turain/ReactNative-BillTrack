@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, StyleSheet, Text, View, Linking, TouchableOpacity, Image } from 'react-native';
+import { Modal, StyleSheet, Text, View, Linking, TouchableOpacity, Image, Platform } from 'react-native';
 import VersionCheck from 'react-native-version-check';
 import { colors } from '../../utils/colors';
 import { fonts } from '../../utils/fonts';
@@ -24,7 +24,7 @@ const AppUpdateModal = () => {
       const res = await VersionCheck.needUpdate({
         currentVersion: currentVersion,
         latestVersion: latestVersion,
-        packageName: 'com.billtrack'
+        packageName: DeviceInfo.getBundleId()
       });
 
       // Strict version comparison: Only update if store version is strictly GREATER than phone version
@@ -62,12 +62,27 @@ const AppUpdateModal = () => {
   }, []);
 
   const handleUpdate = () => {
-    if (storeUrl) {
-      Linking.openURL(storeUrl).catch(() => {
-        Linking.openURL('market://details?id=com.billtrack');
-      });
+    const packageName = DeviceInfo.getBundleId();
+    const playStoreMarketUrl = `market://details?id=${packageName}`;
+    const playStoreWebUrl = `https://play.google.com/store/apps/details?id=${packageName}`;
+
+    if (Platform.OS === 'android') {
+      Linking.canOpenURL(playStoreMarketUrl)
+        .then(supported => {
+          if (supported) {
+            return Linking.openURL(playStoreMarketUrl);
+          } else {
+            return Linking.openURL(playStoreWebUrl);
+          }
+        })
+        .catch(() => Linking.openURL(playStoreWebUrl));
     } else {
-      Linking.openURL('market://details?id=com.billtrack');
+      // iOS handling
+      VersionCheck.getAppStoreUrl({ appID: 'YOUR_APP_ID' }) // Replace with your real App ID if iOS is used
+        .then(url => Linking.openURL(url))
+        .catch(() => {
+           if (storeUrl) Linking.openURL(storeUrl);
+        });
     }
   };
 
