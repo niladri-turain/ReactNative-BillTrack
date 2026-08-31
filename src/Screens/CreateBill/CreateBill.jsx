@@ -79,7 +79,7 @@ import Animated, {
 import {useInvoice} from '../../Contexts/InvoiceContext';
 import {useBottomTabBarHeight} from '@react-navigation/bottom-tabs';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useFocusEffect} from '@react-navigation/native';
+import {useFocusEffect, useNavigation} from '@react-navigation/native';
 
 const {width: screenWidth} = Dimensions.get('window');
 const NUM_COLUMNS = isTabletDevice ? 4 : 3;
@@ -95,6 +95,7 @@ const ITEM_WIDTH =
 const PAYMENT_OPTIONS = ['cash', 'card', 'upi'];
 
 const CreateBill = () => {
+  const navigation = useNavigation();
   const {width: screenWidth, height: screenHeight} = useWindowDimensions();
   const inset = useSafeAreaInsets();
 
@@ -103,7 +104,7 @@ const CreateBill = () => {
   const floatingButtonBottom = bottomBarHeight + padding(20);
 
   const addInvoices = useInvoice('addInvoice');
-  const {printer} = usePrinter();
+  const {printer, setSelectedPrinter} = usePrinter();
   const business = useBusiness();
   const userName = useUser('name');
   const businessName = userName || business?.name;
@@ -243,15 +244,74 @@ const CreateBill = () => {
   // LOADING STATE
   const [isPrintLoading, setIsPrintLoading] = useState(false);
   const [isSendLoading, setIsSendLoading] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [devices, setDevices] = useState([]);
+  const [isPendingPrint, setIsPendingPrint] = useState(false);
 
   // BOTTOMSHEET
   const bottomSheetRef = useRef(null);
+  const scannerBottomSheetRef = useRef(null);
   const snapPoints = useMemo(() => ['30%'], []);
+  const scannerSnapPoints = useMemo(() => ['50%'], []);
 
   const handleCloseBottomSheet = useCallback(() => {
     bottomSheetRef.current?.close();
     Keyboard.dismiss();
   }, []);
+
+  const handleOpenScanner = useCallback(() => {
+    scannerBottomSheetRef.current?.expand();
+    startScan();
+  }, []);
+
+  const handleCloseScanner = useCallback(() => {
+    scannerBottomSheetRef.current?.close();
+    setIsPendingPrint(false);
+  }, []);
+
+  const startScan = async () => {
+    setIsScanning(true);
+    try {
+      const allDevices = await printerService.scanDevices();
+      setDevices(allDevices);
+    } catch (error) {
+      console.error('Scan error:', error);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleDeviceSelect = async (device) => {
+    setIsScanning(true);
+    try {
+      const connected = await printerService.connectDevice(device.address);
+      if (connected) {
+        await setSelectedPrinter(device);
+        ToastService.show({
+          message: 'Printer connected successfully',
+          type: 'success',
+          position: 'top',
+        });
+        handleCloseScanner();
+
+        // If we were waiting to print, trigger it now
+        if (isPendingPrint) {
+          setIsPendingPrint(false);
+          printData();
+        }
+      } else {
+        ToastService.show({
+          message: 'Failed to connect printer',
+          type: 'error',
+          position: 'top',
+        });
+      }
+    } catch (error) {
+      console.error('Connection error:', error);
+    } finally {
+      setIsScanning(false);
+    }
+  };
 
   const renderBackdrop = useMemo(
     () => props =>
@@ -334,6 +394,13 @@ const CreateBill = () => {
       });
       return;
     }
+
+    if (!printer) {
+      setIsPendingPrint(true);
+      handleOpenScanner();
+      return;
+    }
+
     try {
       setIsPrintLoading(true);
       const selectedItems = product
@@ -350,6 +417,7 @@ const CreateBill = () => {
             hsnId: item?.hsnId || null,
             hsnCode: item?.hsn?.hsnCode || "",
             rate: Number(item?.price).toFixed(2),
+            originalPrice: item?.price,
             gstType: hasHSN ? 'cgst/sgst' : null,
             gstPercentage: hasHSN
               ? (
@@ -380,24 +448,19 @@ const CreateBill = () => {
           type: 'success',
           position: 'top',
         });
-        setPhoneNumber('');
-        setDiscount(0);
-        setQuantity(0);
-        setTotalPrice(0);
-        setIsDiscountOpen(false);
-        resetProductCount();
-        setProductsWithHsnError([]);
-        handleCloseBottomSheet();
+
+        const invoice = data?.invoice;
+        const invoiceItems = await invoiceService.getInvoiceItems(
+          invoice?.id,
+        );
+        const {gstListCalculate, items, subTotalAmount, totalQuantity} =
+          calculateInvoiceData(invoiceItems?.items, invoice?.discountAmount);
+
+        // Check if printing is enabled in settings or if it was a manual print action
         const printOnCreateBill = getByKey('PRINT_ON_CREATE_BILL');
-        if (printOnCreateBill && isPremiumPlanAndActive) {
-          const invoice = data?.invoice;
-          const invoiceItems = await invoiceService.getInvoiceItems(
-            invoice?.id,
-          );
-          const {gstListCalculate, items, subTotalAmount, totalQuantity} =
-            calculateInvoiceData(invoiceItems?.items, invoice?.discountAmount);
-          await printerService.printInvoice(
-            printer,
+        // Manual print (isPendingPrint was true) OR auto-print enabled
+        if (isPendingPrint || printOnCreateBill || isPremiumPlanAndActive) {
+           await printerService.printInvoice(
             invoice,
             items,
             gstListCalculate,
@@ -406,9 +469,13 @@ const CreateBill = () => {
             {...business, name: businessName},
           );
         }
+
         await updateInvoiceNumber(numberOfInvoices);
+        restartClickOfHeader();
+        navigation.navigate('Home');
       }
     } catch (error) {
+      console.error('Print logic error:', error);
     } finally {
       setIsPrintLoading(false);
     }
@@ -731,6 +798,60 @@ const CreateBill = () => {
             </View>
           </BottomSheetView>
         </BottomSheet>
+
+        {/* Bluetooth Scanner BottomSheet */}
+        <BottomSheet
+          ref={scannerBottomSheetRef}
+          snapPoints={scannerSnapPoints}
+          index={-1}
+          handleComponent={() => null}
+          backgroundStyle={{borderRadius: 16}}
+          backdropComponent={renderBackdrop}
+        >
+          <BottomSheetView style={{flex: 1, padding: padding(20)}}>
+             <View style={styles.bottomSheetContaienr}>
+                <Text style={styles.bottomSheetTitleText}>Select Printer</Text>
+                <TouchableOpacity onPress={handleCloseScanner}>
+                  <Ionicons name="close" size={24} color={'#000'} />
+                </TouchableOpacity>
+             </View>
+
+             {isScanning ? (
+               <View style={{marginTop: 20, alignItems: 'center'}}>
+                 <ActivityIndicator size="large" color={colors.primary} />
+                 <Text style={{marginTop: 10, fontFamily: fonts.popRegular}}>Scanning for devices...</Text>
+               </View>
+             ) : (
+               <FlatList
+                 data={devices}
+                 keyExtractor={(item) => item.address}
+                 renderItem={({item}) => (
+                   <TouchableOpacity
+                     style={styles.deviceItem}
+                     onPress={() => handleDeviceSelect(item)}
+                   >
+                     <Ionicons name="print-outline" size={20} color={colors.primary} />
+                     <View style={{marginLeft: 15}}>
+                       <Text style={styles.deviceName}>{item.name || 'Unknown Device'}</Text>
+                       <Text style={styles.deviceAddress}>{item.address}</Text>
+                     </View>
+                   </TouchableOpacity>
+                 )}
+                 ListEmptyComponent={() => (
+                   <Text style={{textAlign: 'center', marginTop: 20}}>No devices found. Make sure Bluetooth is on.</Text>
+                 )}
+               />
+             )}
+
+             <TouchableOpacity
+               style={[styles.bottomSheetButton, {backgroundColor: colors.primary, marginTop: 20}]}
+               onPress={startScan}
+             >
+               <Text style={styles.bottomSheetButtonText}>RE-SCAN</Text>
+             </TouchableOpacity>
+          </BottomSheetView>
+        </BottomSheet>
+
         {showGuide && guideTargets.create && guideStep === 2 && quantity > 0 && (
           <StepGuide
             target={guideTargets.create}
@@ -871,6 +992,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderWidth: 5,
     borderColor: colors.border,
+  },
+  deviceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  deviceName: {
+    fontFamily: fonts.popSemiBold,
+    fontSize: font(14),
+    color: '#000',
+  },
+  deviceAddress: {
+    fontFamily: fonts.popRegular,
+    fontSize: font(12),
+    color: '#666',
   },
 });
 
