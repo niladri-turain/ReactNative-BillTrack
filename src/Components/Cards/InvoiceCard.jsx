@@ -180,7 +180,6 @@ const InvoiceCard = ({invoice, onRefresh}) => {
       const {gstListCalculate, items, subTotalAmount, totalQuantity} =
         calculateInvoiceData(invoiceItems?.items, invoice?.discountAmount);
       await printerService.printInvoice(
-        printer,
         invoice,
         items,
         gstListCalculate,

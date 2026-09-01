@@ -42,11 +42,13 @@ class PrinterService {
 
       const devices = await BluetoothManager.scanDevices();
       const parsedDevices = JSON.parse(devices);
+      // Combine paired and found devices
       const allDevices = [
         ...(parsedDevices.paired || []),
         ...(parsedDevices.found || []),
       ];
 
+      // Filter out null/undefined or duplicate addresses
       const uniqueDevices = Array.from(new Set(allDevices.map(d => d.address)))
         .map(address => allDevices.find(d => d.address === address))
         .filter(d => d && d.address);
@@ -69,18 +71,7 @@ class PrinterService {
   }
 
   convertTo12Hour = datetime => {
-    if (!datetime) return '';
-    let date;
-    try {
-      if (typeof datetime === 'string') {
-        date = new Date(datetime.replace(' ', 'T'));
-      } else {
-        date = new Date(datetime);
-      }
-    } catch (e) {
-      date = new Date(datetime);
-    }
-    if (!date || isNaN(date.getTime())) return '';
+    const date = new Date(datetime.replace(' ', 'T'));
     let hours = date.getHours();
     const minutes = date.getMinutes();
     const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -111,11 +102,12 @@ class PrinterService {
       // 58mm printer usually 32 characters
       const lineLength = 32;
       const dashLine = '-'.repeat(lineLength) + '\n';
+      const columnWidths = [12, 4, 8, 8]; // Item (12), Qty (4), Price (8), Amount (8) = 32
 
       // Header
       await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
       await BluetoothEscposPrinter.setBlob(0);
-      await BluetoothEscposPrinter.printText(`${business?.name || ''}\n`, {
+      await BluetoothEscposPrinter.printText(`${business?.name || ''}\n\n`, {
         encoding: 'GBK',
         codepage: 0,
         widthtimes: 1,
@@ -124,15 +116,15 @@ class PrinterService {
       });
 
       if (business?.phone) {
-        await BluetoothEscposPrinter.printText(`Phone Number: ${business.phone}\n`, {});
+        await BluetoothEscposPrinter.printText(`Phone: ${business.phone}\n`, {});
       }
-      await BluetoothEscposPrinter.printText(`Address: ${business?.street || ''} ${business?.city || ''}\n`, {});
+      await BluetoothEscposPrinter.printText(`${business?.street || ''} ${business?.city || ''}\n`, {});
       if (business?.gstNumber) {
-        await BluetoothEscposPrinter.printText(`GST NO : ${business.gstNumber}\n`, {});
+        await BluetoothEscposPrinter.printText(`GST: ${business.gstNumber}\n`, {});
       }
       await BluetoothEscposPrinter.printText(dashLine, {});
 
-      // Invoice Info - Date and Time on separate lines to avoid wrapping
+      // Invoice Info
       await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.LEFT);
       await BluetoothEscposPrinter.printText(`Invoice No : ${invoice.invoiceNumber}\n`, {});
       await BluetoothEscposPrinter.printText(`Date : ${formatDate(invoice.createdAt)}\n`, {});
@@ -143,15 +135,20 @@ class PrinterService {
       await BluetoothEscposPrinter.printText(dashLine, {});
 
       // Table Header
-      // 12 (Item) + 4 (Qt) + 8 (Price) + 8 (Amount) = 32
-      const columnWidths = [12, 4, 8, 8];
       await BluetoothEscposPrinter.printColumn(
         columnWidths,
-        [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.CENTER, BluetoothEscposPrinter.ALIGN.RIGHT, BluetoothEscposPrinter.ALIGN.RIGHT],
-        ['Item', 'Qt', 'Price', 'Amount'],
-        {}
+        [
+          BluetoothEscposPrinter.ALIGN.LEFT,
+          BluetoothEscposPrinter.ALIGN.CENTER,
+          BluetoothEscposPrinter.ALIGN.RIGHT,
+          BluetoothEscposPrinter.ALIGN.RIGHT,
+        ],
+        ['Item', 'Qty', 'Price', 'Amount'],
+        {},
       );
-      await BluetoothEscposPrinter.printText(`HSN (GST)\n`, {});
+      if (gstList && gstList.length > 0) {
+        await BluetoothEscposPrinter.printText('HSN (GST)\n', {fonttype: 1});
+      }
       await BluetoothEscposPrinter.printText(dashLine, {});
 
       // Items
@@ -159,60 +156,88 @@ class PrinterService {
         const name = item.productName || item.name || '';
         const qty = (item.quantity || 0).toString();
         const price = this.cleanAmount(item.originalPrice);
-        const amount = (parseFloat(price) * parseInt(item.quantity || 0)).toFixed(2);
+        const amount = this.cleanAmount(parseFloat(price) * parseInt(qty));
 
         await BluetoothEscposPrinter.printColumn(
           columnWidths,
-          [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.CENTER, BluetoothEscposPrinter.ALIGN.RIGHT, BluetoothEscposPrinter.ALIGN.RIGHT],
+          [
+            BluetoothEscposPrinter.ALIGN.LEFT,
+            BluetoothEscposPrinter.ALIGN.CENTER,
+            BluetoothEscposPrinter.ALIGN.RIGHT,
+            BluetoothEscposPrinter.ALIGN.RIGHT,
+          ],
           [name, qty, price, amount],
-          {}
+          {},
         );
 
         // HSN/GST info below item
-        let hsnInfo = '';
-        if (item.hsn) hsnInfo += item.hsn;
-        if (item.gstPercentage) hsnInfo += ` (${item.gstPercentage}%)`;
+        const hsnCode =
+          (typeof item.hsn === 'object' ? item.hsn?.hsnCode : item.hsn) ||
+          item.hsnCode ||
+          '';
+        const gstRate =
+          item.gstPercentage && parseFloat(item.gstPercentage) > 0
+            ? `${parseFloat(item.gstPercentage)}%`
+            : '';
+        const hsnInfo = `${hsnCode}${gstRate ? `(${gstRate})` : ''}`;
+
         if (hsnInfo.trim()) {
-          await BluetoothEscposPrinter.printText(`${hsnInfo.trim()}\n`, {});
+          await BluetoothEscposPrinter.printText(`${hsnInfo.trim()}\n`, {
+            fonttype: 1,
+          });
         }
       }
       await BluetoothEscposPrinter.printText(dashLine, {});
 
-      // Summary - Each on a single line using printColumn for clean left/right alignment
+      // Summary
       const summaryWidths = [20, 12];
 
       await BluetoothEscposPrinter.printColumn(
         summaryWidths,
-        [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
+        [
+          BluetoothEscposPrinter.ALIGN.LEFT,
+          BluetoothEscposPrinter.ALIGN.RIGHT,
+        ],
         ['Total Quantity :', totalQuantity.toString()],
-        {}
+        {},
       );
 
       await BluetoothEscposPrinter.printColumn(
         summaryWidths,
-        [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
+        [
+          BluetoothEscposPrinter.ALIGN.LEFT,
+          BluetoothEscposPrinter.ALIGN.RIGHT,
+        ],
         ['Sub Total :', this.cleanAmount(subTotalAmount)],
-        {}
+        {},
       );
 
       if (parseFloat(this.cleanAmount(invoice?.discountAmount)) > 0) {
         await BluetoothEscposPrinter.printColumn(
           summaryWidths,
-          [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
+          [
+            BluetoothEscposPrinter.ALIGN.LEFT,
+            BluetoothEscposPrinter.ALIGN.RIGHT,
+          ],
           ['Total Discount :', this.cleanAmount(invoice.discountAmount)],
-          {}
+          {},
         );
       }
 
-      // GST Details
+      // GST Breakdown
       if (gstList && gstList.length > 0) {
-        await BluetoothEscposPrinter.printText(dashLine, {});
         for (const gst of gstList) {
           await BluetoothEscposPrinter.printColumn(
             summaryWidths,
-            [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
-            [`${gst.gstType} ${gst.gstPercentage}% :`, this.cleanAmount(gst.gstAmount)],
-            {}
+            [
+              BluetoothEscposPrinter.ALIGN.LEFT,
+              BluetoothEscposPrinter.ALIGN.RIGHT,
+            ],
+            [
+              `${gst.gstType} ${gst.gstPercentage}% :`,
+              this.cleanAmount(gst.gstAmount),
+            ],
+            {},
           );
         }
       }
@@ -222,21 +247,26 @@ class PrinterService {
       // Payment Method
       await BluetoothEscposPrinter.printColumn(
         summaryWidths,
-        [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
-        ['Payment :', String(invoice.paymentMethod || 'CASH').toUpperCase()],
-        {}
+        [
+          BluetoothEscposPrinter.ALIGN.LEFT,
+          BluetoothEscposPrinter.ALIGN.RIGHT,
+        ],
+        ['Payment :', String(invoice.paymentMode || 'CASH').toUpperCase()],
+        {},
       );
 
       // Final Total Amount
       await BluetoothEscposPrinter.setBlob(1);
       await BluetoothEscposPrinter.printColumn(
         summaryWidths,
-        [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
+        [
+          BluetoothEscposPrinter.ALIGN.LEFT,
+          BluetoothEscposPrinter.ALIGN.RIGHT,
+        ],
         ['Total Amount :', this.cleanAmount(invoice.totalAmount)],
-        {}
+        {},
       );
       await BluetoothEscposPrinter.setBlob(0);
-
       await BluetoothEscposPrinter.printText(dashLine, {});
 
       // Footer
