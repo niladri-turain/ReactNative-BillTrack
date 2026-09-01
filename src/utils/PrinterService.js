@@ -88,7 +88,7 @@ class PrinterService {
     totalQuantity,
     subTotalAmount,
     business,
-    printerSize = '80',
+    printerSize = '58',
   ) {
     try {
       const columnWidths = printerSize === '58' ? [12, 6, 6, 8] : [20, 8, 10, 10];
