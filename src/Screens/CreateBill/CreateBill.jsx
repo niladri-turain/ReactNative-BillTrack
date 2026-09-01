@@ -26,7 +26,6 @@ import {
   SimpleTextInput,
   StepGuide,
 } from '../../Components';
-import ReceiptPreviewModal from '../../Components/modals/ReceiptPreviewModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import BottomSheet, {
@@ -249,10 +248,6 @@ const CreateBill = () => {
   const [devices, setDevices] = useState([]);
   const [isPendingPrint, setIsPendingPrint] = useState(false);
 
-  // PREVIEW STATE
-  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
-  const [previewData, setPreviewData] = useState(null);
-
   // BOTTOMSHEET
   const bottomSheetRef = useRef(null);
   const scannerBottomSheetRef = useRef(null);
@@ -463,18 +458,6 @@ const CreateBill = () => {
 
         // Check if printing is enabled in settings or if it was a manual print action
         const printOnCreateBill = getByKey('PRINT_ON_CREATE_BILL');
-
-        // Set preview data and show modal
-        setPreviewData({
-          invoice,
-          items,
-          gstListCalculate,
-          totalQuantity,
-          subTotalAmount,
-          business: {...business, name: businessName},
-        });
-        setIsPreviewVisible(true);
-
         // Manual print (isPendingPrint was true) OR auto-print enabled
         if (isPendingPrint || printOnCreateBill || isPremiumPlanAndActive) {
            await printerService.printInvoice(
@@ -729,15 +712,6 @@ const CreateBill = () => {
               )}
             </Animated.View>
           )}
-          <ReceiptPreviewModal
-            visible={isPreviewVisible}
-            onClose={() => {
-              setIsPreviewVisible(false);
-              restartClickOfHeader();
-              navigation.navigate('Home');
-            }}
-            {...previewData}
-          />
         </Layout>
         <BottomSheet
           ref={bottomSheetRef}
