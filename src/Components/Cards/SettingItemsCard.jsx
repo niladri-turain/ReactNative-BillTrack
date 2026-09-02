@@ -13,9 +13,13 @@ const SettingItemsCard = ({
   tagText = '',
   textFontSize = 14,
   disabled = false,
+  rightComponent,
 }) => {
   return (
-    <TouchableOpacity style={styles.settingCard} onPress={onpress} disabled={disabled}>
+    <TouchableOpacity
+      style={styles.settingCard}
+      onPress={onpress}
+      disabled={disabled}>
       <View style={styles.leftContainer}>
         {mainIcon}
         <Text style={[styles.itemText, {fontSize: font(textFontSize)}]}>
@@ -23,13 +27,15 @@ const SettingItemsCard = ({
         </Text>
         {tag && <Text style={styles.newText}>{tagText}</Text>}
       </View>
-      <TouchableOpacity style={styles.rightContainer}>
-        <MaterialIcons
-          name="arrow-forward-ios"
-          size={icon(16)}
-          color={'#000'}
-        />
-      </TouchableOpacity>
+      <View style={styles.rightContainer}>
+        {rightComponent || (
+          <MaterialIcons
+            name="arrow-forward-ios"
+            size={icon(16)}
+            color={'#000'}
+          />
+        )}
+      </View>
     </TouchableOpacity>
   );
 };

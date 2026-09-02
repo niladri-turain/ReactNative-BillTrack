@@ -395,7 +395,7 @@ const CreateBill = () => {
       return;
     }
 
-    if (!printer) {
+    if (!printer && getByKey('PRINT_ON_CREATE_BILL')) {
       setIsPendingPrint(true);
       handleOpenScanner();
       return;
@@ -459,15 +459,17 @@ const CreateBill = () => {
         // Check if printing is enabled in settings or if it was a manual print action
         const printOnCreateBill = getByKey('PRINT_ON_CREATE_BILL');
         // Manual print (isPendingPrint was true) OR auto-print enabled
-        if (isPendingPrint || printOnCreateBill || isPremiumPlanAndActive) {
-           await printerService.printInvoice(
-            invoice,
-            items,
-            gstListCalculate,
-            totalQuantity,
-            subTotalAmount,
-            {...business, name: businessName},
-          );
+        if (printOnCreateBill) {
+          if (printer) {
+            await printerService.printInvoice(
+              invoice,
+              items,
+              gstListCalculate,
+              totalQuantity,
+              subTotalAmount,
+              {...business, name: businessName},
+            );
+          }
         }
 
         await updateInvoiceNumber(numberOfInvoices);

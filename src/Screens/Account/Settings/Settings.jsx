@@ -1,4 +1,11 @@
-import {ScrollView, StyleSheet, Text, ToastAndroid, View} from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  ToastAndroid,
+  View,
+} from 'react-native';
 import React from 'react';
 import {Layout} from '../../Layout';
 import {
@@ -10,6 +17,8 @@ import {icon, margin, padding} from '../../../utils/responsive';
 import Lucide from '@react-native-vector-icons/lucide';
 import {useNavigation} from '@react-navigation/native';
 import {useSubscription} from '../../../Contexts/AuthContext';
+import {useAppSettings} from '../../../Contexts/AppSettingContexts';
+import {colors} from '../../../utils/colors';
 
 const Settings = () => {
   const navigation = useNavigation();
@@ -18,6 +27,7 @@ const Settings = () => {
   };
 
   const isPremiumPlanAndActive = useSubscription('isPremiumPlanAndActive');
+  const {appSettings, updateAppSettings} = useAppSettings();
 
   return (
     <Layout>
@@ -39,27 +49,29 @@ const Settings = () => {
           />
         </View>
         <DottedDivider marginVertical={0} />
-        {/* <View style={styles.cardItems}>
+        <View style={styles.cardItems}>
           <SettingItemsCard
             mainIcon={<Lucide name="printer" size={icon(24)} color={'#000'} />}
-            title={'Printer Setup'}
+            title={'Print Setup'}
             textFontSize={16}
-            tag
-            tagText={'Premium'}
-            onpress={() => {
-              if (!isPremiumPlanAndActive) {
-                ToastAndroid.show(
-                  'Please upgrade to premium plan to use this feature',
-                  ToastAndroid.LONG,
-                );
-                return;
-              }
-              handleNavigation({screen: 'PrinterSetup'});
-            }}
+            rightComponent={
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 10}}>
+                <Switch
+                  value={appSettings.PRINT_ON_CREATE_BILL}
+                  onValueChange={val =>
+                    updateAppSettings('PRINT_ON_CREATE_BILL', val)
+                  }
+                  trackColor={{false: '#D1D1D6', true: colors.primary}}
+                  thumbColor={'#fff'}
+                  ios_backgroundColor="#D1D1D6"
+                />
+                <Lucide name="chevron-right" size={icon(20)} color={'#00000050'} />
+              </View>
+            }
+          //  onpress={() => handleNavigation({screen: 'PrinterSetup'})}
           />
-        </View> */}
-
-        //add icon with text and add switch for printing option and add a button to save the settings
+        </View>
+        <DottedDivider marginVertical={0} />
       </ScrollView>
     </Layout>
   );
