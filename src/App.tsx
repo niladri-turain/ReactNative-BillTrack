@@ -359,27 +359,29 @@ const AppNav = () => {
 };
 const App = () => {
   return (
-    <NetworkProvider>
-      <AuthProvider>
-        <AppSettingProvider>
-          <ProductProvider>
-            <InvoiceProvider>
-              <PrinterProvider>
-                <SocketProvider>
-                  <SafeAreaProvider>
-                    <NavigationContainer>
-                      <AppNav />
-                      <ToastContainer />
-                      <AppUpdateModal />
-                    </NavigationContainer>
-                  </SafeAreaProvider>
-                </SocketProvider>
-              </PrinterProvider>
-            </InvoiceProvider>
-          </ProductProvider>
-        </AppSettingProvider>
-      </AuthProvider >
-    </NetworkProvider>
+    <GestureHandlerRootView style={{flex: 1}}>
+      <NetworkProvider>
+        <AuthProvider>
+          <AppSettingProvider>
+            <ProductProvider>
+              <InvoiceProvider>
+                <PrinterProvider>
+                  <SocketProvider>
+                    <SafeAreaProvider>
+                      <NavigationContainer>
+                        <AppNav />
+                        <ToastContainer />
+                        <AppUpdateModal />
+                      </NavigationContainer>
+                    </SafeAreaProvider>
+                  </SocketProvider>
+                </PrinterProvider>
+              </InvoiceProvider>
+            </ProductProvider>
+          </AppSettingProvider>
+        </AuthProvider >
+      </NetworkProvider>
+    </GestureHandlerRootView>
   );
 };
 

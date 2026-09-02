@@ -1,6 +1,7 @@
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Linking,
   StyleSheet,
   Text,
@@ -8,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {memo, useState} from 'react';
+import React, {memo, useState, useMemo, useRef, useCallback} from 'react';
 import {fonts} from '../../utils/fonts';
 import {colors} from '../../utils/colors';
 import DottedDivider from '../Dividers/DottedDivider';
@@ -20,6 +21,7 @@ import {calculateInvoiceData, formatDate} from '../../utils/helper';
 import {usePrinter} from '../../Contexts/PrinterContext';
 import printerService from '../../utils/PrinterService';
 import {invoiceService} from '../../Services/InvoiceService';
+import {CommonModal} from '..';
 import {
   useAuth,
   useAuthToken,
@@ -37,16 +39,69 @@ import {smsService} from '../../Services/SmsService';
 
 const InvoiceCard = ({invoice, onRefresh}) => {
   const {setIsLoading} = useAuth();
-  const {printer} = usePrinter();
+  const {printer, setSelectedPrinter} = usePrinter();
   const business = useBusiness();
   const isPremiumPlanAndActive = useSubscription('isPremiumPlanAndActive');
   const token = useAuthToken();
 
   const sentWhatAppEnabled = useAppSettingsValue('SEND_TO_WHATSAPP');
   const sentSmsEnabled = useAppSettingsValue('SEND_TO_SMS');
+  const printOnCreateBill = useAppSettingsValue('PRINT_ON_CREATE_BILL');
   const [isPrintingLoading, setIsPrintingLoading] = useState(false);
   const [isSmsLoading, setIsSmsLoading] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [devices, setDevices] = useState([]);
+  const [isPendingPrint, setIsPendingPrint] = useState(false);
+  const [isScannerModalVisible, setIsScannerModalVisible] = useState(false);
+
+  const handleOpenScanner = useCallback(() => {
+    setIsScannerModalVisible(true);
+    startScan();
+  }, []);
+
+  const handleCloseScanner = useCallback(() => {
+    setIsScannerModalVisible(false);
+    setIsPendingPrint(false);
+  }, []);
+
+  const startScan = async () => {
+    setIsScanning(true);
+    try {
+      const allDevices = await printerService.scanDevices();
+      setDevices(allDevices);
+    } catch (error) {
+      console.error('Scan error:', error);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleDeviceSelect = async device => {
+    setIsScanning(true);
+    try {
+      const connected = await printerService.connectDevice(device.address);
+      if (connected) {
+        await setSelectedPrinter(device);
+        ToastAndroid.show('Printer connected successfully', ToastAndroid.SHORT);
+        handleCloseScanner();
+
+        // If we were waiting to print, trigger it now
+        if (isPendingPrint) {
+          setIsPendingPrint(false);
+          printBill();
+        }
+      } else {
+        ToastAndroid.show('Failed to connect printer', ToastAndroid.SHORT);
+      }
+    } catch (error) {
+      console.error('Connection error:', error);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+
 
   const navigation = useNavigation();
   const sentToWhatsApp = async () => {
@@ -165,17 +220,13 @@ const InvoiceCard = ({invoice, onRefresh}) => {
   };
 
   const printBill = async () => {
+    if (!printer) {
+      setIsPendingPrint(true);
+      handleOpenScanner();
+      return;
+    }
     try {
       setIsPrintingLoading(true);
-      if (!printer) {
-        Alert.alert(
-          'Printer Not Selected',
-          'To continue, please set up a printer:\n\n1. Open the Accounts section.\n2. Go to Settings.\n3. Choose Printer Setup.\n4. Add or select an available printer.',
-          [{text: 'OK', style: 'default'}],
-        );
-
-        return;
-      }
       const invoiceItems = await invoiceService.getInvoiceItems(invoice?.id);
       const {gstListCalculate, items, subTotalAmount, totalQuantity} =
         calculateInvoiceData(invoiceItems?.items, invoice?.discountAmount);
@@ -188,6 +239,7 @@ const InvoiceCard = ({invoice, onRefresh}) => {
         business,
       );
     } catch (error) {
+      console.error(error);
     } finally {
       setIsPrintingLoading(false);
     }
@@ -247,7 +299,7 @@ const InvoiceCard = ({invoice, onRefresh}) => {
             Whatsapp
           </Text>
         </TouchableOpacity>
-        {isPremiumPlanAndActive && (
+        {printOnCreateBill && (
           <TouchableOpacity
             style={styles.subBottomContainer}
             onPress={printBill}
@@ -288,6 +340,67 @@ const InvoiceCard = ({invoice, onRefresh}) => {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Bluetooth Scanner Modal */}
+      <CommonModal
+        visible={isScannerModalVisible}
+        handleClose={handleCloseScanner}>
+        <View style={styles.modalContent}>
+          <View style={styles.bottomSheetContaienr}>
+            <Text style={styles.bottomSheetTitleText}>Select Printer</Text>
+            <TouchableOpacity onPress={handleCloseScanner}>
+              <Ionicons name="close" size={24} color={'#000'} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={{maxHeight: 400}}>
+            {isScanning ? (
+              <View style={{marginVertical: 20, alignItems: 'center'}}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={{marginTop: 10, fontFamily: fonts.popRegular}}>
+                  Scanning for devices...
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={devices}
+                keyExtractor={item => item.address}
+                renderItem={({item}) => (
+                  <TouchableOpacity
+                    style={styles.deviceItem}
+                    onPress={() => handleDeviceSelect(item)}>
+                    <Ionicons
+                      name="print-outline"
+                      size={20}
+                      color={colors.primary}
+                    />
+                    <View style={{marginLeft: 15}}>
+                      <Text style={styles.deviceName}>
+                        {item.name || 'Unknown Device'}
+                      </Text>
+                      <Text style={styles.deviceAddress}>{item.address}</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={() => (
+                  <Text style={{textAlign: 'center', marginVertical: 20}}>
+                    No devices found. Make sure Bluetooth is on.
+                  </Text>
+                )}
+              />
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.bottomSheetButton,
+              {backgroundColor: colors.primary, marginTop: 20},
+            ]}
+            onPress={startScan}>
+            <Text style={styles.bottomSheetButtonText}>RE-SCAN</Text>
+          </TouchableOpacity>
+        </View>
+      </CommonModal>
     </View>
   );
 };
@@ -377,7 +490,52 @@ const styles = StyleSheet.create({
     gap: gap(5),
   },
   subBottomContainerText: {
-    fontSize: font(12),
+    fontSize: font(11),
     fontFamily: fonts.inBold,
+  },
+  bottomSheetContaienr: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  bottomSheetTitleText: {
+    fontSize: font(16),
+    fontFamily: fonts.popMedium,
+    color: '#000',
+  },
+  bottomSheetButton: {
+    paddingVertical: padding(6),
+    paddingHorizontal: padding(20),
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 5,
+  },
+  bottomSheetButtonText: {
+    fontSize: font(14),
+    fontFamily: fonts.popSemiBold,
+    color: '#fff',
+  },
+  deviceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  deviceName: {
+    fontFamily: fonts.popSemiBold,
+    fontSize: font(14),
+    color: '#000',
+  },
+  deviceAddress: {
+    fontFamily: fonts.popRegular,
+    fontSize: font(12),
+    color: '#666',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: padding(20),
+    width: '100%',
   },
 });

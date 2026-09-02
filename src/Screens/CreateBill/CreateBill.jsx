@@ -134,6 +134,8 @@ const CreateBill = () => {
   const createButtonRef = useRef(null);
   const phoneNumberRef = useRef(null);
   const sendButtonRef = useRef(null);
+  const bottomSheetRef = useRef(null);
+  const snapPoints = useMemo(() => ['40%'], []);
 
   const measureRef = (key, ref) => {
     if (ref.current) {
@@ -247,12 +249,7 @@ const CreateBill = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [devices, setDevices] = useState([]);
   const [isPendingPrint, setIsPendingPrint] = useState(false);
-
-  // BOTTOMSHEET
-  const bottomSheetRef = useRef(null);
-  const scannerBottomSheetRef = useRef(null);
-  const snapPoints = useMemo(() => ['30%'], []);
-  const scannerSnapPoints = useMemo(() => ['50%'], []);
+  const [isScannerModalVisible, setIsScannerModalVisible] = useState(false);
 
   const handleCloseBottomSheet = useCallback(() => {
     bottomSheetRef.current?.close();
@@ -260,12 +257,12 @@ const CreateBill = () => {
   }, []);
 
   const handleOpenScanner = useCallback(() => {
-    scannerBottomSheetRef.current?.expand();
+    setIsScannerModalVisible(true);
     startScan();
   }, []);
 
   const handleCloseScanner = useCallback(() => {
-    scannerBottomSheetRef.current?.close();
+    setIsScannerModalVisible(false);
     setIsPendingPrint(false);
   }, []);
 
@@ -794,65 +791,75 @@ const CreateBill = () => {
                 {isPrintLoading ? (
                   <ActivityIndicator size={'small'} color={'#fff'} />
                 ) : (
-                  <Text style={styles.bottomSheetButtonText}>PRINT</Text>
+                  <Text style={styles.bottomSheetButtonText}>
+                    {getByKey('PRINT_ON_CREATE_BILL') ? 'PRINT' : 'SAVE'}
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
           </BottomSheetView>
         </BottomSheet>
 
-        {/* Bluetooth Scanner BottomSheet */}
-        <BottomSheet
-          ref={scannerBottomSheetRef}
-          snapPoints={scannerSnapPoints}
-          index={-1}
-          handleComponent={() => null}
-          backgroundStyle={{borderRadius: 16}}
-          backdropComponent={renderBackdrop}
-        >
-          <BottomSheetView style={{flex: 1, padding: padding(20)}}>
-             <View style={styles.bottomSheetContaienr}>
-                <Text style={styles.bottomSheetTitleText}>Select Printer</Text>
-                <TouchableOpacity onPress={handleCloseScanner}>
-                  <Ionicons name="close" size={24} color={'#000'} />
-                </TouchableOpacity>
-             </View>
+        {/* Bluetooth Scanner Modal */}
+        <CommonModal
+          visible={isScannerModalVisible}
+          handleClose={handleCloseScanner}>
+          <View style={styles.modalContent}>
+            <View style={styles.bottomSheetContaienr}>
+              <Text style={styles.bottomSheetTitleText}>Select Printer</Text>
+              <TouchableOpacity onPress={handleCloseScanner}>
+                <Ionicons name="close" size={24} color={'#000'} />
+              </TouchableOpacity>
+            </View>
 
-             {isScanning ? (
-               <View style={{marginTop: 20, alignItems: 'center'}}>
-                 <ActivityIndicator size="large" color={colors.primary} />
-                 <Text style={{marginTop: 10, fontFamily: fonts.popRegular}}>Scanning for devices...</Text>
-               </View>
-             ) : (
-               <FlatList
-                 data={devices}
-                 keyExtractor={(item) => item.address}
-                 renderItem={({item}) => (
-                   <TouchableOpacity
-                     style={styles.deviceItem}
-                     onPress={() => handleDeviceSelect(item)}
-                   >
-                     <Ionicons name="print-outline" size={20} color={colors.primary} />
-                     <View style={{marginLeft: 15}}>
-                       <Text style={styles.deviceName}>{item.name || 'Unknown Device'}</Text>
-                       <Text style={styles.deviceAddress}>{item.address}</Text>
-                     </View>
-                   </TouchableOpacity>
-                 )}
-                 ListEmptyComponent={() => (
-                   <Text style={{textAlign: 'center', marginTop: 20}}>No devices found. Make sure Bluetooth is on.</Text>
-                 )}
-               />
-             )}
+            <View style={{maxHeight: 400}}>
+              {isScanning ? (
+                <View style={{marginVertical: 20, alignItems: 'center'}}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={{marginTop: 10, fontFamily: fonts.popRegular}}>
+                    Scanning for devices...
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={devices}
+                  keyExtractor={item => item.address}
+                  renderItem={({item}) => (
+                    <TouchableOpacity
+                      style={styles.deviceItem}
+                      onPress={() => handleDeviceSelect(item)}>
+                      <Ionicons
+                        name="print-outline"
+                        size={20}
+                        color={colors.primary}
+                      />
+                      <View style={{marginLeft: 15}}>
+                        <Text style={styles.deviceName}>
+                          {item.name || 'Unknown Device'}
+                        </Text>
+                        <Text style={styles.deviceAddress}>{item.address}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                  ListEmptyComponent={() => (
+                    <Text style={{textAlign: 'center', marginVertical: 20}}>
+                      No devices found. Make sure Bluetooth is on.
+                    </Text>
+                  )}
+                />
+              )}
+            </View>
 
-             <TouchableOpacity
-               style={[styles.bottomSheetButton, {backgroundColor: colors.primary, marginTop: 20}]}
-               onPress={startScan}
-             >
-               <Text style={styles.bottomSheetButtonText}>RE-SCAN</Text>
-             </TouchableOpacity>
-          </BottomSheetView>
-        </BottomSheet>
+            <TouchableOpacity
+              style={[
+                styles.bottomSheetButton,
+                {backgroundColor: colors.primary, marginTop: 20},
+              ]}
+              onPress={startScan}>
+              <Text style={styles.bottomSheetButtonText}>RE-SCAN</Text>
+            </TouchableOpacity>
+          </View>
+        </CommonModal>
 
         {showGuide && guideTargets.create && guideStep === 2 && quantity > 0 && (
           <StepGuide
@@ -1011,6 +1018,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.popRegular,
     fontSize: font(12),
     color: '#666',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: padding(20),
+    width: '100%',
   },
 });
 
