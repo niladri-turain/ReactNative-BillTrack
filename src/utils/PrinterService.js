@@ -4,6 +4,7 @@ import {
 } from 'react-native-bluetooth-escpos-printer';
 import {Alert, PermissionsAndroid, Platform} from 'react-native';
 import {formatDate} from './helper';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 class PrinterService {
   async requestPermission() {
@@ -272,6 +273,24 @@ class PrinterService {
       // Footer
       await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
       await BluetoothEscposPrinter.printText('Thank You & Visit Again\n', {});
+
+      // Auto-increment Token Logic
+      try {
+        let tokenCount = await AsyncStorage.getItem('print_token_count');
+        tokenCount = tokenCount ? parseInt(tokenCount) + 1 : 1;
+        await AsyncStorage.setItem('print_token_count', tokenCount.toString());
+
+        await BluetoothEscposPrinter.printText('\n', {});
+        await BluetoothEscposPrinter.setBlob(1);
+        await BluetoothEscposPrinter.printText(`Token ${tokenCount}\n`, {
+          widthtimes: 1,
+          heigthtimes: 1,
+        });
+        await BluetoothEscposPrinter.setBlob(0);
+      } catch (e) {
+        console.error('Token increment error:', e);
+      }
+
       await BluetoothEscposPrinter.printText('\n\n', {});
       await BluetoothEscposPrinter.cutPaper();
 
