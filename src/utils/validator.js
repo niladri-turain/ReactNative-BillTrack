@@ -9,17 +9,11 @@ function validateName(name) {
 }
 
 function validateProductName(productName) {
-  if (typeof productName !== 'string' || productName.trim().length < 3 || productName.length > 100) {
+  if (typeof productName !== 'string' || productName.trim().length < 2 || productName.length > 255) {
     return false;
   }
-  
-  // Regex pattern based on examples:
-  // - Words: [A-Za-z0-9'-]+ (alphanumeric, hyphen, apostrophe)
-  // - Optional parens: \s*\([^)]*\)? (allows specs like "(Size 10, Black)")
-  // - Overall: ^(word+( optional_parens word*))$
-  const pattern = /^[A-Za-z0-9'-]+(?:\s+[A-Za-z0-9'-]+)*(?:\s*\([^)]*\))?(?:\s+[A-Za-z0-9'-]+)*$/;
-  
-  return pattern.test(productName.trim());
+
+  return true;
 }
 
 function validateIndianPhone(phoneNumber) {

@@ -39,7 +39,7 @@ const Settings = () => {
           />
         </View>
         <DottedDivider marginVertical={0} />
-        <View style={styles.cardItems}>
+        {/* <View style={styles.cardItems}>
           <SettingItemsCard
             mainIcon={<Lucide name="printer" size={icon(24)} color={'#000'} />}
             title={'Printer Setup'}
@@ -57,7 +57,9 @@ const Settings = () => {
               handleNavigation({screen: 'PrinterSetup'});
             }}
           />
-        </View>
+        </View> */}
+
+        //add icon with text and add switch for printing option and add a button to save the settings
       </ScrollView>
     </Layout>
   );
