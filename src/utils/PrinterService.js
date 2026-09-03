@@ -291,6 +291,22 @@ class PrinterService {
         console.error('Token increment error:', e);
       }
 
+      // UPI QR Code for Payment
+      try {
+        const upiId = '7059238072@ybl';
+        const totalAmount = this.cleanAmount(invoice.totalAmount);
+        const businessName = business?.name || 'Payment';
+        const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(businessName)}&am=${totalAmount}&cu=INR`;
+
+        await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+        await BluetoothEscposPrinter.printText('\nScan to Pay\n', {});
+        await BluetoothEscposPrinter.printQRCode(upiUrl, 200, BluetoothEscposPrinter.ERROR_CORRECTION.L);
+        await BluetoothEscposPrinter.printText(`\nAmount: RS ${totalAmount}\n`, {fonttype: 1});
+        await BluetoothEscposPrinter.printText(`UPI ID: ${upiId}\n`, {fonttype: 1});
+      } catch (e) {
+        console.error('QR Code print error:', e);
+      }
+
       await BluetoothEscposPrinter.printText('\n\n', {});
       await BluetoothEscposPrinter.cutPaper();
 
