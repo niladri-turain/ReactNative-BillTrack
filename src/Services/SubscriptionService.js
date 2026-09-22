@@ -50,6 +50,25 @@ class SubscriptionService {
     }
   }
 
+  async getActivePlans(token) {
+    const uri = API_URL + 'subscription-plan/active';
+    try {
+      const headers = token ? {Authorization: `Bearer ${token}`} : undefined;
+      console.log(`[SubscriptionService] GET ${uri}`);
+      const response = await axios.get(uri, {headers});
+      console.log(`[SubscriptionService] GET ${uri} - Status: ${response.status}`);
+      console.log(`[SubscriptionService] GET ${uri} - Response:`, response.data);
+      return response.data;
+    } catch (error) {
+      console.error(`[SubscriptionService] GET ${uri} - Error`);
+      console.error('[SubscriptionService] URL:', uri);
+      console.error('[SubscriptionService] Error Status:', error.response?.status);
+      console.error('[SubscriptionService] Error Response:', error.response?.data);
+      console.error('[SubscriptionService] Error Message:', error.message);
+      return error.response?.data;
+    }
+  }
+
   async allSubscriptions(token) {
     const uri = this.baseUrl + '/subscription';
     try {

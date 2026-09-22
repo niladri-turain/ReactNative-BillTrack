@@ -16,7 +16,7 @@ import React, {
   useTransition,
 } from 'react';
 import {Layout} from '../Layout';
-import {DottedDivider, SecondaryHeader} from '../../Components';
+import {DottedDivider, Loader, SecondaryHeader} from '../../Components';
 import {
   font,
   gap,
@@ -40,52 +40,7 @@ import {
 } from '../../Contexts/AuthContext';
 import {paymentService} from '../../Services/PaymentService';
 import {subscriptionService} from '../../Services/SubscriptionService';
-
-const plans = [
-  {
-    id: 'free',
-    name: 'Free Plan',
-    price: 0,
-    unit: '/ Year',
-    features: [
-      {label: 'Unlimited Billing (Up to 14 Days)', value: true},
-      {label: 'WhatsApp Invoice Sharing', value: true},
-      {label: 'Sales Analytics', value: true},
-      {label: 'Print to Printer', value: false},
-      {label: 'SMS Sending', value: false},
-      {label: 'Printer Provided & Support', value: false},
-    ],
-  },
-  {
-    id: 'basic',
-    name: 'Basic Plan',
-    price: 999,
-    unit: '/ Year',
-    features: [
-      {label: 'Unlimited Billing', value: true},
-      {label: 'WhatsApp Invoice Sharing', value: true},
-      {label: 'Sales Analytics', value: true},
-      {label: 'Print to Printer', value: true},
-      {label: 'SMS Sending', value: true},
-      {label: 'Printer Provided & Support', value: false},
-    ],
-  },
-  {
-    id: 'pro',
-    name: 'Pro Plan ',
-    nameSlogan: '(Setup Charges) + Printer Charge',
-    price: 1499,
-    unit: '/ Year',
-    features: [
-      {label: 'Unlimited Billing', value: true},
-      {label: 'WhatsApp Invoice Sharing', value: true},
-      {label: 'Sales Analytics', value: true},
-      {label: 'Print to Printer', value: true},
-      {label: 'SMS Sending', value: true},
-      {label: 'Printer Provided & Support', value: true},
-    ],
-  },
-];
+import {mapSubscriptionPlans} from '../../Models/SubscriptionPlanModel';
 
 const Subscription = memo(() => {
   const subscription = useSubscription();
@@ -93,19 +48,43 @@ const Subscription = memo(() => {
   const token = useAuthToken();
 
   const scrollRef = useRef(null);
-  const [activeIndex, setActiveIndex] = useState(
-    subscription
-      ? subscription?.plan === 'free'
-        ? 0
-        : subscription?.plan === 'basic'
-        ? 1
-        : 2
-      : 0,
-  );
+  const [activeIndex, setActiveIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
+  const [plans, setPlans] = useState([]);
+  const [isPlansLoading, setIsPlansLoading] = useState(true);
+  const [plansError, setPlansError] = useState(null);
+
+  const fetchActivePlans = useCallback(async () => {
+    try {
+      setIsPlansLoading(true);
+      setPlansError(null);
+      const response = await subscriptionService.getActivePlans(token);
+      if (response?.success) {
+        setPlans(mapSubscriptionPlans(response?.data));
+      } else {
+        setPlansError(response?.message || 'Failed to load subscription plans');
+      }
+    } catch (error) {
+      setPlansError(error?.message || 'Failed to load subscription plans');
+    } finally {
+      setIsPlansLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchActivePlans();
+  }, [fetchActivePlans]);
+
+  // Highlight the plan matching the current subscription once plans are loaded
+  useEffect(() => {
+    if (!plans.length) return;
+    const matchedIndex = plans.findIndex(plan => plan.id === subscription?.plan);
+    setActiveIndex(matchedIndex >= 0 ? matchedIndex : 0);
+  }, [plans, subscription?.plan]);
+
   const buttonWidth =
-    (ScreenWidth - padding(16) * 2 - gap(10) * 2) / plans.length;
+    (ScreenWidth - padding(16) * 2 - gap(10) * 2) / Math.max(plans.length, 1);
 
   // Scroll when clicking bottom buttons
   const handleScrollTo = useCallback(pageIndex => {
@@ -136,12 +115,15 @@ const Subscription = memo(() => {
 
   const handleSubscribe = async () => {
     const plan = plans[activeIndex];
-    if (plan.id === 'free') {
+    if (!plan) return;
+
+    if (plan.price === 0) {
       ToastAndroid.show('The free plan cannot be purchased', ToastAndroid.LONG);
       return;
     }
 
     const planExpired = subscription?.endDate < Date.now();
+    const topPlan = plans[plans.length - 1];
 
     if (subscription?.plan === plan.id && !planExpired) {
       ToastAndroid.show(
@@ -151,9 +133,9 @@ const Subscription = memo(() => {
       return;
     }
 
-    if (subscription?.plan === 'pro' && !planExpired) {
+    if (topPlan && subscription?.plan === topPlan.id && !planExpired) {
       ToastAndroid.show(
-        'You are already subscribed to Pro plan',
+        `You are already subscribed to ${topPlan.name}`,
         ToastAndroid.LONG,
       );
       return;
@@ -230,6 +212,31 @@ const Subscription = memo(() => {
     });
   }, [activeIndex]);
 
+  if (isPlansLoading && plans.length === 0) {
+    return (
+      <Layout>
+        <SecondaryHeader title="Subscription" isSearch={false} />
+        <View style={styles.centerContainer}>
+          <Loader />
+        </View>
+      </Layout>
+    );
+  }
+
+  if (plansError && plans.length === 0) {
+    return (
+      <Layout>
+        <SecondaryHeader title="Subscription" isSearch={false} />
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>{plansError}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={fetchActivePlans}>
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <SecondaryHeader title="Subscription" isSearch={false} />
@@ -302,11 +309,14 @@ const Subscription = memo(() => {
                 key={plan.id}
                 style={[
                   styles.payBtn,
+                  {width: buttonWidth},
                   activeIndex === index && {borderColor: '#000'},
                   plan.id === subscription?.plan && {backgroundColor: colors.sucess+20,borderColor: colors.sucess},
                 ]}
                 onPress={() => handleScrollTo(index)}>
-                <Text style={styles.payBtnTitleText}>{plan.name}</Text>
+                <Text style={styles.payBtnTitleText} numberOfLines={2}>
+                  {plan.name}
+                </Text>
 
                 <View style={styles.textCOntainer}>
                   <Text style={styles.moneyText}>₹{plan.price}</Text>
@@ -422,27 +432,32 @@ const styles = StyleSheet.create({
   },
   payBtn: {
     height: icon(90),
-    width: `${100 / plans.length - gap(1) || 100}%`,
     backgroundColor: '#F7F7F7',
-    paddingHorizontal: padding(16),
-    paddingTop: padding(10),
+    paddingHorizontal: padding(8),
+    paddingVertical: padding(8),
     borderWidth: 1,
     borderRadius: icon(8),
     borderColor: colors.border,
-    gap: gap(6),
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: gap(4),
   },
   payBtnTitleText: {
-    fontSize: font(12),
+    fontSize: font(10),
     fontFamily: fonts.inRegular,
+    textAlign: 'center',
   },
   textCOntainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: gap(5),
+    gap: gap(4),
   },
   moneyText: {
-    fontSize: font(16),
+    fontSize: font(13),
     fontFamily: fonts.inMedium,
+    textAlign: 'center',
   },
   saveText: {
     position: 'absolute',
@@ -486,6 +501,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: gap(5),
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: padding(16),
+    gap: gap(16),
+  },
+  errorText: {
+    fontSize: font(14),
+    fontFamily: fonts.inMedium,
+    color: colors.error,
+    textAlign: 'center',
+  },
+  retryBtn: {
+    paddingVertical: padding(10),
+    paddingHorizontal: padding(24),
+    backgroundColor: colors.primary,
+    borderRadius: 5,
+  },
+  retryBtnText: {
+    fontSize: font(14),
+    fontFamily: fonts.inSemiBold,
+    color: '#fff',
   },
 });
 
