@@ -45,14 +45,17 @@ class SubscriptionPlanModel {
       ]),
     );
 
-    this.features = featureCatalog.map(feature => {
-      const planFeature = planFeatureByFeatureId.get(feature.id);
-      return {
-        key: feature?.key,
-        label: feature?.name,
-        value: !!planFeature?.enabled,
-      };
-    });
+    this.features = featureCatalog
+      .map(feature => {
+        const planFeature = planFeatureByFeatureId.get(feature.id);
+        return {
+          key: feature?.key,
+          label: feature?.name,
+          value: !!planFeature?.enabled,
+        };
+      })
+      // Keep enabled features first, pushing the crossed-out ones to the end
+      .sort((a, b) => Number(b.value) - Number(a.value));
   }
 }
 
