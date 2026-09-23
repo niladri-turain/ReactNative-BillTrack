@@ -16,6 +16,7 @@ import React, {
   useState,
   useTransition,
 } from 'react';
+import {useFocusEffect} from '@react-navigation/native';
 import {Layout} from '../Layout';
 import {DottedDivider, Loader, SecondaryHeader} from '../../Components';
 import {
@@ -46,7 +47,6 @@ import {mapSubscriptionOrder} from '../../Models/SubscriptionOrderModel';
 
 const Subscription = memo(() => {
   const subscription = useSubscription();
-  const currentPlan = mapCurrentSubscription(subscription);
   const {resetSubscription} = useAuth();
   const token = useAuthToken();
 
@@ -57,6 +57,12 @@ const Subscription = memo(() => {
   const [plans, setPlans] = useState([]);
   const [isPlansLoading, setIsPlansLoading] = useState(true);
   const [plansError, setPlansError] = useState(null);
+
+  // Kept in local state (not just the AuthContext value) so it is re-fetched
+  // fresh every time this screen is opened, instead of relying on the cached
+  // subscription the context may still be holding.
+  const [currentSubscriptionData, setCurrentSubscriptionData] = useState(subscription);
+  const currentPlan = mapCurrentSubscription(currentSubscriptionData);
 
   const fetchActivePlans = useCallback(async () => {
     try {
@@ -75,9 +81,24 @@ const Subscription = memo(() => {
     }
   }, [token]);
 
-  useEffect(() => {
-    fetchActivePlans();
-  }, [fetchActivePlans]);
+  const fetchCurrentSubscription = useCallback(async () => {
+    if (!token) return;
+    const response = await subscriptionService.currentSubscription(token);
+    if (response?.status) {
+      setCurrentSubscriptionData(response?.data);
+      // Keep the shared AuthContext subscription (used elsewhere, e.g. the
+      // Account page plan badge) in sync with this fresh fetch too.
+      resetSubscription(response?.data);
+    }
+  }, [token, resetSubscription]);
+
+  // Always re-check the active plan every time the Subscription screen is opened
+  useFocusEffect(
+    useCallback(() => {
+      fetchActivePlans();
+      fetchCurrentSubscription();
+    }, [fetchActivePlans, fetchCurrentSubscription]),
+  );
 
   // Highlight the plan matching the current subscription once plans are loaded
   useEffect(() => {
@@ -128,7 +149,9 @@ const Subscription = memo(() => {
       return;
     }
 
-    const planExpired = subscription?.endDate < Date.now();
+    const planExpired = currentPlan.endDate
+      ? new Date(currentPlan.endDate).getTime() < Date.now()
+      : false;
     const topPlan = plans[plans.length - 1];
 
     if (currentPlan.planId === plan.id && !planExpired) {
