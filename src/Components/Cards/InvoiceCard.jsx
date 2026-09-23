@@ -293,9 +293,18 @@ const InvoiceCard = ({invoice, onRefresh}) => {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.subBottomContainer}
-          onPress={sentToWhatsApp}>
-          <Ionicons name="logo-whatsapp" size={icon(18)} color={'#04bd01'} />
-          <Text style={[{color: '#04bd01'}, styles.subBottomContainerText]}>
+          onPress={sentToWhatsApp}
+          disabled={isCancelled}>
+          <Ionicons
+            name="logo-whatsapp"
+            size={icon(18)}
+            color={isCancelled ? '#00000040' : '#04bd01'}
+          />
+          <Text
+            style={[
+              {color: isCancelled ? '#00000040' : '#04bd01'},
+              styles.subBottomContainerText,
+            ]}>
             Whatsapp
           </Text>
         </TouchableOpacity>

@@ -41,9 +41,11 @@ import {
 import {paymentService} from '../../Services/PaymentService';
 import {subscriptionService} from '../../Services/SubscriptionService';
 import {mapSubscriptionPlans} from '../../Models/SubscriptionPlanModel';
+import {mapCurrentSubscription} from '../../Models/CurrentSubscriptionModel';
 
 const Subscription = memo(() => {
   const subscription = useSubscription();
+  const currentPlan = mapCurrentSubscription(subscription);
   const {resetSubscription} = useAuth();
   const token = useAuthToken();
 
@@ -79,9 +81,9 @@ const Subscription = memo(() => {
   // Highlight the plan matching the current subscription once plans are loaded
   useEffect(() => {
     if (!plans.length) return;
-    const matchedIndex = plans.findIndex(plan => plan.id === subscription?.plan);
+    const matchedIndex = plans.findIndex(plan => plan.id === currentPlan.planId);
     setActiveIndex(matchedIndex >= 0 ? matchedIndex : 0);
-  }, [plans, subscription?.plan]);
+  }, [plans, currentPlan.planId]);
 
   const buttonWidth =
     (ScreenWidth - padding(16) * 2 - gap(10) * 2) / Math.max(plans.length, 1);
@@ -125,7 +127,7 @@ const Subscription = memo(() => {
     const planExpired = subscription?.endDate < Date.now();
     const topPlan = plans[plans.length - 1];
 
-    if (subscription?.plan === plan.id && !planExpired) {
+    if (currentPlan.planId === plan.id && !planExpired) {
       ToastAndroid.show(
         'You are already subscribed to this plan',
         ToastAndroid.LONG,
@@ -133,7 +135,7 @@ const Subscription = memo(() => {
       return;
     }
 
-    if (topPlan && subscription?.plan === topPlan.id && !planExpired) {
+    if (topPlan && currentPlan.planId === topPlan.id && !planExpired) {
       ToastAndroid.show(
         `You are already subscribed to ${topPlan.name}`,
         ToastAndroid.LONG,
@@ -271,7 +273,7 @@ const Subscription = memo(() => {
                   <Text style={styles.featuresTitleText}>
                     {plan.name} Features
                   </Text>
-                  {plan?.id === subscription?.plan && (
+                  {plan?.id === currentPlan.planId && (
                     <Text style={styles.saveText}>Active Plan</Text>
                   )}
                 </View>
@@ -311,7 +313,7 @@ const Subscription = memo(() => {
                   styles.payBtn,
                   {width: buttonWidth},
                   activeIndex === index && {borderColor: '#000'},
-                  plan.id === subscription?.plan && {backgroundColor: colors.sucess+20,borderColor: colors.sucess},
+                  plan.id === currentPlan.planId && styles.activePayBtn,
                 ]}
                 onPress={() => handleScrollTo(index)}>
                 <Text style={styles.payBtnTitleText} numberOfLines={2}>
@@ -322,6 +324,10 @@ const Subscription = memo(() => {
                   <Text style={styles.moneyText}>₹{plan.price}</Text>
                   <Text style={styles.moneyText}>{plan.unit}</Text>
                 </View>
+
+                {plan.id === currentPlan.planId && (
+                  <Text style={styles.activePlanText}>Active Plan</Text>
+                )}
 
                 {plan.compareAt && (
                   <Text
@@ -431,7 +437,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   payBtn: {
-    height: icon(90),
+    minHeight: icon(90),
     backgroundColor: '#F7F7F7',
     paddingHorizontal: padding(8),
     paddingVertical: padding(8),
@@ -441,6 +447,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: gap(4),
+  },
+  activePayBtn: {
+    borderColor: colors.primary,
+    borderWidth: 2,
+    backgroundColor: colors.primary + '15',
   },
   payBtnTitleText: {
     fontSize: font(10),
@@ -458,6 +469,11 @@ const styles = StyleSheet.create({
     fontSize: font(13),
     fontFamily: fonts.inMedium,
     textAlign: 'center',
+  },
+  activePlanText: {
+    fontSize: font(9),
+    fontFamily: fonts.inSemiBold,
+    color: colors.primary,
   },
   saveText: {
     position: 'absolute',

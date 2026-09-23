@@ -120,6 +120,7 @@ const CreateBill = () => {
   const [isPaymentModalVisible, setPaymentModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [discount, setDiscount] = useState(0);
+  const discountInvalidToastShown = useRef(false);
 
   const [isDiscountOpen, setIsDiscountOpen] = useState(false);
 
@@ -670,6 +671,17 @@ const CreateBill = () => {
                     autoFocus={true}
                     value={discount}
                     onChangeText={text => {
+                      if (!/^\d*\.?\d*$/.test(text)) {
+                        if (!discountInvalidToastShown.current) {
+                          discountInvalidToastShown.current = true;
+                          ToastAndroid.show(
+                            'Only numbers are allowed, no special characters or spaces',
+                            ToastAndroid.LONG,
+                          );
+                        }
+                        return;
+                      }
+                      discountInvalidToastShown.current = false;
                       if (text <= totalPrice) {
                         setDiscount(text);
                       } else {

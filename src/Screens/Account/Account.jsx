@@ -36,7 +36,9 @@ import {
   useUpdateBusinessFields,
   useUser,
   useGstEnabled,
+  useSubscription,
 } from '../../Contexts/AuthContext';
+import {mapCurrentSubscription} from '../../Models/CurrentSubscriptionModel';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import {validateEmail, validateIndianPhone, validateName} from '../../utils/validator';
 import ToastService from '../../Components/Toasts/ToastService';
@@ -65,6 +67,8 @@ const Account = memo(() => {
   const userId = useUser('id');
   const logoUrl = useBusiness('logoUrl');
   const token = useAuthToken();
+  const subscription = useSubscription();
+  const currentPlan = mapCurrentSubscription(subscription);
   const isGstEnabled = useGstEnabled();
   const {logout, resetBusiness} = useAuth();
   const updateUserFields = useUpdateUserFields();
@@ -368,6 +372,8 @@ const Account = memo(() => {
           userName={userName}
           userPhone={userPhone}
           logoUrl={logoUrl}
+          planName={currentPlan.planName}
+          onPressUpgrade={() => handleNavigation({screen: 'Subscription'})}
           onpressEditBtn={() => {
             setName(userName);
             setPhone(userPhone);
