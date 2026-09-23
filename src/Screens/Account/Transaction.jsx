@@ -49,6 +49,7 @@ const Transaction = () => {
   return transactions.filter(item => {
     return (
       item.plan?.toLowerCase().includes(q) ||
+      item.planDetails?.name?.toLowerCase().includes(q) ||
       item.startDate?.toLowerCase().includes(q) ||
       item.endDate?.toLowerCase().includes(q) ||
       item.createdAt?.toLowerCase().includes(q) ||
@@ -80,7 +81,9 @@ const Transaction = () => {
         renderItem={({item}) => (
           <View style={styles.cardContainer}>
             <View style={styles.textContainer}>
-              <Text style={styles.bigText}>{item.plan.toUpperCase()}</Text>
+              <Text style={styles.bigText}>
+                {(item.planDetails?.name || item.plan || 'N/A').toUpperCase()}
+              </Text>
               {currentDate > new Date(item.endDate) ? (
                 <Text style={[styles.smallText, {color: colors.error}]}>
                   Plan Expired
