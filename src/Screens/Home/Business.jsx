@@ -432,7 +432,9 @@ Proceed only if you have completed the required steps and approvals.`,
           <SimpleTextInput
             label="Enter Prefix"
             value={tempValue}
-            setValue={val => setTempValue(val.toUpperCase())}
+            setValue={val =>
+              setTempValue(val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())
+            }
             keyboardType="default"
             maxLength={6}
             upperCase={true}
