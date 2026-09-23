@@ -336,12 +336,14 @@ const Subscription = memo(() => {
               </View>
 
               <View style={styles.subscriptonContainer}>
-                <View style={{padding: padding(16), justifyContent: 'center'}}>
-                  <Text style={styles.featuresTitleText}>
+                <View style={styles.featuresHeaderRow}>
+                  <Text style={styles.featuresTitleText} numberOfLines={1}>
                     {plan.name} Features
                   </Text>
                   {plan?.id === currentPlan.planId && (
-                    <Text style={styles.saveText}>Active Plan</Text>
+                    <Text style={styles.activePlanBadge} numberOfLines={1}>
+                      Active Plan
+                    </Text>
                   )}
                 </View>
 
@@ -484,9 +486,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  featuresHeaderRow: {
+    padding: padding(16),
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: gap(8),
+  },
   featuresTitleText: {
+    flexShrink: 1,
     fontSize: font(16),
     fontFamily: fonts.inMedium,
+  },
+  activePlanBadge: {
+    flexShrink: 0,
+    fontSize: font(10),
+    paddingVertical: padding(3),
+    paddingHorizontal: padding(8),
+    borderRadius: 3,
+    borderWidth: 0.25,
+    borderBottomColor: colors.sucess,
+    backgroundColor: colors.sucess + 20,
+    fontFamily: fonts.inBold,
+    textAlign: 'center',
+    color: colors.sucess,
   },
   featuresText: {
     fontSize: font(14),
