@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+
 import React, {
   memo,
   useCallback,
@@ -38,10 +39,10 @@ import {
   useSubscription,
   useUser,
 } from '../../Contexts/AuthContext';
-import {paymentService} from '../../Services/PaymentService';
 import {subscriptionService} from '../../Services/SubscriptionService';
 import {mapSubscriptionPlans} from '../../Models/SubscriptionPlanModel';
 import {mapCurrentSubscription} from '../../Models/CurrentSubscriptionModel';
+import {mapSubscriptionOrder} from '../../Models/SubscriptionOrderModel';
 
 const Subscription = memo(() => {
   const subscription = useSubscription();
@@ -148,16 +149,19 @@ const Subscription = memo(() => {
 
     try {
       setIsLoading(true);
-      const order = await paymentService.createOrder(plan.price);
-      if (order?.status) {
+      const orderResponse = await subscriptionService.createSubscriptionOrder({
+        token,
+        planId: plan.id,
+      });
+      if (orderResponse?.status) {
+        const order = mapSubscriptionOrder(orderResponse?.data);
         const options = {
           description: `Payment for Billtrack ${plan.name}`,
-          amount: order?.order?.amount,
-          currency: 'INR',
+          amount: order.amount,
+          currency: order.currency,
           image: 'https://billtrack.co.in/public/assets/images/logo.png',
-          key: 'rzp_live_RpQhHpWDUvOOad', 
-          // key: 'rzp_test_RpQkpzsXTA2VO6',
-          order_id: order?.order?.id,
+          key: RazorpayKey,
+          order_id: order.orderId,
           name: 'BillTrack',
           theme: colors.primary,
           prefill: {},

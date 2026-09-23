@@ -5,7 +5,7 @@
 //const API_URL = 'https://bill.billtrack.co.in/api/v1/';
 const API_URL = 'https://dev.billtrack.co.in/api/v1/';
 // const API_URL = 'https://testapi.billtrack.co.in/api/v1/';
-//const RazorpayKey = 'rzp_test_S7hkZjIJiSVaAd';
- const RazorpayKey = 'rzp_live_RpQhHpWDUvOOad';
+ const RazorpayKey = 'rzp_test_TZVwJ7SRfr1SHu';
+ //const RazorpayKey = 'rzp_live_RpQhHpWDUvOOad';
 
 export {API_URL, RazorpayKey};

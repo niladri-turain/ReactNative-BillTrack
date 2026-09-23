@@ -1,6 +1,15 @@
 import axios from 'axios';
 import {API_URL} from '../utils/config';
 
+// RFC4122 v4 UUID, used as a fresh idempotency key on every order-create call
+const generateIdempotencyKey = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.floor(Math.random() * 16);
+    const v = c === 'x' ? r : (r % 4) + 8;
+    return v.toString(16);
+  });
+};
+
 class SubscriptionService {
   constructor() {
     this.baseUrl = API_URL + 'subscription';
@@ -62,6 +71,31 @@ class SubscriptionService {
     } catch (error) {
       console.error(`[SubscriptionService] GET ${uri} - Error`);
       console.error('[SubscriptionService] URL:', uri);
+      console.error('[SubscriptionService] Error Status:', error.response?.status);
+      console.error('[SubscriptionService] Error Response:', error.response?.data);
+      console.error('[SubscriptionService] Error Message:', error.message);
+      return error.response?.data;
+    }
+  }
+
+  async createSubscriptionOrder({token, planId}) {
+    const uri = API_URL + 'payment/create-order';
+    const payload = {
+      planId: String(planId),
+      idempotencyKey: generateIdempotencyKey(),
+    };
+    try {
+      const headers = token ? {Authorization: `Bearer ${token}`} : undefined;
+      console.log(`[SubscriptionService] POST ${uri}`);
+      console.log('[SubscriptionService] Body:', payload);
+      const response = await axios.post(uri, payload, {headers});
+      console.log(`[SubscriptionService] POST ${uri} - Status: ${response.status}`);
+      console.log(`[SubscriptionService] POST ${uri} - Response:`, response.data);
+      return response.data;
+    } catch (error) {
+      console.error(`[SubscriptionService] POST ${uri} - Error`);
+      console.error('[SubscriptionService] URL:', uri);
+      console.error('[SubscriptionService] Body:', payload);
       console.error('[SubscriptionService] Error Status:', error.response?.status);
       console.error('[SubscriptionService] Error Response:', error.response?.data);
       console.error('[SubscriptionService] Error Message:', error.message);
