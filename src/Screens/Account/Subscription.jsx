@@ -88,6 +88,9 @@ const Subscription = memo(() => {
   const buttonWidth =
     (ScreenWidth - padding(16) * 2 - gap(10) * 2) / Math.max(plans.length, 1);
 
+  const isSelectedPlanActive =
+    !!plans[activeIndex] && plans[activeIndex].id === currentPlan.planId;
+
   // Scroll when clicking bottom buttons
   const handleScrollTo = useCallback(pageIndex => {
     if (!scrollRef.current) return;
@@ -347,9 +350,12 @@ const Subscription = memo(() => {
           </View>
 
           <TouchableOpacity
-            style={styles.subscribeBtn}
+            style={[
+              styles.subscribeBtn,
+              isSelectedPlanActive && styles.subscribeBtnDisabled,
+            ]}
             onPress={handleSubscribe}
-            disabled={isLoading}>
+            disabled={isLoading || isSelectedPlanActive}>
             {isLoading ? (
               <ActivityIndicator color={'#fff'} />
             ) : (
@@ -499,6 +505,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 5,
+  },
+  subscribeBtnDisabled: {
+    backgroundColor: colors.border,
   },
   subscribeBtnText: {
     fontSize: font(16),
