@@ -30,32 +30,36 @@ class SubscriptionService {
     }
   }
 
-  async purchaseSubscription({
+  async activateSubscription({
     token,
-    plan,
-    orderId,
-    paymentId,
-    paymentSignature,
-    amount,
+    planId,
+    razorpayOrderId,
+    razorpayPaymentId,
+    razorpaySignature,
   }) {
-    const uri = this.baseUrl;
+    const uri = API_URL + 'payment/activate-subscription';
+    const payload = {
+      planId: String(planId),
+      orderId: razorpayOrderId,
+      paymentId: razorpayPaymentId,
+      paymentSignature: razorpaySignature,
+    };
     try {
-      const payload = {
-        plan: plan,
-        orderId: orderId,
-        paymentId: paymentId,
-        paymentSignature: paymentSignature,
-        amount: amount,
-      };
-      const response = await axios.post(uri, payload, {
-        headers: {Authorization: `Bearer ${token}`},
-      });
+      const headers = token ? {Authorization: `Bearer ${token}`} : undefined;
+      console.log(`[SubscriptionService] POST ${uri}`);
+      console.log('[SubscriptionService] Body:', payload);
+      const response = await axios.post(uri, payload, {headers});
       console.log(`[SubscriptionService] POST ${uri} - Status: ${response.status}`);
+      console.log(`[SubscriptionService] POST ${uri} - Response:`, response.data);
       return response.data;
     } catch (error) {
-      console.log(`[SubscriptionService] POST ${uri} - Error Status: ${error.response?.status}`);
-      const data = error.response?.data;
-      return data;
+      console.error(`[SubscriptionService] POST ${uri} - Error`);
+      console.error('[SubscriptionService] URL:', uri);
+      console.error('[SubscriptionService] Body:', payload);
+      console.error('[SubscriptionService] Error Status:', error.response?.status);
+      console.error('[SubscriptionService] Error Response:', error.response?.data);
+      console.error('[SubscriptionService] Error Message:', error.message);
+      return error.response?.data;
     }
   }
 

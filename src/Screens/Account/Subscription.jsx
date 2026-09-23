@@ -43,6 +43,7 @@ import {
 import {subscriptionService} from '../../Services/SubscriptionService';
 import {mapSubscriptionPlans} from '../../Models/SubscriptionPlanModel';
 import {mapCurrentSubscription} from '../../Models/CurrentSubscriptionModel';
+import {mapSubscriptionActivation} from '../../Models/SubscriptionActivationModel';
 import {mapSubscriptionOrder} from '../../Models/SubscriptionOrderModel';
 
 const Subscription = memo(() => {
@@ -172,64 +173,100 @@ const Subscription = memo(() => {
 
     try {
       setIsLoading(true);
+      console.log('[Subscription] Creating order for plan:', plan.id, plan.name);
       const orderResponse = await subscriptionService.createSubscriptionOrder({
         token,
         planId: plan.id,
       });
-      if (orderResponse?.status) {
-        const order = mapSubscriptionOrder(orderResponse?.data);
-        const options = {
-          description: `Payment for Billtrack ${plan.name}`,
-          amount: order.amount,
-          currency: order.currency,
-          image: 'https://billtrack.co.in/public/assets/images/logo.png',
-          key: RazorpayKey,
-          order_id: order.orderId,
-          name: 'BillTrack',
-          theme: colors.primary,
-          prefill: {},
-        };
-        if (businessEmail) {
-          options.prefill.email = businessEmail;
-        } else {
-          options.prefill.email = userEmail;
-        }
+      console.log('[Subscription] Order create response:', orderResponse);
 
-        if (businessPhone) {
-          options.prefill.contact = businessPhone;
-        } else {
-          options.prefill.contact = userPhone;
-        }
-        RazorpayCheckout.open(options)
-          .then(async data => {
-            const plan = plans[activeIndex];
-            const subscriptionPurchase =
-              await subscriptionService.purchaseSubscription({
-                token: token,
-                plan: plan.id,
-                orderId: data?.razorpay_order_id,
-                paymentId: data?.razorpay_payment_id,
-                paymentSignature: data?.razorpay_signature,
-                amount: plan.price,
-              });
-            if (subscriptionPurchase?.status) {
-              const currentSubscriptionAfterSubscribe =
-                subscriptionPurchase?.data;
-              await resetSubscription({
-                plan: currentSubscriptionAfterSubscribe?.plan,
-                startDate: currentSubscriptionAfterSubscribe?.startDate,
-                endDate: currentSubscriptionAfterSubscribe?.endDate,
-              });
-              ToastAndroid.show(`Payment Success`, ToastAndroid.LONG);
-              return;
-            }
-            ToastAndroid.show(subscriptionPurchase?.message, ToastAndroid.LONG);
-          })
-          .catch(error => {
-            ToastAndroid.show('Payment Cancelled', ToastAndroid.LONG);
-          });
+      if (!orderResponse?.status) {
+        console.error('[Subscription] Order creation failed:', orderResponse);
+        ToastAndroid.show(
+          orderResponse?.message || 'Failed to create order',
+          ToastAndroid.LONG,
+        );
+        return;
       }
+
+      const order = mapSubscriptionOrder(orderResponse?.data);
+      const options = {
+        description: `Payment for Billtrack ${plan.name}`,
+        amount: order.amount,
+        currency: order.currency,
+        image: 'https://billtrack.co.in/public/assets/images/logo.png',
+        key: RazorpayKey,
+        order_id: order.orderId,
+        name: 'BillTrack',
+        theme: colors.primary,
+        prefill: {},
+      };
+      if (businessEmail) {
+        options.prefill.email = businessEmail;
+      } else {
+        options.prefill.email = userEmail;
+      }
+
+      if (businessPhone) {
+        options.prefill.contact = businessPhone;
+      } else {
+        options.prefill.contact = userPhone;
+      }
+
+      console.log('[Subscription] Opening Razorpay checkout with options:', options);
+      RazorpayCheckout.open(options)
+        .then(async data => {
+          console.log('[Subscription] Razorpay checkout success:', data);
+          const activationPayload = {
+            token,
+            planId: plan.id,
+            razorpayOrderId: data?.razorpay_order_id,
+            razorpayPaymentId: data?.razorpay_payment_id,
+            razorpaySignature: data?.razorpay_signature,
+          };
+          console.log('[Subscription] Calling activateSubscription with:', activationPayload);
+          const activationResponse =
+            await subscriptionService.activateSubscription(activationPayload);
+          console.log('[Subscription] activateSubscription response:', activationResponse);
+
+          if (activationResponse?.status) {
+            const activatedSubscription = mapSubscriptionActivation(
+              activationResponse?.data,
+            );
+            console.log('[Subscription] Activated subscription:', activatedSubscription);
+            // Refresh the current-subscription so the active-plan
+            // highlight/border/disabled button reflect the change immediately
+            await fetchCurrentSubscription();
+            ToastAndroid.show(
+              activationResponse?.message || 'Subscription activation success',
+              ToastAndroid.LONG,
+            );
+            return;
+          }
+          console.error(
+            '[Subscription] activateSubscription failed:',
+            activationResponse,
+          );
+          ToastAndroid.show(activationResponse?.message, ToastAndroid.LONG);
+        })
+        .catch(error => {
+          console.error('[Subscription] Razorpay checkout error/cancelled:', {
+            code: error?.code,
+            description: error?.description,
+            reason: error?.reason,
+            source: error?.source,
+            step: error?.step,
+            metadata: error?.metadata,
+            raw: error,
+          });
+          ToastAndroid.show(
+            error?.description || 'Payment Cancelled',
+            ToastAndroid.LONG,
+          );
+        });
     } catch (error) {
+      console.error('[Subscription] handleSubscribe error:', error);
+      ToastAndroid.show('Something went wrong. Please try again.', ToastAndroid.LONG);
     } finally {
       setIsLoading(false);
     }
