@@ -13,26 +13,34 @@ class SmsService {
     businessName,
     businessId
   }) {
+    const uri = `${this.baseUrl}/sent-invoice`;
+    const payload = {
+      phone,
+      invoiceNumber,
+      totalAmount,
+      businessName,
+      businessId
+    };
     try {
-      const uri = `${this.baseUrl}/sent-invoice`;
-      const payload = {
-        phone,
-        invoiceNumber,
-        totalAmount,
-        businessName,
-        businessId
-      };
+      console.log(`[SmsService] POST ${uri}`);
+      console.log('[SmsService] Body:', payload);
       const response = await axios.post(uri, payload, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
       });
-      const data = await response.data;
-      return data;
+      console.log(`[SmsService] POST ${uri} - Status: ${response.status}`);
+      console.log(`[SmsService] POST ${uri} - Response:`, response.data);
+      return response.data;
     } catch (error) {
-      const data = await error.response.data;
-      throw data;
+      console.error(`[SmsService] POST ${uri} - Error`);
+      console.error('[SmsService] URL:', uri);
+      console.error('[SmsService] Body:', payload);
+      console.error('[SmsService] Error Status:', error.response?.status);
+      console.error('[SmsService] Error Response:', error.response?.data);
+      console.error('[SmsService] Error Message:', error.message);
+      throw error.response?.data;
     }
   }
 }

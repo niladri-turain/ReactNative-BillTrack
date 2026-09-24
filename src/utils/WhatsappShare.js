@@ -44,7 +44,7 @@ Paid via:          ${paymentMode || 'Cash'}
 Thank you for your payment!
 
 Download Invoice:
-https://bill.billtrack.co.in/invoice-details/${invoiceNumber}9876543210/${businessId}1234567890
+https://dev.billtrack.co.in/invoice-details/${invoiceNumber}9876543210/${businessId}1234567890
 
 Need help? Just reply here.
 
@@ -52,7 +52,7 @@ Warm regards,
 Team ${businessName}`;
 
   console.log(message);
-  console.log(`https://bill.billtrack.co.in/invoice-details/${invoiceNumber}9876543210/${businessId}1234567890`);
+  console.log(`https://dev.billtrack.co.in/invoice-details/${invoiceNumber}9876543210/${businessId}1234567890`);
 
   const whatsappUrl = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(
     message,
