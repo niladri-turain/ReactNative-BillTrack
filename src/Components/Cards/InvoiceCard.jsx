@@ -271,19 +271,19 @@ const InvoiceCard = ({invoice, onRefresh}) => {
         <TouchableOpacity
           style={styles.subBottomContainer}
           onPress={sentSms}
-          disabled={isSmsLoading || !sentSmsEnabled}>
+          disabled={isSmsLoading || !sentSmsEnabled || isCancelled}>
           {isSmsLoading ? (
             <ActivityIndicator size={'small'} color={'#007aff'} />
           ) : (
             <Lucide
               name="message-square-text"
               size={icon(18)}
-              color={sentSmsEnabled ? '#007aff' : '#00000040'}
+              color={sentSmsEnabled && !isCancelled ? '#007aff' : '#00000040'}
             />
           )}
           <Text
             style={[
-              {color: sentSmsEnabled ? '#007aff' : '#00000040'},
+              {color: sentSmsEnabled && !isCancelled ? '#007aff' : '#00000040'},
               styles.subBottomContainerText,
             ]}>
             SMS
@@ -310,13 +310,21 @@ const InvoiceCard = ({invoice, onRefresh}) => {
           <TouchableOpacity
             style={styles.subBottomContainer}
             onPress={printBill}
-            disabled={isPrintingLoading}>
+            disabled={isPrintingLoading || isCancelled}>
             {isPrintingLoading ? (
               <ActivityIndicator size={'small'} color={'#ff393c'} />
             ) : (
-              <Lucide name="printer" size={icon(18)} color={'#ff393c'} />
+              <Lucide
+                name="printer"
+                size={icon(18)}
+                color={isCancelled ? '#00000040' : '#ff393c'}
+              />
             )}
-            <Text style={[{color: '#ff393c'}, styles.subBottomContainerText]}>
+            <Text
+              style={[
+                {color: isCancelled ? '#00000040' : '#ff393c'},
+                styles.subBottomContainerText,
+              ]}>
               Print
             </Text>
           </TouchableOpacity>
