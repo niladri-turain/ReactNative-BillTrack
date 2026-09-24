@@ -13,7 +13,7 @@ const sendToWhatsApp = async ({
   // Safety check
   if (!customerNumber) {
     ToastAndroid.show('Customer mobile number not found', ToastAndroid.SHORT);
-    return;
+    return false;
   }
 
   // Make sure phone number is in international format
@@ -70,11 +70,13 @@ Team ${businessName}`;
       )}`;
       await Linking.openURL(webUrl);
     }
+    return true;
   } catch (error) {
     Alert.alert(
       'WhatsApp Not Found',
       'Please install WhatsApp to share invoice.',
     );
+    return false;
   }
 };
 

@@ -236,8 +236,6 @@ const CreateBill = () => {
   const sendToSmsEnabled = useAppSettingsValue('SEND_TO_SMS');
   const printOnCreateBill = useAppSettingsValue('PRINT_ON_CREATE_BILL');
   const isPremiumPlanAndActive = useSubscription('isPremiumPlanAndActive');
-  const entitlements = useSubscription('entitlements');
-  const billPrintingEnabled = !!entitlements?.BILL_PRINTING?.enabled;
   const isGstEnabled = useGstEnabled();
 
   // STATE VARIABLES
@@ -609,7 +607,7 @@ const CreateBill = () => {
         handleCloseBottomSheet();
         await updateInvoiceNumber(numberOfInvoices);
         if (sentWhatAppEnabled) {
-          await sendToWhatsApp({
+          const whatsappSent = await sendToWhatsApp({
             businessName: businessName,
             invoiceNumber: data?.invoice?.invoiceNumber,
             createdAt: data?.invoice?.createdAt,
@@ -618,22 +616,19 @@ const CreateBill = () => {
             paymentMode: data?.invoice?.paymentMode,
             businessId: business?.id,
           });
-        }
-        // Plans without bill-printing use SEND as the primary delivery
-        // action, so it also sends via SMS (in addition to WhatsApp above).
-        if (
-          !billPrintingEnabled &&
-          sendToSmsEnabled &&
-          data?.invoice?.customerNumber
-        ) {
-          await smsService.sendInvoiceSms({
-            token,
-            businessName: businessName,
-            phone: data?.invoice?.customerNumber,
-            invoiceNumber: data?.invoice?.invoiceNumber,
-            totalAmount: data?.invoice?.totalAmount,
-            businessId: business?.id,
-          });
+
+          // Only once WhatsApp goes through do we also send the SMS —
+          // the same SMS the InvoiceCard "SMS" button sends.
+          if (whatsappSent && sendToSmsEnabled && data?.invoice?.customerNumber) {
+            await smsService.sendInvoiceSms({
+              token,
+              businessName: businessName,
+              phone: data?.invoice?.customerNumber,
+              invoiceNumber: data?.invoice?.invoiceNumber,
+              totalAmount: data?.invoice?.totalAmount,
+              businessId: business?.id,
+            });
+          }
         }
       }
     } catch (error) {
