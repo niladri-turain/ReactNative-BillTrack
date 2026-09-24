@@ -48,6 +48,7 @@ import {
 import {useProduct} from '../../Contexts/ProductContexts';
 import ToastService from '../../Components/Toasts/ToastService';
 import {invoiceService} from '../../Services/InvoiceService';
+import {smsService} from '../../Services/SmsService';
 import {
   useAuth,
   useAuthToken,
@@ -56,10 +57,7 @@ import {
   useGstEnabled,
   useUser,
 } from '../../Contexts/AuthContext';
-import {
-  useAppSettings,
-  useAppSettingsValue,
-} from '../../Contexts/AppSettingContexts';
+import {useAppSettingsValue} from '../../Contexts/AppSettingContexts';
 import {usePrinter} from '../../Contexts/PrinterContext';
 import {calculateInvoiceData, generateInvoices} from '../../utils/helper';
 import printerService from '../../utils/PrinterService';
@@ -110,7 +108,6 @@ const CreateBill = () => {
   const businessName = userName || business?.name;
   const userPhone = useUser('phone');
   const {updateNumberOfInvoices} = useAuth();
-  const {getByKey} = useAppSettings();
   const token = useAuthToken();
   const {Products, resetProductCount} = useProduct();
   const product = Products || [];
@@ -236,7 +233,11 @@ const CreateBill = () => {
   const sentWhatAppEnabled = useAppSettingsValue(
     'SEND_WHATSAPP_BILL_ON_CREATE_BILL',
   );
+  const sendToSmsEnabled = useAppSettingsValue('SEND_TO_SMS');
+  const printOnCreateBill = useAppSettingsValue('PRINT_ON_CREATE_BILL');
   const isPremiumPlanAndActive = useSubscription('isPremiumPlanAndActive');
+  const entitlements = useSubscription('entitlements');
+  const billPrintingEnabled = !!entitlements?.BILL_PRINTING?.enabled;
   const isGstEnabled = useGstEnabled();
 
   // STATE VARIABLES
@@ -248,6 +249,7 @@ const CreateBill = () => {
   // LOADING STATE
   const [isPrintLoading, setIsPrintLoading] = useState(false);
   const [isSendLoading, setIsSendLoading] = useState(false);
+  const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [devices, setDevices] = useState([]);
   const [isPendingPrint, setIsPendingPrint] = useState(false);
@@ -394,7 +396,7 @@ const CreateBill = () => {
       return;
     }
 
-    if (!printer && getByKey('PRINT_ON_CREATE_BILL')) {
+    if (!printer) {
       setIsPendingPrint(true);
       handleOpenScanner();
       return;
@@ -455,20 +457,15 @@ const CreateBill = () => {
         const {gstListCalculate, items, subTotalAmount, totalQuantity} =
           calculateInvoiceData(invoiceItems?.items, invoice?.discountAmount);
 
-        // Check if printing is enabled in settings or if it was a manual print action
-        const printOnCreateBill = getByKey('PRINT_ON_CREATE_BILL');
-        // Manual print (isPendingPrint was true) OR auto-print enabled
-        if (printOnCreateBill) {
-          if (printer) {
-            await printerService.printInvoice(
-              invoice,
-              items,
-              gstListCalculate,
-              totalQuantity,
-              subTotalAmount,
-              {...business, name: businessName},
-            );
-          }
+        if (printer) {
+          await printerService.printInvoice(
+            invoice,
+            items,
+            gstListCalculate,
+            totalQuantity,
+            subTotalAmount,
+            {...business, name: businessName},
+          );
         }
 
         await updateInvoiceNumber(numberOfInvoices);
@@ -479,6 +476,71 @@ const CreateBill = () => {
       console.error('Print logic error:', error);
     } finally {
       setIsPrintLoading(false);
+    }
+  };
+
+  const saveOnlyData = async () => {
+    if (phoneNumber && !validateIndianPhone(phoneNumber)) {
+      ToastService.show({
+        message: 'Please enter a valid phone number',
+        type: 'error',
+        position: 'top',
+      });
+      return;
+    }
+    try {
+      setIsSaveLoading(true);
+      const selectedItems = product
+        .filter(item => item.count)
+        .map(item => {
+          const hasHSN =
+            item?.hsn &&
+            typeof item.hsn === 'object' &&
+            Object.keys(item.hsn).length > 0;
+
+          return {
+            productName: item?.name,
+            quantity: item?.count,
+            hsnId: item?.hsnId || null,
+            hsnCode: item?.hsn?.hsnCode || '',
+            rate: Number(item?.price).toFixed(2),
+            gstType: hasHSN ? 'cgst/sgst' : null,
+            gstPercentage: hasHSN
+              ? (
+                  Number(item.hsn?.cGst || 0) + Number(item.hsn?.sGst || 0)
+                ).toFixed(2)
+              : null,
+          };
+        });
+
+      const numberOfInvoices = await getBusinessInvoiceNumber();
+      const invoiceNo = generateInvoices(business?.prefix, numberOfInvoices);
+
+      const data = await invoiceService.createInvoice({
+        token,
+        customerNumber: phoneNumber,
+        items: selectedItems,
+        paymentMode: paymentMethod,
+        discount,
+        invoiceNumber: invoiceNo,
+        businessName: businessName,
+        userPhone: userPhone,
+      });
+
+      if (data?.status) {
+        addInvoices(data?.invoice);
+        ToastService.show({
+          message: 'Bill Created Successfully',
+          type: 'success',
+          position: 'top',
+        });
+        await updateInvoiceNumber(numberOfInvoices);
+        restartClickOfHeader();
+        navigation.navigate('Home');
+      }
+    } catch (error) {
+    } finally {
+      setIsSaveLoading(false);
     }
   };
 
@@ -554,6 +616,22 @@ const CreateBill = () => {
             customerNumber: data?.invoice?.customerNumber,
             totalAmount: data?.invoice?.totalAmount,
             paymentMode: data?.invoice?.paymentMode,
+            businessId: business?.id,
+          });
+        }
+        // Plans without bill-printing use SEND as the primary delivery
+        // action, so it also sends via SMS (in addition to WhatsApp above).
+        if (
+          !billPrintingEnabled &&
+          sendToSmsEnabled &&
+          data?.invoice?.customerNumber
+        ) {
+          await smsService.sendInvoiceSms({
+            token,
+            businessName: businessName,
+            phone: data?.invoice?.customerNumber,
+            invoiceNumber: data?.invoice?.invoiceNumber,
+            totalAmount: data?.invoice?.totalAmount,
             businessId: business?.id,
           });
         }
@@ -790,6 +868,19 @@ const CreateBill = () => {
             </View>
             <View style={styles.bottomSheetButtonContaienr}>
               <TouchableOpacity
+                style={[
+                  styles.bottomSheetButton,
+                  {backgroundColor: colors.primary},
+                ]}
+                onPress={saveOnlyData}
+                disabled={isSaveLoading}>
+                {isSaveLoading ? (
+                  <ActivityIndicator size={'small'} color={'#fff'} />
+                ) : (
+                  <Text style={styles.bottomSheetButtonText}>SAVE</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
                 ref={sendButtonRef}
                 onLayout={() => measureRef('send', sendButtonRef)}
                 style={[
@@ -804,23 +895,23 @@ const CreateBill = () => {
                   <ActivityIndicator size={'small'} color={'#fff'} />
                 ) : (
                   <Text style={styles.bottomSheetButtonText}>SEND</Text>
-                )}{' '}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.bottomSheetButton,
-                  {backgroundColor: colors.error},
-                ]}
-                onPress={printData}
-                disabled={isPrintLoading}>
-                {isPrintLoading ? (
-                  <ActivityIndicator size={'small'} color={'#fff'} />
-                ) : (
-                  <Text style={styles.bottomSheetButtonText}>
-                    {getByKey('PRINT_ON_CREATE_BILL') ? 'PRINT' : 'SAVE'}
-                  </Text>
                 )}
               </TouchableOpacity>
+              {printOnCreateBill && (
+                <TouchableOpacity
+                  style={[
+                    styles.bottomSheetButton,
+                    {backgroundColor: colors.error},
+                  ]}
+                  onPress={printData}
+                  disabled={isPrintLoading}>
+                  {isPrintLoading ? (
+                    <ActivityIndicator size={'small'} color={'#fff'} />
+                  ) : (
+                    <Text style={styles.bottomSheetButtonText}>PRINT</Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           </BottomSheetView>
         </BottomSheet>

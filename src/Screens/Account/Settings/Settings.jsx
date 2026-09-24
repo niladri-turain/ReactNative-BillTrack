@@ -25,7 +25,7 @@ const Settings = () => {
     navigation.navigate(screen, {data});
   };
 
-  const {appSettings} = useAppSettings();
+  const {appSettings, updateAppSettings, printLocked} = useAppSettings();
 
   return (
     <Layout>
@@ -56,7 +56,12 @@ const Settings = () => {
               <View style={{flexDirection: 'row', alignItems: 'center', gap: 10}}>
                 <Switch
                   value={appSettings.PRINT_ON_CREATE_BILL}
-                  disabled
+                  disabled={printLocked}
+                  onValueChange={
+                    printLocked
+                      ? undefined
+                      : val => updateAppSettings('PRINT_ON_CREATE_BILL', val)
+                  }
                   trackColor={{false: '#D1D1D6', true: colors.primary}}
                   thumbColor={'#fff'}
                   ios_backgroundColor="#D1D1D6"

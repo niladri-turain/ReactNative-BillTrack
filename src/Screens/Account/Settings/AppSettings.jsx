@@ -10,7 +10,7 @@ import { colors } from '../../../utils/colors';
 
 
 const AppSettings = () => {
-  const { appSettings } = useAppSettings();
+  const { appSettings, updateAppSettings, printLocked, smsLocked } = useAppSettings();
   const { resetSubscription } = useAuth();
   const token = useAuthToken();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -48,13 +48,16 @@ const AppSettings = () => {
           />
         }>
 
-        {/* ১. Print on Create Bill Card — locked to the current plan's BILL_PRINTING entitlement */}
+        {/* ১. Print on Create Bill Card — needs the current plan's BILL_PRINTING
+            entitlement to be usable at all, but once granted the user can
+            manually turn it on/off */}
         <SettingCard
           title="Print on Create Bill"
           subtitle="Automatically print bill when 'Print' button is pressed in create bill"
           isPremium={true}
-          locked={true}
+          locked={printLocked}
           value={appSettings.PRINT_ON_CREATE_BILL}
+          onValueChange={val => updateAppSettings('PRINT_ON_CREATE_BILL', val)}
           iconText="🖨️"
           iconBgColor="#FFF0E6"
         />
@@ -70,13 +73,16 @@ const AppSettings = () => {
           iconBgColor="#E8F8EF"
         />
 
-        {/* ৩. Send SMS Card — locked to the current plan's SMS_SENDING entitlement */}
+        {/* ৩. Send SMS Card — needs the current plan's SMS_SENDING entitlement
+            to be usable at all, but once granted the user can manually turn
+            it on/off */}
         <SettingCard
           title="Send SMS"
           subtitle="Send Bill to SMS"
           isPremium={true}
-          locked={true}
+          locked={smsLocked}
           value={appSettings.SEND_TO_SMS}
+          onValueChange={val => updateAppSettings('SEND_TO_SMS', val)}
           iconText="✉️"
           iconBgColor="#EBF3FF"
         />
