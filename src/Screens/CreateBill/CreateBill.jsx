@@ -121,6 +121,7 @@ const CreateBill = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [discount, setDiscount] = useState(0);
   const discountInvalidToastShown = useRef(false);
+  const discountInputRef = useRef(null);
 
   const [isDiscountOpen, setIsDiscountOpen] = useState(false);
 
@@ -667,11 +668,20 @@ const CreateBill = () => {
                   />
                   {/* Added autoFocus to improve UX */}
                   <TextInput
+                    ref={discountInputRef}
                     style={styles.floatingButtonTextInput}
                     autoFocus={true}
                     value={discount}
                     onChangeText={text => {
                       if (!/^\d*\.?\d*$/.test(text)) {
+                        // The keyboard has already drawn the invalid character
+                        // natively before this handler runs, so force the
+                        // native text back to the last valid value instead of
+                        // just skipping the state update — otherwise the
+                        // rejected character stays visible on screen.
+                        discountInputRef.current?.setNativeProps({
+                          text: String(discount),
+                        });
                         if (!discountInvalidToastShown.current) {
                           discountInvalidToastShown.current = true;
                           ToastAndroid.show(
@@ -685,6 +695,9 @@ const CreateBill = () => {
                       if (text <= totalPrice) {
                         setDiscount(text);
                       } else {
+                        discountInputRef.current?.setNativeProps({
+                          text: String(discount),
+                        });
                         ToastAndroid.show(
                           'Discount cannot be greater than total amount',
                           ToastAndroid.LONG,

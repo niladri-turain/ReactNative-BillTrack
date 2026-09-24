@@ -8,6 +8,7 @@ import {useAuthToken} from '../../Contexts/AuthContext';
 import {subscriptionService} from '../../Services/SubscriptionService';
 import {useFocusEffect} from '@react-navigation/native';
 import {colors} from '../../utils/colors';
+import {mapSubscriptionTransactions} from '../../Models/SubscriptionTransactionModel';
 
 const Transaction = () => {
   const token = useAuthToken();
@@ -20,7 +21,7 @@ const Transaction = () => {
     try {
       const data = await subscriptionService.allSubscriptions(token);
       if (data.status) {
-        setTransactions(data.data);
+        setTransactions(mapSubscriptionTransactions(data.data));
       }
     } catch (error) {}
   };
@@ -48,8 +49,7 @@ const Transaction = () => {
 
   return transactions.filter(item => {
     return (
-      item.plan?.toLowerCase().includes(q) ||
-      item.planDetails?.name?.toLowerCase().includes(q) ||
+      item.planName?.toLowerCase().includes(q) ||
       item.startDate?.toLowerCase().includes(q) ||
       item.endDate?.toLowerCase().includes(q) ||
       item.createdAt?.toLowerCase().includes(q) ||
@@ -81,9 +81,7 @@ const Transaction = () => {
         renderItem={({item}) => (
           <View style={styles.cardContainer}>
             <View style={styles.textContainer}>
-              <Text style={styles.bigText}>
-                {(item.planDetails?.name || item.plan || 'N/A').toUpperCase()}
-              </Text>
+              <Text style={styles.planNameText}>{item.planName}</Text>
               {currentDate > new Date(item.endDate) ? (
                 <Text style={[styles.smallText, {color: colors.error}]}>
                   Plan Expired
@@ -131,6 +129,10 @@ const styles = StyleSheet.create({
   },
   bigText: {
     fontSize: font(16),
+    fontFamily: fonts.inSemiBold,
+  },
+  planNameText: {
+    fontSize: font(13),
     fontFamily: fonts.inSemiBold,
   },
   textContainer: {
