@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -58,6 +59,7 @@ const Subscription = memo(() => {
   const [plans, setPlans] = useState([]);
   const [isPlansLoading, setIsPlansLoading] = useState(true);
   const [plansError, setPlansError] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Kept in local state (not just the AuthContext value) so it is re-fetched
   // fresh every time this screen is opened, instead of relying on the cached
@@ -100,6 +102,12 @@ const Subscription = memo(() => {
       fetchCurrentSubscription();
     }, [fetchActivePlans, fetchCurrentSubscription]),
   );
+
+  const onRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await Promise.all([fetchActivePlans(), fetchCurrentSubscription()]);
+    setIsRefreshing(false);
+  }, [fetchActivePlans, fetchCurrentSubscription]);
 
   // Highlight the plan matching the current subscription once plans are loaded
   useEffect(() => {
@@ -313,7 +321,15 @@ const Subscription = memo(() => {
       <ScrollView
         style={{flex: 1}}
         nestedScrollEnabled
-        contentContainerStyle={styles.container}>
+        contentContainerStyle={styles.container}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}

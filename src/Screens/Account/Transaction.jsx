@@ -1,4 +1,4 @@
-import {FlatList, StyleSheet, Text, View} from 'react-native';
+import {FlatList, RefreshControl, StyleSheet, Text, View} from 'react-native';
 import React, {useCallback, useMemo, useState} from 'react';
 import {Layout} from '../Layout';
 import {SecondaryHeader} from '../../Components';
@@ -15,6 +15,7 @@ const Transaction = () => {
 
   const [transactions, setTransactions] = useState([]);
   const [query, setQuery] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const currentDate = new Date();
 
   const fetchTransactions = async () => {
@@ -24,6 +25,12 @@ const Transaction = () => {
         setTransactions(mapSubscriptionTransactions(data.data));
       }
     } catch (error) {}
+  };
+
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchTransactions();
+    setIsRefreshing(false);
   };
 
   useFocusEffect(
@@ -78,6 +85,14 @@ const Transaction = () => {
         contentContainerStyle={styles.container}
         data={filteredTransactions}
         keyExtractor={(_, index) => index.toString()}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
         renderItem={({item}) => (
           <View style={styles.cardContainer}>
             <View style={styles.textContainer}>

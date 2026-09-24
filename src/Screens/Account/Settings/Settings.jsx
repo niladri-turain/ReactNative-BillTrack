@@ -16,7 +16,6 @@ import {
 import {icon, margin, padding} from '../../../utils/responsive';
 import Lucide from '@react-native-vector-icons/lucide';
 import {useNavigation} from '@react-navigation/native';
-import {useSubscription} from '../../../Contexts/AuthContext';
 import {useAppSettings} from '../../../Contexts/AppSettingContexts';
 import {colors} from '../../../utils/colors';
 
@@ -26,8 +25,7 @@ const Settings = () => {
     navigation.navigate(screen, {data});
   };
 
-  const isPremiumPlanAndActive = useSubscription('isPremiumPlanAndActive');
-  const {appSettings, updateAppSettings} = useAppSettings();
+  const {appSettings} = useAppSettings();
 
   return (
     <Layout>
@@ -58,9 +56,7 @@ const Settings = () => {
               <View style={{flexDirection: 'row', alignItems: 'center', gap: 10}}>
                 <Switch
                   value={appSettings.PRINT_ON_CREATE_BILL}
-                  onValueChange={val =>
-                    updateAppSettings('PRINT_ON_CREATE_BILL', val)
-                  }
+                  disabled
                   trackColor={{false: '#D1D1D6', true: colors.primary}}
                   thumbColor={'#fff'}
                   ios_backgroundColor="#D1D1D6"

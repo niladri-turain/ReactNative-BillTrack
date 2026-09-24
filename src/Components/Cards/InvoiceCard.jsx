@@ -22,12 +22,7 @@ import {usePrinter} from '../../Contexts/PrinterContext';
 import printerService from '../../utils/PrinterService';
 import {invoiceService} from '../../Services/InvoiceService';
 import {CommonModal} from '..';
-import {
-  useAuth,
-  useAuthToken,
-  useBusiness,
-  useSubscription,
-} from '../../Contexts/AuthContext';
+import {useAuth, useAuthToken, useBusiness} from '../../Contexts/AuthContext';
 import {sendToWhatsApp} from '../../utils/WhatsappShare';
 import {
   useAppSettings,
@@ -41,7 +36,6 @@ const InvoiceCard = ({invoice, onRefresh}) => {
   const {setIsLoading} = useAuth();
   const {printer, setSelectedPrinter} = usePrinter();
   const business = useBusiness();
-  const isPremiumPlanAndActive = useSubscription('isPremiumPlanAndActive');
   const token = useAuthToken();
 
   const sentWhatAppEnabled = useAppSettingsValue('SEND_TO_WHATSAPP');
@@ -170,10 +164,10 @@ const InvoiceCard = ({invoice, onRefresh}) => {
   };
 
   const sentSms = async () => {
-    if (!sentSmsEnabled || !isPremiumPlanAndActive) {
+    if (!sentSmsEnabled) {
       Alert.alert(
         'Send SMS Not Enabled',
-        'To continue, please enable Send SMS in the app settings.',
+        'SMS sending is not available on your current plan. Upgrade to enable it.',
       );
       return;
     }
@@ -277,17 +271,21 @@ const InvoiceCard = ({invoice, onRefresh}) => {
         <TouchableOpacity
           style={styles.subBottomContainer}
           onPress={sentSms}
-          disabled={isSmsLoading}>
+          disabled={isSmsLoading || !sentSmsEnabled}>
           {isSmsLoading ? (
             <ActivityIndicator size={'small'} color={'#007aff'} />
           ) : (
             <Lucide
               name="message-square-text"
               size={icon(18)}
-              color={'#007aff'}
+              color={sentSmsEnabled ? '#007aff' : '#00000040'}
             />
           )}
-          <Text style={[{color: '#007aff'}, styles.subBottomContainerText]}>
+          <Text
+            style={[
+              {color: sentSmsEnabled ? '#007aff' : '#00000040'},
+              styles.subBottomContainerText,
+            ]}>
             SMS
           </Text>
         </TouchableOpacity>

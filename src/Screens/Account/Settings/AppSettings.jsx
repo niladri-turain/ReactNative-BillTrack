@@ -1,24 +1,31 @@
-import { ScrollView, StyleSheet, ToastAndroid, View, Text, Switch, Image } from 'react-native';
-import React from 'react';
+import { RefreshControl, ScrollView, StyleSheet, View, Text, Switch, Image } from 'react-native';
+import React, { useState } from 'react';
 import { Layout } from '../../Layout';
 import { SecondaryHeader } from '../../../Components';
 import { useAppSettings } from '../../../Contexts/AppSettingContexts';
-import { useSubscription } from '../../../Contexts/AuthContext';
+import { useAuth, useAuthToken } from '../../../Contexts/AuthContext';
+import { subscriptionService } from '../../../Services/SubscriptionService';
+import { colors } from '../../../utils/colors';
 
 
 
 const AppSettings = () => {
-  const { appSettings, updateAppSettings } = useAppSettings();
-  const isPremiumPlanAndActive = useSubscription('isPremiumPlanAndActive');
+  const { appSettings } = useAppSettings();
+  const { resetSubscription } = useAuth();
+  const token = useAuthToken();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const handleToggle = async (key, value) => {
-    const isPremiumFeature = key === 'PRINT_ON_CREATE_BILL' || key === 'SEND_TO_SMS';
-    
-    if (isPremiumFeature && !isPremiumPlanAndActive) {
-      ToastAndroid.show('Premium Plan Required', ToastAndroid.SHORT);
-      return;
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const response = await subscriptionService.currentSubscription(token);
+      if (response?.status) {
+        resetSubscription(response?.data);
+      }
+    } catch (error) {
+    } finally {
+      setIsRefreshing(false);
     }
-    await updateAppSettings(key, value);
   };
 
   return (
@@ -29,38 +36,48 @@ const AppSettings = () => {
         isQuestion={false}
         isNotification={false}
       />
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        
-        {/* ১. Print on Create Bill Card */}
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }>
+
+        {/* ১. Print on Create Bill Card — locked to the current plan's BILL_PRINTING entitlement */}
         <SettingCard
           title="Print on Create Bill"
           subtitle="Automatically print bill when 'Print' button is pressed in create bill"
           isPremium={true}
+          locked={true}
           value={appSettings.PRINT_ON_CREATE_BILL}
-          onValueChange={(val) => handleToggle('PRINT_ON_CREATE_BILL', val)}
-          iconText="🖨️" 
+          iconText="🖨️"
           iconBgColor="#FFF0E6"
         />
 
-        {/* ২. Send WhatsApp Card */}
+        {/* ২. Send WhatsApp Card — locked to the current plan's WHATSAPP_SHARING entitlement */}
         <SettingCard
           title="Send WhatsApp"
           subtitle="Send Bill to WhatsApp"
           isPremium={false}
+          locked={true}
           value={appSettings.SEND_TO_WHATSAPP}
-          onValueChange={(val) => handleToggle('SEND_TO_WHATSAPP', val)}
-          iconText="💬" 
+          iconText="💬"
           iconBgColor="#E8F8EF"
         />
 
-        {/* ৩. Send SMS Card */}
+        {/* ৩. Send SMS Card — locked to the current plan's SMS_SENDING entitlement */}
         <SettingCard
           title="Send SMS"
           subtitle="Send Bill to SMS"
           isPremium={true}
+          locked={true}
           value={appSettings.SEND_TO_SMS}
-          onValueChange={(val) => handleToggle('SEND_TO_SMS', val)}
-          iconText="✉️" 
+          iconText="✉️"
           iconBgColor="#EBF3FF"
         />
 
@@ -70,7 +87,7 @@ const AppSettings = () => {
 };
 
 
-const SettingCard = ({ title, subtitle, isPremium, value, onValueChange, iconText, iconBgColor }) => {
+const SettingCard = ({ title, subtitle, isPremium, locked, value, onValueChange, iconText, iconBgColor }) => {
   return (
     <View style={styles.card}>
       <View style={styles.mainRow}>
@@ -90,21 +107,26 @@ const SettingCard = ({ title, subtitle, isPremium, value, onValueChange, iconTex
         {/* Right Switch */}
         <Switch
           value={value}
-          onValueChange={onValueChange}
+          onValueChange={locked ? undefined : onValueChange}
+          disabled={locked}
           trackColor={{ false: '#D1D1D6', true: '#FF7A30' }}
           thumbColor={'#fff'}
           ios_backgroundColor="#D1D1D6"
         />
       </View>
 
-      {/* Premium Badge & Arrow Footer */}
+      {/* Premium Badge / Locked note & Arrow Footer */}
       <View style={styles.cardFooter}>
         {isPremium ? (
           <View style={styles.premiumBadge}>
-            <Text style={styles.badgeText}>👑 Premium</Text>
+            <Text style={styles.badgeText}>
+              👑 Premium{locked ? ' · Depends on your plan' : ''}
+            </Text>
           </View>
+        ) : locked ? (
+          <Text style={styles.lockedText}>Depends on your plan</Text>
         ) : (
-          <View /> 
+          <View />
         )}
         {/* Arrow Icon */}
         <Text style={styles.arrowText}>❯</Text>
@@ -191,6 +213,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#C7C7CC',
     fontWeight: 'bold',
+  },
+  lockedText: {
+    fontSize: 12,
+    color: '#8E8E93',
   },
 });
 

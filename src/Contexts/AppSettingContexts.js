@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {createContext, useContext, useEffect, useState} from 'react';
+import {useSubscription} from './AuthContext';
 
 const AppSettingContexts = createContext();
 
@@ -44,6 +45,35 @@ const AppSettingProvider = ({children}) => {
     };
     loadSettings();
   }, []);
+
+  // PRINT_ON_CREATE_BILL, SEND_TO_SMS and SEND_TO_WHATSAPP are locked to the
+  // current plan's entitlements — the user cannot flip these manually (see
+  // AppSettings.jsx, where those switches are rendered as `disabled`).
+  const entitlements = useSubscription('entitlements');
+  useEffect(() => {
+    if (!entitlements) return;
+    const billPrinting = !!entitlements?.BILL_PRINTING?.enabled;
+    const smsSending = !!entitlements?.SMS_SENDING?.enabled;
+    const whatsappSharing = !!entitlements?.WHATSAPP_SHARING?.enabled;
+
+    setAppSettings(prev => {
+      if (
+        prev.PRINT_ON_CREATE_BILL === billPrinting &&
+        prev.SEND_TO_SMS === smsSending &&
+        prev.SEND_TO_WHATSAPP === whatsappSharing
+      ) {
+        return prev;
+      }
+      const next = {
+        ...prev,
+        PRINT_ON_CREATE_BILL: billPrinting,
+        SEND_TO_SMS: smsSending,
+        SEND_TO_WHATSAPP: whatsappSharing,
+      };
+      AsyncStorage.setItem('appSettings', JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }, [entitlements]);
 
   return (
     <AppSettingContexts.Provider
