@@ -116,6 +116,23 @@ const Subscription = memo(() => {
     setActiveIndex(matchedIndex >= 0 ? matchedIndex : 0);
   }, [plans, currentPlan.planId]);
 
+  const getRemainingTime = endDate => {
+    if (!endDate) return 'Active Plan';
+    const end = new Date(endDate.replace(' ', 'T'));
+    const now = new Date();
+    const diffMs = end - now;
+
+    if (diffMs <= 0) return 'Expired';
+
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays > 0) {
+      return `${diffDays} days left`;
+    }
+
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    return `${diffMins} mnts left`;
+  };
+
   const buttonWidth =
     (ScreenWidth - padding(16) * 2 - gap(10) * 2) / Math.max(plans.length, 1);
 
@@ -358,7 +375,9 @@ const Subscription = memo(() => {
                   </Text>
                   {plan?.id === currentPlan.planId && (
                     <Text style={styles.activePlanBadge} numberOfLines={1}>
-                      Active Plan
+                      {plan.price === 0
+                        ? getRemainingTime(currentPlan.endDate)
+                        : 'Active Plan'}
                     </Text>
                   )}
                 </View>
@@ -411,7 +430,11 @@ const Subscription = memo(() => {
                 </View>
 
                 {plan.id === currentPlan.planId && (
-                  <Text style={styles.activePlanText}>Active Plan</Text>
+                  <Text style={styles.activePlanText}>
+                    {plan.price === 0
+                      ? getRemainingTime(currentPlan.endDate)
+                      : 'Active Plan'}
+                  </Text>
                 )}
 
                 {plan.compareAt && (
