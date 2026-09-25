@@ -202,6 +202,7 @@ const Subscription = memo(() => {
       const orderResponse = await subscriptionService.createSubscriptionOrder({
         token,
         planId: plan.id,
+        currentVersionId: plan.currentVersionId,
       });
       console.log('[Subscription] Order create response:', orderResponse);
 

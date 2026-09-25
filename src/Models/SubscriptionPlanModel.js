@@ -37,6 +37,7 @@ class SubscriptionPlanModel {
     this.unit = getUnit(plan?.billingCycle);
     this.trialDays = plan?.trialDays;
     this.displayOrder = plan?.displayOrder ?? 0;
+    this.currentVersionId = plan?.currentVersionId;
 
     const planFeatureByFeatureId = new Map(
       (plan?.planFeatures || []).map(planFeature => [

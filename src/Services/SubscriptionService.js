@@ -82,11 +82,12 @@ class SubscriptionService {
     }
   }
 
-  async createSubscriptionOrder({token, planId}) {
+  async createSubscriptionOrder({token, planId, currentVersionId}) {
     const uri = API_URL + 'payment/create-order';
     const payload = {
       planId: String(planId),
       idempotencyKey: generateIdempotencyKey(),
+      currentVersionId: currentVersionId ? Number(currentVersionId) : undefined,
     };
     try {
       const headers = token ? {Authorization: `Bearer ${token}`} : undefined;
