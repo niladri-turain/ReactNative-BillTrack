@@ -31,9 +31,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   subContaienr: {
-    width: '100%',
+    width: '90%',
     borderRadius: 8,
-    padding: padding(16),
+    backgroundColor: '#fff',
   },
 });
 

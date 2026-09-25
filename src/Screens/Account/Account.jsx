@@ -36,7 +36,9 @@ import {
   useUpdateBusinessFields,
   useUser,
   useGstEnabled,
+  useSubscription,
 } from '../../Contexts/AuthContext';
+import {mapCurrentSubscription} from '../../Models/CurrentSubscriptionModel';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import {validateEmail, validateIndianPhone, validateName} from '../../utils/validator';
 import ToastService from '../../Components/Toasts/ToastService';
@@ -65,6 +67,8 @@ const Account = memo(() => {
   const userId = useUser('id');
   const logoUrl = useBusiness('logoUrl');
   const token = useAuthToken();
+  const subscription = useSubscription();
+  const currentPlan = mapCurrentSubscription(subscription);
   const isGstEnabled = useGstEnabled();
   const {logout, resetBusiness} = useAuth();
   const updateUserFields = useUpdateUserFields();
@@ -343,6 +347,22 @@ const Account = memo(() => {
     }
   };
 
+  const formatEndDate = dateString => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const suffix =
+      day % 10 === 1 && day !== 11
+        ? 'st'
+        : day % 10 === 2 && day !== 12
+        ? 'nd'
+        : day % 10 === 3 && day !== 13
+        ? 'rd'
+        : 'th';
+    const month = date.toLocaleDateString('en-GB', {month: 'short'});
+    return `${day}${suffix} ${month}, ${date.getFullYear()}`;
+  };
+
   const handleOtpChange = (value, index) => {
     if (value && !/^\d+$/.test(value)) return;
     const newOtp = [...otp];
@@ -368,6 +388,8 @@ const Account = memo(() => {
           userName={userName}
           userPhone={userPhone}
           logoUrl={logoUrl}
+          planName={currentPlan.planName}
+          onPressUpgrade={() => handleNavigation({screen: 'Subscription'})}
           onpressEditBtn={() => {
             setName(userName);
             setPhone(userPhone);
@@ -428,6 +450,22 @@ const Account = memo(() => {
               <Lucide name="crown" size={icon(22)} color={colors.primary} />
             }
             title="Subscriptions"
+            rightComponent={
+              <View style={styles.endDateRow}>
+                {!!currentPlan.endDate && (
+                  <View style={styles.endDateBadge}>
+                    <Text style={styles.endDateText}>
+                      {formatEndDate(currentPlan.endDate)}
+                    </Text>
+                  </View>
+                )}
+                <MaterialIcons
+                  name="arrow-forward-ios"
+                  size={icon(16)}
+                  color={'#000'}
+                />
+              </View>
+            }
           />
           <SettingItemsCard
             onpress={() => handleNavigation({screen: 'Transaction'})}
@@ -722,6 +760,22 @@ const styles = StyleSheet.create({
     fontSize: font(16),
     fontFamily: fonts.popRegular,
     color: '#6C6C6C',
+  },
+  endDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: gap(8),
+  },
+  endDateBadge: {
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: padding(8),
+    paddingVertical: padding(3),
+    borderRadius: icon(20),
+  },
+  endDateText: {
+    color: colors.primary,
+    fontFamily: fonts.inBold,
+    fontSize: font(10),
   },
   deleteContainer: {
     flexDirection: 'row',

@@ -1,385 +1,322 @@
-import BLEPrinter from 'react-native-bluetooth-classic';
+import {
+  BluetoothManager,
+  BluetoothEscposPrinter,
+} from 'react-native-bluetooth-escpos-printer';
 import {Alert, PermissionsAndroid, Platform} from 'react-native';
-import {formatDate, formatTime12Hour} from './helper';
+import {formatDate} from './helper';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 class PrinterService {
   async requestPermission() {
     if (Platform.OS === 'android') {
-      if (Platform.Version >= 31) {
-        const permissions = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        ]);
-        return (
-          permissions['android.permission.BLUETOOTH_CONNECT'] === 'granted'
-        );
-      } else {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      try {
+        if (Platform.Version >= 31) {
+          const granted = await PermissionsAndroid.requestMultiple([
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          ]);
+          return (
+            granted['android.permission.BLUETOOTH_SCAN'] ===
+              PermissionsAndroid.RESULTS.GRANTED &&
+            granted['android.permission.BLUETOOTH_CONNECT'] ===
+              PermissionsAndroid.RESULTS.GRANTED
+          );
+        } else {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          );
+          return granted === PermissionsAndroid.RESULTS.GRANTED;
+        }
+      } catch (err) {
+        console.warn(err);
+        return false;
       }
     }
     return true;
   }
 
-  async detectDevices() {
+  async scanDevices() {
     try {
       const granted = await this.requestPermission();
-      if (!granted) {
-        Alert.alert('Permission Denied');
-        return null;
-      }
-      const isBluetoothEnabled = await BLEPrinter.isBluetoothEnabled();
-      if (!isBluetoothEnabled) {
-        Alert.alert('Please enable Bluetooth');
-        return null;
-      }
-      const bondedPrinters = await BLEPrinter.getBondedDevices();
-      return bondedPrinters;
+      if (!granted) return [];
+
+      const devices = await BluetoothManager.scanDevices();
+      const parsedDevices = JSON.parse(devices);
+      // Combine paired and found devices
+      const allDevices = [
+        ...(parsedDevices.paired || []),
+        ...(parsedDevices.found || []),
+      ];
+
+      // Filter out null/undefined or duplicate addresses
+      const uniqueDevices = Array.from(new Set(allDevices.map(d => d.address)))
+        .map(address => allDevices.find(d => d.address === address))
+        .filter(d => d && d.address);
+
+      return uniqueDevices;
     } catch (error) {
-      return null;
+      console.error('Scan Error:', error);
+      return [];
     }
   }
 
-  convertTo12Hour=(datetime)=> {
-    const date = new Date(datetime.replace(" ", "T"));
-    
+  async connectDevice(address) {
+    try {
+      await BluetoothManager.connect(address);
+      return true;
+    } catch (error) {
+      console.error('Connection Error:', error);
+      return false;
+    }
+  }
+
+  convertTo12Hour = datetime => {
+    const date = new Date(datetime.replace(' ', 'T'));
     let hours = date.getHours();
     const minutes = date.getMinutes();
-    
-    const ampm = hours >= 12 ? "PM" : "AM";
+    const ampm = hours >= 12 ? 'PM' : 'AM';
     hours = hours % 12;
-    hours = hours ? hours : 12; // 0 becomes 12
-    
-    const mins = minutes < 10 ? "0" + minutes : minutes;
-    
+    hours = hours ? hours : 12;
+    const mins = minutes < 10 ? '0' + minutes : minutes;
     return `${hours}:${mins} ${ampm}`;
-}
+  };
+
+  cleanAmount = val => {
+    if (val === undefined || val === null) return '0.00';
+    // Remove all characters except digits, decimal point, and minus sign
+    const cleaned = String(val).replace(/[^\d.-]/g, '');
+    if (!cleaned || cleaned === '.') return '0.00';
+    return parseFloat(cleaned).toFixed(2);
+  };
 
   async printInvoice(
-    printer,
     invoice,
     invoiceItems,
     gstList,
     totalQuantity,
     subTotalAmount,
     business,
+    printerSize = '58',
   ) {
     try {
-      const granted = await this.requestPermission();
-      if (!granted) {
-        Alert.alert('Permission Denied');
-        return null;
-      }
-      const address = printer?.address;
-      const printerSize = printer?.printerSize || '80'; // Default to 80mm
+      // 58mm printer usually 32 characters
+      const lineLength = 32;
+      const dashLine = '-'.repeat(lineLength) + '\n';
+      const columnWidths = [12, 4, 8, 8]; // Item (12), Qty (4), Price (8), Amount (8) = 32
 
-      const connection = await BLEPrinter.connectToDevice(address);
-      if (!connection) {
-        Alert.alert(
-          'Printer Not Connected',
-          'Unable to establish connection with the printer. Please ensure the printer is turned on and within range.',
-        );
-        return null;
-      }
-      await connection.connect();
-
-      const ESC = '\x1B';
-      const GS = '\x1D';
-      const INIT = ESC + '@';
-      const ALIGN_CENTER = ESC + 'a' + '1';
-      const ALIGN_LEFT = ESC + 'a' + '0';
-      const ALIGN_RIGHT = ESC + 'a' + '2';
-      const BOLD_ON = ESC + 'E' + '1';
-      const BOLD_OFF = ESC + 'E' + '0';
-      const SIZE_NORMAL = GS + '!' + '\x00';
-      const SIZE_LARGE = GS + '!' + '\x11';
-      const SIZE_MEDIUM = GS + '!' + '\x00';
-      const SIZE_INBETWEEN = GS + '!' + '\x01';
-      const CUT_PAPER = GS + 'V' + '1';
-      const LINE_FEED = '\n';
-      const LINE_SPACING_NORMAL = '\x1B\x32'; // ESC 2
-
-      // Set layout configuration based on printer size
-      const config = this.getPrinterConfig(printerSize);
-      const DOTTED_LINE = '-'.repeat(config.lineWidth);
-
-      let printData = INIT;
-
-      // Header - Business Info (Centered)
-      printData += ALIGN_CENTER;
-      printData += SIZE_INBETWEEN + BOLD_ON;
-      printData += LINE_SPACING_NORMAL;
-      printData += `${business?.name}${LINE_FEED}`;
-      printData += SIZE_NORMAL + BOLD_OFF;
-
-      if (business?.phone) {
-        printData += `Phone: ${business.phone}${LINE_FEED}`;
-      }
-
-      printData += `${business?.street || ''}${LINE_FEED}`;
-      printData += `${business?.city || ''}, ${
-        business?.state || ''
-      }${LINE_FEED}`;
-      printData += `${business?.pinCode || ''}${LINE_FEED}`;
-
-      if (business?.gstNumber) {
-        printData += `GST NO: ${business.gstNumber}${LINE_FEED}`;
-      }
-
-      printData += DOTTED_LINE + LINE_FEED;
-
-      // Invoice Details
-      printData += ALIGN_LEFT;
-      printData += `Invoice No: ${invoice.invoiceNumber}${LINE_FEED}`;
-      printData += `Date: ${formatDate(invoice.createdAt)}${LINE_FEED}`;
-      printData += `Time: ${this.convertTo12Hour(invoice.createdAt)}${LINE_FEED}`;
-
-      if (invoice.customerNumber) {
-        printData += `Customer: +91 ${invoice.customerNumber}${LINE_FEED}`;
-      }
-
-      printData += DOTTED_LINE + LINE_FEED;
-
-      // Items Header
-      printData += BOLD_ON;
-      printData += this.formatLine('Item', 'Qty', 'Rate', 'Amount', config);
-      printData += BOLD_OFF;
-      printData += DOTTED_LINE + LINE_FEED;
-
-      // Items - Now with full item name on separate line if needed
-      invoiceItems.forEach(item => {
-        const itemName = item.productName || item.name;
-        const quantity = item.quantity.toString();
-        const rate = parseFloat(item.originalPrice).toFixed(2);
-        const amount = (
-          parseFloat(item.originalPrice) * parseInt(item.quantity)
-        ).toFixed(2);
-
-        // Print full item name on its own line(s) if it's long
-        if (itemName.length > config.itemNameWidth) {
-          // Print full item name on separate line(s)
-          printData += this.wrapText(itemName, config.lineWidth);
-          // Print quantity, rate, amount on next line with proper spacing
-          printData += this.formatLine('', quantity, rate, amount, config);
-        } else {
-          // Item name fits in one line with details
-          printData += this.formatLine(
-            itemName,
-            quantity,
-            rate,
-            amount,
-            config,
-          );
-        }
+      // Header
+      await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+      await BluetoothEscposPrinter.setBlob(0);
+      await BluetoothEscposPrinter.printText(`${business?.name || ''}\n\n`, {
+        encoding: 'GBK',
+        codepage: 0,
+        widthtimes: 1,
+        heigthtimes: 1,
+        fonttype: 1,
       });
 
-      printData += DOTTED_LINE + LINE_FEED;
+      if (business?.phone) {
+        await BluetoothEscposPrinter.printText(`Phone: ${business.phone}\n`, {});
+      }
+      await BluetoothEscposPrinter.printText(`${business?.street || ''} ${business?.city || ''}\n`, {});
+      if (business?.gstNumber) {
+        await BluetoothEscposPrinter.printText(`GST: ${business.gstNumber}\n`, {});
+      }
+      await BluetoothEscposPrinter.printText(dashLine, {});
 
-      // Totals
-      printData += this.formatTotalLine(
-        'Total Qty:',
-        totalQuantity.toString(),
-        config,
+      // Invoice Info
+      await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.LEFT);
+      await BluetoothEscposPrinter.printText(`Invoice No : ${invoice.invoiceNumber}\n`, {});
+      await BluetoothEscposPrinter.printText(`Date : ${formatDate(invoice.createdAt)}\n`, {});
+      await BluetoothEscposPrinter.printText(`Time : ${this.convertTo12Hour(invoice.createdAt)}\n`, {});
+      if (invoice.customerNumber) {
+        await BluetoothEscposPrinter.printText(`Customer : ${invoice.customerNumber}\n`, {});
+      }
+      await BluetoothEscposPrinter.printText(dashLine, {});
+
+      // Table Header
+      await BluetoothEscposPrinter.printColumn(
+        columnWidths,
+        [
+          BluetoothEscposPrinter.ALIGN.LEFT,
+          BluetoothEscposPrinter.ALIGN.CENTER,
+          BluetoothEscposPrinter.ALIGN.RIGHT,
+          BluetoothEscposPrinter.ALIGN.RIGHT,
+        ],
+        ['Item', 'Qty', 'Price', 'Amount'],
+        {},
       );
-      printData += this.formatTotalLine(
-        'Sub Total:',
-        `RS ${subTotalAmount.toFixed(2)}`,
-        config,
+      if (gstList && gstList.length > 0) {
+        await BluetoothEscposPrinter.printText('HSN (GST)\n', {fonttype: 1});
+      }
+      await BluetoothEscposPrinter.printText(dashLine, {});
+
+      // Items
+      for (const item of invoiceItems) {
+        const name = item.productName || item.name || '';
+        const qty = (item.quantity || 0).toString();
+        const price = this.cleanAmount(item.originalPrice);
+        const amount = this.cleanAmount(parseFloat(price) * parseInt(qty));
+
+        await BluetoothEscposPrinter.printColumn(
+          columnWidths,
+          [
+            BluetoothEscposPrinter.ALIGN.LEFT,
+            BluetoothEscposPrinter.ALIGN.CENTER,
+            BluetoothEscposPrinter.ALIGN.RIGHT,
+            BluetoothEscposPrinter.ALIGN.RIGHT,
+          ],
+          [name, qty, price, amount],
+          {},
+        );
+
+        // HSN/GST info below item
+        const hsnCode =
+          (typeof item.hsn === 'object' ? item.hsn?.hsnCode : item.hsn) ||
+          item.hsnCode ||
+          '';
+        const gstRate =
+          item.gstPercentage && parseFloat(item.gstPercentage) > 0
+            ? `${parseFloat(item.gstPercentage)}%`
+            : '';
+        const hsnInfo = `${hsnCode}${gstRate ? `(${gstRate})` : ''}`;
+
+        if (hsnInfo.trim()) {
+          await BluetoothEscposPrinter.printText(`${hsnInfo.trim()}\n`, {
+            fonttype: 1,
+          });
+        }
+      }
+      await BluetoothEscposPrinter.printText(dashLine, {});
+
+      // Summary
+      const summaryWidths = [20, 12];
+
+      await BluetoothEscposPrinter.printColumn(
+        summaryWidths,
+        [
+          BluetoothEscposPrinter.ALIGN.LEFT,
+          BluetoothEscposPrinter.ALIGN.RIGHT,
+        ],
+        ['Total Quantity :', totalQuantity.toString()],
+        {},
       );
 
-      const discountAmount=parseFloat(invoice
-        ?.discountAmount);
-      if(discountAmount>0){
-        printData += this.formatTotalLine(
-          'Discount:',
-          `RS -${discountAmount.toFixed(2)}`,
-          config,
+      await BluetoothEscposPrinter.printColumn(
+        summaryWidths,
+        [
+          BluetoothEscposPrinter.ALIGN.LEFT,
+          BluetoothEscposPrinter.ALIGN.RIGHT,
+        ],
+        ['Sub Total :', this.cleanAmount(subTotalAmount)],
+        {},
+      );
+
+      if (parseFloat(this.cleanAmount(invoice?.discountAmount)) > 0) {
+        await BluetoothEscposPrinter.printColumn(
+          summaryWidths,
+          [
+            BluetoothEscposPrinter.ALIGN.LEFT,
+            BluetoothEscposPrinter.ALIGN.RIGHT,
+          ],
+          ['Total Discount :', this.cleanAmount(invoice.discountAmount)],
+          {},
         );
       }
 
-      printData += DOTTED_LINE + LINE_FEED;
-
-      // GST Details
+      // GST Breakdown
       if (gstList && gstList.length > 0) {
-        gstList.forEach(gst => {
-          const gstLabel = `${gst.gstType} @ ${gst.gstPercentage}%`;
-          const gstAmount = `RS ${gst.gstAmount.toFixed(2)}`;
-          printData += this.formatTotalLine(gstLabel, gstAmount, config);
-        });
-        printData += DOTTED_LINE + LINE_FEED;
+        for (const gst of gstList) {
+          await BluetoothEscposPrinter.printColumn(
+            summaryWidths,
+            [
+              BluetoothEscposPrinter.ALIGN.LEFT,
+              BluetoothEscposPrinter.ALIGN.RIGHT,
+            ],
+            [
+              `${gst.gstType} ${gst.gstPercentage}% :`,
+              this.cleanAmount(gst.gstAmount),
+            ],
+            {},
+          );
+        }
       }
 
-      // Payment and Total
-      printData += this.formatTotalLine(
-        'Payment:',
-        invoice?.paymentMode.toUpperCase(),
-        config,
-      );
-      printData += BOLD_ON + SIZE_MEDIUM;
-      printData += this.formatTotalLine(
-        'Total Amount:',
-        `RS ${invoice.totalAmount}`,
-        config,
-      );
-      printData += SIZE_NORMAL + BOLD_OFF;
+      await BluetoothEscposPrinter.printText(dashLine, {});
 
-      printData += DOTTED_LINE + LINE_FEED;
+      // Payment Method
+      await BluetoothEscposPrinter.printColumn(
+        summaryWidths,
+        [
+          BluetoothEscposPrinter.ALIGN.LEFT,
+          BluetoothEscposPrinter.ALIGN.RIGHT,
+        ],
+        ['Payment :', String(invoice.paymentMode || 'CASH').toUpperCase()],
+        {},
+      );
+
+      // Final Total Amount
+      await BluetoothEscposPrinter.setBlob(1);
+      await BluetoothEscposPrinter.printColumn(
+        summaryWidths,
+        [
+          BluetoothEscposPrinter.ALIGN.LEFT,
+          BluetoothEscposPrinter.ALIGN.RIGHT,
+        ],
+        ['Total Amount :', this.cleanAmount(invoice.totalAmount)],
+        {},
+      );
+      await BluetoothEscposPrinter.setBlob(0);
+      await BluetoothEscposPrinter.printText(dashLine, {});
 
       // Footer
-      printData += ALIGN_CENTER + BOLD_ON;
-      printData += `Thank You & Visit Again${LINE_FEED}`;
-      printData += BOLD_OFF;
+      await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+      await BluetoothEscposPrinter.printText('Thank You & Visit Again\n', {});
 
-      // Cut paper
-      printData += CUT_PAPER;
-      // Send to printer
-      await connection.write(printData);
-      await connection.disconnect();
-    } catch (error) {
-      Alert.alert(
-        'Printer Error',
-        'Failed to print invoice. Please check if the printer is connected and try again.',
-      );
-      return null;
-    }
-  }
+      // Auto-increment Token Logic
+      try {
+        let tokenCount = await AsyncStorage.getItem('print_token_count');
+        tokenCount = tokenCount ? parseInt(tokenCount) + 1 : 1;
+        await AsyncStorage.setItem('print_token_count', tokenCount.toString());
 
-  // Get printer configuration based on size
-  getPrinterConfig(printerSize) {
-    const size = printerSize.toLowerCase();
-
-    if (size.includes('58')) {
-      // 58mm printer - smaller format
-      return {
-        lineWidth: 32,
-        itemNameWidth: 10,
-        qtyWidth: 3,
-        rateWidth: 5,
-        amountWidth: 7,
-        totalLabelWidth: 20,
-        totalValueWidth: 12,
-      };
-    } else if (size.includes('80')) {
-      // 80mm printer - standard format
-      return {
-        lineWidth: 48,
-        itemNameWidth: 18,
-        qtyWidth: 5,
-        rateWidth: 8,
-        amountWidth: 10,
-        totalLabelWidth: 28,
-        totalValueWidth: 20,
-      };
-    } else if (size.includes('104')) {
-      // 104mm printer - larger format
-      return {
-        lineWidth: 64,
-        itemNameWidth: 28,
-        qtyWidth: 6,
-        rateWidth: 10,
-        amountWidth: 12,
-        totalLabelWidth: 40,
-        totalValueWidth: 24,
-      };
-    } else {
-      // Default to 80mm
-      return {
-        lineWidth: 48,
-        itemNameWidth: 18,
-        qtyWidth: 5,
-        rateWidth: 8,
-        amountWidth: 10,
-        totalLabelWidth: 28,
-        totalValueWidth: 20,
-      };
-    }
-  }
-
-  // New function to wrap long text across multiple lines
-  wrapText(text, maxWidth) {
-    let result = '';
-    let currentLine = '';
-    const words = text.split(' ');
-
-    for (let word of words) {
-      if ((currentLine + word).length <= maxWidth) {
-        currentLine += (currentLine ? ' ' : '') + word;
-      } else {
-        if (currentLine) {
-          result += currentLine + '\n';
-        }
-        // If single word is longer than maxWidth, break it
-        if (word.length > maxWidth) {
-          while (word.length > maxWidth) {
-            result += word.substring(0, maxWidth) + '\n';
-            word = word.substring(maxWidth);
-          }
-          currentLine = word;
-        } else {
-          currentLine = word;
-        }
+        await BluetoothEscposPrinter.printText('\n', {});
+        await BluetoothEscposPrinter.setBlob(1);
+        await BluetoothEscposPrinter.printText(`Token ${tokenCount}\n`, {
+          widthtimes: 1,
+          heigthtimes: 1,
+        });
+        await BluetoothEscposPrinter.setBlob(0);
+      } catch (e) {
+        console.error('Token increment error:', e);
       }
+
+      // UPI QR Code for Payment
+      try {
+        const upiId = '7059238072@ybl';
+        const totalAmount = this.cleanAmount(invoice.totalAmount);
+        const businessName = business?.name || 'Payment';
+        const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(businessName)}&am=${totalAmount}&cu=INR`;
+
+        await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+        await BluetoothEscposPrinter.printText('\nScan to Pay\n', {});
+        await BluetoothEscposPrinter.printQRCode(upiUrl, 200, BluetoothEscposPrinter.ERROR_CORRECTION.L);
+        await BluetoothEscposPrinter.printText(`\nAmount: RS ${totalAmount}\n`, {fonttype: 1});
+        await BluetoothEscposPrinter.printText(`UPI ID: ${upiId}\n`, {fonttype: 1});
+      } catch (e) {
+        console.error('QR Code print error:', e);
+      }
+
+      await BluetoothEscposPrinter.printText('\n\n', {});
+      await BluetoothEscposPrinter.cutPaper();
+
+      return true;
+    } catch (error) {
+      console.error('Print Error:', error);
+      return false;
     }
-
-    if (currentLine) {
-      result += currentLine + '\n';
-    }
-
-    return result;
-  }
-
-  // formatLine(col1, col2, col3, col4, config) {
-  //   const c1 = this.padRight(col1, config.itemNameWidth);
-  //   const c2 = this.padLeft(col2, config.qtyWidth);
-  //   const c3 = this.padLeft(col3, config.rateWidth);
-  //   const c4 = this.padLeft(col4, config.amountWidth);
-  //   return `${c1}${c2} ${c3} ${c4}\n`;
-  // }
-  formatLine(col1, col2, col3, col4, config) {
-  const c1 = this.padRight(col1, config.itemNameWidth);
-  const c2 = this.padLeft(col2, config.qtyWidth);
-  const c3 = this.padLeft(col3, config.rateWidth);
-  const c4 = this.padLeft(col4, config.amountWidth);
-  return `${c1}  ${c2}  ${c3}  ${c4}\n`;
-}
-
-  // Helper function to format total lines (Label: Value)
-  formatTotalLine(label, value, config) {
-    const l = this.padRight(label, config.totalLabelWidth);
-    const v = this.padLeft(value, config.totalValueWidth);
-    return `${l}${v}\n`;
-  }
-
-  // Helper function to pad right
-  padRight(str, length) {
-    str = str.toString();
-    while (str.length < length) {
-      str += ' ';
-    }
-    return str.substring(0, length);
-  }
-
-  // Helper function to pad left
-  padLeft(str, length) {
-    str = str.toString();
-    while (str.length < length) {
-      str = ' ' + str;
-    }
-    return str.substring(0, length);
-  }
-
-  // Helper function to truncate string
-  truncateString(str, maxLength) {
-    if (str.length > maxLength) {
-      return str.substring(0, maxLength - 2) + '..';
-    }
-    return str;
   }
 }
 
 const printerService = new PrinterService();
-
 export default printerService;

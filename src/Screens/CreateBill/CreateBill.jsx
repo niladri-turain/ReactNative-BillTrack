@@ -48,6 +48,7 @@ import {
 import {useProduct} from '../../Contexts/ProductContexts';
 import ToastService from '../../Components/Toasts/ToastService';
 import {invoiceService} from '../../Services/InvoiceService';
+import {smsService} from '../../Services/SmsService';
 import {
   useAuth,
   useAuthToken,
@@ -56,10 +57,7 @@ import {
   useGstEnabled,
   useUser,
 } from '../../Contexts/AuthContext';
-import {
-  useAppSettings,
-  useAppSettingsValue,
-} from '../../Contexts/AppSettingContexts';
+import {useAppSettingsValue} from '../../Contexts/AppSettingContexts';
 import {usePrinter} from '../../Contexts/PrinterContext';
 import {calculateInvoiceData, generateInvoices} from '../../utils/helper';
 import printerService from '../../utils/PrinterService';
@@ -79,7 +77,7 @@ import Animated, {
 import {useInvoice} from '../../Contexts/InvoiceContext';
 import {useBottomTabBarHeight} from '@react-navigation/bottom-tabs';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useFocusEffect} from '@react-navigation/native';
+import {useFocusEffect, useNavigation} from '@react-navigation/native';
 
 const {width: screenWidth} = Dimensions.get('window');
 const NUM_COLUMNS = isTabletDevice ? 4 : 3;
@@ -95,6 +93,7 @@ const ITEM_WIDTH =
 const PAYMENT_OPTIONS = ['cash', 'card', 'upi'];
 
 const CreateBill = () => {
+  const navigation = useNavigation();
   const {width: screenWidth, height: screenHeight} = useWindowDimensions();
   const inset = useSafeAreaInsets();
 
@@ -103,13 +102,12 @@ const CreateBill = () => {
   const floatingButtonBottom = bottomBarHeight + padding(20);
 
   const addInvoices = useInvoice('addInvoice');
-  const {printer} = usePrinter();
+  const {printer, setSelectedPrinter} = usePrinter();
   const business = useBusiness();
   const userName = useUser('name');
   const businessName = userName || business?.name;
   const userPhone = useUser('phone');
   const {updateNumberOfInvoices} = useAuth();
-  const {getByKey} = useAppSettings();
   const token = useAuthToken();
   const {Products, resetProductCount} = useProduct();
   const product = Products || [];
@@ -119,6 +117,8 @@ const CreateBill = () => {
   const [isPaymentModalVisible, setPaymentModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [discount, setDiscount] = useState(0);
+  const discountInvalidToastShown = useRef(false);
+  const discountInputRef = useRef(null);
 
   const [isDiscountOpen, setIsDiscountOpen] = useState(false);
 
@@ -133,6 +133,8 @@ const CreateBill = () => {
   const createButtonRef = useRef(null);
   const phoneNumberRef = useRef(null);
   const sendButtonRef = useRef(null);
+  const bottomSheetRef = useRef(null);
+  const snapPoints = useMemo(() => ['40%'], []);
 
   const measureRef = (key, ref) => {
     if (ref.current) {
@@ -231,6 +233,8 @@ const CreateBill = () => {
   const sentWhatAppEnabled = useAppSettingsValue(
     'SEND_WHATSAPP_BILL_ON_CREATE_BILL',
   );
+  const sendToSmsEnabled = useAppSettingsValue('SEND_TO_SMS');
+  const printOnCreateBill = useAppSettingsValue('PRINT_ON_CREATE_BILL');
   const isPremiumPlanAndActive = useSubscription('isPremiumPlanAndActive');
   const isGstEnabled = useGstEnabled();
 
@@ -243,15 +247,70 @@ const CreateBill = () => {
   // LOADING STATE
   const [isPrintLoading, setIsPrintLoading] = useState(false);
   const [isSendLoading, setIsSendLoading] = useState(false);
-
-  // BOTTOMSHEET
-  const bottomSheetRef = useRef(null);
-  const snapPoints = useMemo(() => ['30%'], []);
+  const [isSaveLoading, setIsSaveLoading] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [devices, setDevices] = useState([]);
+  const [isPendingPrint, setIsPendingPrint] = useState(false);
+  const [isScannerModalVisible, setIsScannerModalVisible] = useState(false);
 
   const handleCloseBottomSheet = useCallback(() => {
     bottomSheetRef.current?.close();
     Keyboard.dismiss();
   }, []);
+
+  const handleOpenScanner = useCallback(() => {
+    setIsScannerModalVisible(true);
+    startScan();
+  }, []);
+
+  const handleCloseScanner = useCallback(() => {
+    setIsScannerModalVisible(false);
+    setIsPendingPrint(false);
+  }, []);
+
+  const startScan = async () => {
+    setIsScanning(true);
+    try {
+      const allDevices = await printerService.scanDevices();
+      setDevices(allDevices);
+    } catch (error) {
+      console.error('Scan error:', error);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleDeviceSelect = async (device) => {
+    setIsScanning(true);
+    try {
+      const connected = await printerService.connectDevice(device.address);
+      if (connected) {
+        await setSelectedPrinter(device);
+        ToastService.show({
+          message: 'Printer connected successfully',
+          type: 'success',
+          position: 'top',
+        });
+        handleCloseScanner();
+
+        // If we were waiting to print, trigger it now
+        if (isPendingPrint) {
+          setIsPendingPrint(false);
+          printData();
+        }
+      } else {
+        ToastService.show({
+          message: 'Failed to connect printer',
+          type: 'error',
+          position: 'top',
+        });
+      }
+    } catch (error) {
+      console.error('Connection error:', error);
+    } finally {
+      setIsScanning(false);
+    }
+  };
 
   const renderBackdrop = useMemo(
     () => props =>
@@ -334,6 +393,13 @@ const CreateBill = () => {
       });
       return;
     }
+
+    if (!printer) {
+      setIsPendingPrint(true);
+      handleOpenScanner();
+      return;
+    }
+
     try {
       setIsPrintLoading(true);
       const selectedItems = product
@@ -350,6 +416,7 @@ const CreateBill = () => {
             hsnId: item?.hsnId || null,
             hsnCode: item?.hsn?.hsnCode || "",
             rate: Number(item?.price).toFixed(2),
+            originalPrice: item?.price,
             gstType: hasHSN ? 'cgst/sgst' : null,
             gstPercentage: hasHSN
               ? (
@@ -380,24 +447,16 @@ const CreateBill = () => {
           type: 'success',
           position: 'top',
         });
-        setPhoneNumber('');
-        setDiscount(0);
-        setQuantity(0);
-        setTotalPrice(0);
-        setIsDiscountOpen(false);
-        resetProductCount();
-        setProductsWithHsnError([]);
-        handleCloseBottomSheet();
-        const printOnCreateBill = getByKey('PRINT_ON_CREATE_BILL');
-        if (printOnCreateBill && isPremiumPlanAndActive) {
-          const invoice = data?.invoice;
-          const invoiceItems = await invoiceService.getInvoiceItems(
-            invoice?.id,
-          );
-          const {gstListCalculate, items, subTotalAmount, totalQuantity} =
-            calculateInvoiceData(invoiceItems?.items, invoice?.discountAmount);
+
+        const invoice = data?.invoice;
+        const invoiceItems = await invoiceService.getInvoiceItems(
+          invoice?.id,
+        );
+        const {gstListCalculate, items, subTotalAmount, totalQuantity} =
+          calculateInvoiceData(invoiceItems?.items, invoice?.discountAmount);
+
+        if (printer) {
           await printerService.printInvoice(
-            printer,
             invoice,
             items,
             gstListCalculate,
@@ -406,11 +465,80 @@ const CreateBill = () => {
             {...business, name: businessName},
           );
         }
+
         await updateInvoiceNumber(numberOfInvoices);
+        restartClickOfHeader();
+        navigation.navigate('Home');
+      }
+    } catch (error) {
+      console.error('Print logic error:', error);
+    } finally {
+      setIsPrintLoading(false);
+    }
+  };
+
+  const saveOnlyData = async () => {
+    if (phoneNumber && !validateIndianPhone(phoneNumber)) {
+      ToastService.show({
+        message: 'Please enter a valid phone number',
+        type: 'error',
+        position: 'top',
+      });
+      return;
+    }
+    try {
+      setIsSaveLoading(true);
+      const selectedItems = product
+        .filter(item => item.count)
+        .map(item => {
+          const hasHSN =
+            item?.hsn &&
+            typeof item.hsn === 'object' &&
+            Object.keys(item.hsn).length > 0;
+
+          return {
+            productName: item?.name,
+            quantity: item?.count,
+            hsnId: item?.hsnId || null,
+            hsnCode: item?.hsn?.hsnCode || '',
+            rate: Number(item?.price).toFixed(2),
+            gstType: hasHSN ? 'cgst/sgst' : null,
+            gstPercentage: hasHSN
+              ? (
+                  Number(item.hsn?.cGst || 0) + Number(item.hsn?.sGst || 0)
+                ).toFixed(2)
+              : null,
+          };
+        });
+
+      const numberOfInvoices = await getBusinessInvoiceNumber();
+      const invoiceNo = generateInvoices(business?.prefix, numberOfInvoices);
+
+      const data = await invoiceService.createInvoice({
+        token,
+        customerNumber: phoneNumber,
+        items: selectedItems,
+        paymentMode: paymentMethod,
+        discount,
+        invoiceNumber: invoiceNo,
+        businessName: businessName,
+        userPhone: userPhone,
+      });
+
+      if (data?.status) {
+        addInvoices(data?.invoice);
+        ToastService.show({
+          message: 'Bill Created Successfully',
+          type: 'success',
+          position: 'top',
+        });
+        await updateInvoiceNumber(numberOfInvoices);
+        restartClickOfHeader();
+        navigation.navigate('Home');
       }
     } catch (error) {
     } finally {
-      setIsPrintLoading(false);
+      setIsSaveLoading(false);
     }
   };
 
@@ -479,7 +607,7 @@ const CreateBill = () => {
         handleCloseBottomSheet();
         await updateInvoiceNumber(numberOfInvoices);
         if (sentWhatAppEnabled) {
-          await sendToWhatsApp({
+          const whatsappSent = await sendToWhatsApp({
             businessName: businessName,
             invoiceNumber: data?.invoice?.invoiceNumber,
             createdAt: data?.invoice?.createdAt,
@@ -488,6 +616,19 @@ const CreateBill = () => {
             paymentMode: data?.invoice?.paymentMode,
             businessId: business?.id,
           });
+
+          // Only once WhatsApp goes through do we also send the SMS —
+          // the same SMS the InvoiceCard "SMS" button sends.
+          if (whatsappSent && sendToSmsEnabled && data?.invoice?.customerNumber) {
+            await smsService.sendInvoiceSms({
+              token,
+              businessName: businessName,
+              phone: data?.invoice?.customerNumber,
+              invoiceNumber: data?.invoice?.invoiceNumber,
+              totalAmount: data?.invoice?.totalAmount,
+              businessId: business?.id,
+            });
+          }
         }
       }
     } catch (error) {
@@ -600,13 +741,36 @@ const CreateBill = () => {
                   />
                   {/* Added autoFocus to improve UX */}
                   <TextInput
+                    ref={discountInputRef}
                     style={styles.floatingButtonTextInput}
                     autoFocus={true}
                     value={discount}
                     onChangeText={text => {
+                      if (!/^\d*\.?\d*$/.test(text)) {
+                        // The keyboard has already drawn the invalid character
+                        // natively before this handler runs, so force the
+                        // native text back to the last valid value instead of
+                        // just skipping the state update — otherwise the
+                        // rejected character stays visible on screen.
+                        discountInputRef.current?.setNativeProps({
+                          text: String(discount),
+                        });
+                        if (!discountInvalidToastShown.current) {
+                          discountInvalidToastShown.current = true;
+                          ToastAndroid.show(
+                            'Only numbers are allowed, no special characters or spaces',
+                            ToastAndroid.LONG,
+                          );
+                        }
+                        return;
+                      }
+                      discountInvalidToastShown.current = false;
                       if (text <= totalPrice) {
                         setDiscount(text);
                       } else {
+                        discountInputRef.current?.setNativeProps({
+                          text: String(discount),
+                        });
                         ToastAndroid.show(
                           'Discount cannot be greater than total amount',
                           ToastAndroid.LONG,
@@ -699,6 +863,19 @@ const CreateBill = () => {
             </View>
             <View style={styles.bottomSheetButtonContaienr}>
               <TouchableOpacity
+                style={[
+                  styles.bottomSheetButton,
+                  {backgroundColor: colors.primary},
+                ]}
+                onPress={saveOnlyData}
+                disabled={isSaveLoading}>
+                {isSaveLoading ? (
+                  <ActivityIndicator size={'small'} color={'#fff'} />
+                ) : (
+                  <Text style={styles.bottomSheetButtonText}>SAVE</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
                 ref={sendButtonRef}
                 onLayout={() => measureRef('send', sendButtonRef)}
                 style={[
@@ -713,24 +890,88 @@ const CreateBill = () => {
                   <ActivityIndicator size={'small'} color={'#fff'} />
                 ) : (
                   <Text style={styles.bottomSheetButtonText}>SEND</Text>
-                )}{' '}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.bottomSheetButton,
-                  {backgroundColor: colors.error},
-                ]}
-                onPress={printData}
-                disabled={isPrintLoading}>
-                {isPrintLoading ? (
-                  <ActivityIndicator size={'small'} color={'#fff'} />
-                ) : (
-                  <Text style={styles.bottomSheetButtonText}>PRINT</Text>
                 )}
               </TouchableOpacity>
+              {printOnCreateBill && (
+                <TouchableOpacity
+                  style={[
+                    styles.bottomSheetButton,
+                    {backgroundColor: colors.error},
+                  ]}
+                  onPress={printData}
+                  disabled={isPrintLoading}>
+                  {isPrintLoading ? (
+                    <ActivityIndicator size={'small'} color={'#fff'} />
+                  ) : (
+                    <Text style={styles.bottomSheetButtonText}>PRINT</Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           </BottomSheetView>
         </BottomSheet>
+
+        {/* Bluetooth Scanner Modal */}
+        <CommonModal
+          visible={isScannerModalVisible}
+          handleClose={handleCloseScanner}>
+          <View style={styles.modalContent}>
+            <View style={styles.bottomSheetContaienr}>
+              <Text style={styles.bottomSheetTitleText}>Select Printer</Text>
+              <TouchableOpacity onPress={handleCloseScanner}>
+                <Ionicons name="close" size={24} color={'#000'} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{maxHeight: 400}}>
+              {isScanning ? (
+                <View style={{marginVertical: 20, alignItems: 'center'}}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={{marginTop: 10, fontFamily: fonts.popRegular}}>
+                    Scanning for devices...
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={devices}
+                  keyExtractor={item => item.address}
+                  renderItem={({item}) => (
+                    <TouchableOpacity
+                      style={styles.deviceItem}
+                      onPress={() => handleDeviceSelect(item)}>
+                      <Ionicons
+                        name="print-outline"
+                        size={20}
+                        color={colors.primary}
+                      />
+                      <View style={{marginLeft: 15}}>
+                        <Text style={styles.deviceName}>
+                          {item.name || 'Unknown Device'}
+                        </Text>
+                        <Text style={styles.deviceAddress}>{item.address}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                  ListEmptyComponent={() => (
+                    <Text style={{textAlign: 'center', marginVertical: 20}}>
+                      No devices found. Make sure Bluetooth is on.
+                    </Text>
+                  )}
+                />
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.bottomSheetButton,
+                {backgroundColor: colors.primary, marginTop: 20},
+              ]}
+              onPress={startScan}>
+              <Text style={styles.bottomSheetButtonText}>RE-SCAN</Text>
+            </TouchableOpacity>
+          </View>
+        </CommonModal>
+
         {showGuide && guideTargets.create && guideStep === 2 && quantity > 0 && (
           <StepGuide
             target={guideTargets.create}
@@ -871,6 +1112,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderWidth: 5,
     borderColor: colors.border,
+  },
+  deviceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  deviceName: {
+    fontFamily: fonts.popSemiBold,
+    fontSize: font(14),
+    color: '#000',
+  },
+  deviceAddress: {
+    fontFamily: fonts.popRegular,
+    fontSize: font(12),
+    color: '#666',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: padding(20),
+    width: '100%',
   },
 });
 

@@ -1,4 +1,11 @@
-import {createContext, useContext, useEffect, useMemo, useState} from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SplashScreen from 'react-native-splash-screen';
 import {ToastAndroid} from 'react-native';
@@ -192,7 +199,7 @@ const AuthProvider = ({children}) => {
     } catch (error) {}
   };
 
-  const resetSubscription = async (subscriptionData = null) => {
+  const resetSubscription = useCallback(async (subscriptionData = null) => {
     try {
       await AsyncStorage.setItem(
         'subscription',
@@ -211,7 +218,7 @@ const AuthProvider = ({children}) => {
       };
       setSubscription(settableSubscription);
     } catch (error) {}
-  };
+  }, []);
 
   useEffect(() => {
     if (isOnline) {

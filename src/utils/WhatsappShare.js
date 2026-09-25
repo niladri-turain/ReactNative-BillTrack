@@ -13,7 +13,7 @@ const sendToWhatsApp = async ({
   // Safety check
   if (!customerNumber) {
     ToastAndroid.show('Customer mobile number not found', ToastAndroid.SHORT);
-    return;
+    return false;
   }
 
   // Make sure phone number is in international format
@@ -26,6 +26,31 @@ const sendToWhatsApp = async ({
     } else {
       phoneNumber = '+' + phoneNumber; // fallback
     }
+  }
+
+  // Shorten URL logic using sttn.in POST API
+  const longUrl = `https://dev.billtrack.co.in/invoice-details/${invoiceNumber}9876543210/${businessId}1234567890`;
+  let invoiceUrl = longUrl;
+
+  try {
+    const response = await fetch('https://sttn.in/api/shorten', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2Vyc19pZCI6NzIsIm1vYmlsZSI6IjcwNTkyMzgwNzIiLCJpYXQiOjE3ODg1OTA0MTYsImV4cCI6MTgyMDE0ODAxNn0.qgl2gK_LZnil3pwUcGWpwofxMNGBUZic1cdnmabU0ws'
+      },
+      body: JSON.stringify({
+        originalUrl: longUrl,
+        type: 'static'
+      })
+    });
+    const data = await response.json();
+    console.log('[WhatsappShare] Shorten response:', data);
+    if (data.shortUrl) {
+      invoiceUrl = data.shortUrl.replace('/api/shorten', '');
+    }
+  } catch (error) {
+    console.log('URL shortening failed, using original URL:', error);
   }
 
   // Your beautiful WhatsApp message
@@ -44,7 +69,7 @@ Paid via:          ${paymentMode || 'Cash'}
 Thank you for your payment!
 
 Download Invoice:
-https://bill.billtrack.co.in/invoice-details/${invoiceNumber}9876543210/${businessId}1234567890
+${invoiceUrl}
 
 Need help? Just reply here.
 
@@ -52,7 +77,7 @@ Warm regards,
 Team ${businessName}`;
 
   console.log(message);
-  console.log(`https://bill.billtrack.co.in/invoice-details/${invoiceNumber}9876543210/${businessId}1234567890`);
+  console.log(invoiceUrl);
 
   const whatsappUrl = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(
     message,
@@ -70,11 +95,13 @@ Team ${businessName}`;
       )}`;
       await Linking.openURL(webUrl);
     }
+    return true;
   } catch (error) {
     Alert.alert(
       'WhatsApp Not Found',
       'Please install WhatsApp to share invoice.',
     );
+    return false;
   }
 };
 

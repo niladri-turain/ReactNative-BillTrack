@@ -1,4 +1,4 @@
-import {FlatList, StyleSheet, Text, View} from 'react-native';
+import {FlatList, RefreshControl, StyleSheet, Text, View} from 'react-native';
 import React, {useCallback, useMemo, useState} from 'react';
 import {Layout} from '../Layout';
 import {SecondaryHeader} from '../../Components';
@@ -8,21 +8,29 @@ import {useAuthToken} from '../../Contexts/AuthContext';
 import {subscriptionService} from '../../Services/SubscriptionService';
 import {useFocusEffect} from '@react-navigation/native';
 import {colors} from '../../utils/colors';
+import {mapSubscriptionTransactions} from '../../Models/SubscriptionTransactionModel';
 
 const Transaction = () => {
   const token = useAuthToken();
 
   const [transactions, setTransactions] = useState([]);
   const [query, setQuery] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const currentDate = new Date();
 
   const fetchTransactions = async () => {
     try {
       const data = await subscriptionService.allSubscriptions(token);
       if (data.status) {
-        setTransactions(data.data);
+        setTransactions(mapSubscriptionTransactions(data.data));
       }
     } catch (error) {}
+  };
+
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchTransactions();
+    setIsRefreshing(false);
   };
 
   useFocusEffect(
@@ -48,7 +56,7 @@ const Transaction = () => {
 
   return transactions.filter(item => {
     return (
-      item.plan?.toLowerCase().includes(q) ||
+      item.planName?.toLowerCase().includes(q) ||
       item.startDate?.toLowerCase().includes(q) ||
       item.endDate?.toLowerCase().includes(q) ||
       item.createdAt?.toLowerCase().includes(q) ||
@@ -77,10 +85,18 @@ const Transaction = () => {
         contentContainerStyle={styles.container}
         data={filteredTransactions}
         keyExtractor={(_, index) => index.toString()}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
         renderItem={({item}) => (
           <View style={styles.cardContainer}>
             <View style={styles.textContainer}>
-              <Text style={styles.bigText}>{item.plan.toUpperCase()}</Text>
+              <Text style={styles.planNameText}>{item.planName}</Text>
               {currentDate > new Date(item.endDate) ? (
                 <Text style={[styles.smallText, {color: colors.error}]}>
                   Plan Expired
@@ -128,6 +144,10 @@ const styles = StyleSheet.create({
   },
   bigText: {
     fontSize: font(16),
+    fontFamily: fonts.inSemiBold,
+  },
+  planNameText: {
+    fontSize: font(13),
     fontFamily: fonts.inSemiBold,
   },
   textContainer: {

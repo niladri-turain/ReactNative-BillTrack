@@ -1,6 +1,15 @@
 import axios from 'axios';
 import {API_URL} from '../utils/config';
 
+// RFC4122 v4 UUID, used as a fresh idempotency key on every order-create call
+const generateIdempotencyKey = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.floor(Math.random() * 16);
+    const v = c === 'x' ? r : (r % 4) + 8;
+    return v.toString(16);
+  });
+};
+
 class SubscriptionService {
   constructor() {
     this.baseUrl = API_URL + 'subscription';
@@ -21,32 +30,81 @@ class SubscriptionService {
     }
   }
 
-  async purchaseSubscription({
+  async activateSubscription({
     token,
-    plan,
-    orderId,
-    paymentId,
-    paymentSignature,
-    amount,
+    planId,
+    razorpayOrderId,
+    razorpayPaymentId,
+    razorpaySignature,
   }) {
-    const uri = this.baseUrl;
+    const uri = API_URL + 'payment/activate-subscription';
+    const payload = {
+      planId: String(planId),
+      orderId: razorpayOrderId,
+      paymentId: razorpayPaymentId,
+      paymentSignature: razorpaySignature,
+    };
     try {
-      const payload = {
-        plan: plan,
-        orderId: orderId,
-        paymentId: paymentId,
-        paymentSignature: paymentSignature,
-        amount: amount,
-      };
-      const response = await axios.post(uri, payload, {
-        headers: {Authorization: `Bearer ${token}`},
-      });
+      const headers = token ? {Authorization: `Bearer ${token}`} : undefined;
+      console.log(`[SubscriptionService] POST ${uri}`);
+      console.log('[SubscriptionService] Body:', payload);
+      const response = await axios.post(uri, payload, {headers});
       console.log(`[SubscriptionService] POST ${uri} - Status: ${response.status}`);
+      console.log(`[SubscriptionService] POST ${uri} - Response:`, response.data);
       return response.data;
     } catch (error) {
-      console.log(`[SubscriptionService] POST ${uri} - Error Status: ${error.response?.status}`);
-      const data = error.response?.data;
-      return data;
+      console.error(`[SubscriptionService] POST ${uri} - Error`);
+      console.error('[SubscriptionService] URL:', uri);
+      console.error('[SubscriptionService] Body:', payload);
+      console.error('[SubscriptionService] Error Status:', error.response?.status);
+      console.error('[SubscriptionService] Error Response:', error.response?.data);
+      console.error('[SubscriptionService] Error Message:', error.message);
+      return error.response?.data;
+    }
+  }
+
+  async getActivePlans(token) {
+    const uri = API_URL + 'subscription-plan/active';
+    try {
+      const headers = token ? {Authorization: `Bearer ${token}`} : undefined;
+      console.log(`[SubscriptionService] GET ${uri}`);
+      const response = await axios.get(uri, {headers});
+      console.log(`[SubscriptionService] GET ${uri} - Status: ${response.status}`);
+      console.log(`[SubscriptionService] GET ${uri} - Response:`, response.data);
+      return response.data;
+    } catch (error) {
+      console.error(`[SubscriptionService] GET ${uri} - Error`);
+      console.error('[SubscriptionService] URL:', uri);
+      console.error('[SubscriptionService] Error Status:', error.response?.status);
+      console.error('[SubscriptionService] Error Response:', error.response?.data);
+      console.error('[SubscriptionService] Error Message:', error.message);
+      return error.response?.data;
+    }
+  }
+
+  async createSubscriptionOrder({token, planId, currentVersionId}) {
+    const uri = API_URL + 'payment/create-order';
+    const payload = {
+      planId: String(planId),
+      idempotencyKey: generateIdempotencyKey(),
+      currentVersionId: currentVersionId ? Number(currentVersionId) : undefined,
+    };
+    try {
+      const headers = token ? {Authorization: `Bearer ${token}`} : undefined;
+      console.log(`[SubscriptionService] POST ${uri}`);
+      console.log('[SubscriptionService] Body:', payload);
+      const response = await axios.post(uri, payload, {headers});
+      console.log(`[SubscriptionService] POST ${uri} - Status: ${response.status}`);
+      console.log(`[SubscriptionService] POST ${uri} - Response:`, response.data);
+      return response.data;
+    } catch (error) {
+      console.error(`[SubscriptionService] POST ${uri} - Error`);
+      console.error('[SubscriptionService] URL:', uri);
+      console.error('[SubscriptionService] Body:', payload);
+      console.error('[SubscriptionService] Error Status:', error.response?.status);
+      console.error('[SubscriptionService] Error Response:', error.response?.data);
+      console.error('[SubscriptionService] Error Message:', error.message);
+      return error.response?.data;
     }
   }
 

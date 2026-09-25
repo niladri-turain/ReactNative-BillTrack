@@ -503,16 +503,16 @@ const styles = StyleSheet.create({
   salesContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'stretch',
     marginVertical: 10,
   },
   sales: {
     width: '48%',
     backgroundColor: '#F7F7F7',
-    paddingHorizontal: padding(16),
-    paddingVertical: padding(15),
+    paddingHorizontal: padding(12),
+    paddingVertical: padding(12),
     borderRadius: icon(10),
-    gap: gap(5),
+    gap: gap(4),
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -522,16 +522,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   salesText: {
-    fontSize: font(12),
-    fontFamily: fonts.inSemiBold,
+    fontSize: font(11),
+    fontFamily: fonts.inMedium,
+    color: '#00000090',
   },
   salesAmount: {
-    fontSize: font(18),
-    fontFamily: fonts.inSemiBold,
+    fontSize: font(16),
+    fontFamily: fonts.inBold,
+    color: '#000',
   },
   salesBottomText: {
-    fontSize: font(10),
+    fontSize: font(9),
     fontFamily: fonts.inRegular,
+    color: '#00000080',
   },
   container: {
     // padding: padding(16),
@@ -558,34 +561,6 @@ const styles = StyleSheet.create({
     fontSize: font(12),
     fontFamily: fonts.inMedium,
     color: '#000000',
-  },
-  // salesContainer: {
-  //   marginTop: margin(15),
-  //   gap: gap(10),
-  // },
-  // sales: {
-  //   flexDirection: 'row',
-  //   alignItems: 'center',
-  //   gap: gap(10),
-  // },
-  salesPercentage: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  salesText: {
-    // fontSize: 14,
-    fontFamily: fonts.inMedium,
-    color: '#00000090',
-  },
-  salesAmount: {
-    // fontSize: 24,
-    fontFamily: fonts.inBold,
-    color: '#000',
-  },
-  salesPercentageText: {
-    // fontSize: 12,
-    fontFamily: fonts.inMedium,
-    color: colors.sucess,
   },
   bottomSheetHeaderContainer: {
     flexDirection: 'row',
