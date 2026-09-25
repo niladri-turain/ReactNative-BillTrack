@@ -16,7 +16,7 @@ import {useBusiness, useUser} from '../../Contexts/AuthContext';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {invoiceService} from '../../Services/InvoiceService';
 import {API_URL} from '../../utils/config';
-import {icon, font, gap, margin, isTabletDevice} from '../../utils/responsive';
+import {icon, font, gap, margin, padding, isTabletDevice} from '../../utils/responsive';
 import {
   calculateInvoiceData,
   formatDate,
@@ -45,6 +45,7 @@ const InvoiceDetails = () => {
   const route = useRoute();
   const {invoice} = route.params;
   const business = useBusiness();
+  const isCancelled = invoice?.status?.toLowerCase() === 'canceled';
 
   useEffect(() => {
     const backAction = () => {
@@ -240,6 +241,14 @@ const InvoiceDetails = () => {
           </Text>
         </View>
       ) : (
+        <>
+        {isCancelled && (
+          <View pointerEvents="none" style={styles.cancelledStampOverlay}>
+            <View style={styles.cancelledStampBox}>
+              <Text style={styles.cancelledStampText}>CANCELLED</Text>
+            </View>
+          </View>
+        )}
         <ScrollView
           style={{flex: 1}}
           contentContainerStyle={{paddingBottom: 20}}>
@@ -592,6 +601,7 @@ const InvoiceDetails = () => {
             </Text>
           </View>
         </ScrollView>
+        </>
       )}
     </Layout>
   );
@@ -600,6 +610,31 @@ const InvoiceDetails = () => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
+  },
+  cancelledStampOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelledStampBox: {
+    borderWidth: 4,
+    borderColor: colors.error,
+    borderRadius: 8,
+    paddingVertical: padding(6),
+    paddingHorizontal: padding(24),
+    opacity: 0.85,
+    transform: [{rotate: '-25deg'}],
+  },
+  cancelledStampText: {
+    fontSize: font(32),
+    fontFamily: fonts.inBold,
+    color: colors.error,
+    letterSpacing: 2,
   },
   topContainer: {
     justifyContent: 'center',
