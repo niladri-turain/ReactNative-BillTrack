@@ -24,6 +24,7 @@ const AuthProvider = ({children}) => {
   const [business, setBusiness] = useState(null);
   const [subscription, setSubscription] = useState(null);
   const [isLoggedOut, setIsLoggedOut] = useState(false);
+  const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
 
   const isOnline = useNetworkContext('isOnline');
 
@@ -139,14 +140,20 @@ const AuthProvider = ({children}) => {
   };
 
   const subscriptionCheck = async (forceRefresh = false) => {
+    if (isCheckingSubscription && !forceRefresh) return;
+
     try {
       const token = await AsyncStorage.getItem('token');
       if (token) {
+        setIsCheckingSubscription(true);
         const subscriptionData = await AsyncStorage.getItem('subscription');
-        if (subscriptionData && subscription !== null && !forceRefresh) {
+
+        // If we have cached data and not forcing a refresh, use it
+        if (subscriptionData && !forceRefresh) {
           const parsedSubscription = JSON.parse(subscriptionData);
           const endDate = new Date(parsedSubscription?.endDate);
           const currentDate = new Date();
+
           if (endDate > currentDate) {
             const isPremiumPlanAndActive =
               (parsedSubscription?.plan === 'pro' ||
@@ -158,50 +165,51 @@ const AuthProvider = ({children}) => {
               isPremiumPlanAndActive,
             };
             setSubscription(settableSubscription);
-          } else {
-            await AsyncStorage.removeItem('subscription');
-            setSubscription({
-              plan: 'na',
-              isActive: false,
-              isPremiumPlanAndActive: false,
-            });
-          }
-        } else {
-          const currentSubscription =
-            await subscriptionService.currentSubscription(token);
-          if (currentSubscription?.status) {
-            const endDate = new Date(currentSubscription?.data?.endDate);
-            const currentDate = new Date();
-            const isPremiumPlanAndActive =
-              (currentSubscription?.data?.plan === 'pro' ||
-                currentSubscription?.data?.plan === 'basic') &&
-              endDate > currentDate;
-            const settableSubscription = {
-              ...currentSubscription?.data,
-              isActive: endDate > currentDate,
-              isPremiumPlanAndActive,
-            };
-            setSubscription(settableSubscription);
-            await AsyncStorage.setItem(
-              'subscription',
-              JSON.stringify(settableSubscription),
-            );
-          } else {
-            await AsyncStorage.removeItem('subscription');
-            setSubscription({
-              plan: 'na',
-              isActive: false,
-              isPremiumPlanAndActive: false,
-            });
+            setIsCheckingSubscription(false);
+            return; // Exit early, no need to call API
           }
         }
+
+        // If no cache or forced refresh or cache expired, call API
+        const currentSubscription =
+          await subscriptionService.currentSubscription(token);
+
+        if (currentSubscription?.status) {
+          const endDate = new Date(currentSubscription?.data?.endDate);
+          const currentDate = new Date();
+          const isPremiumPlanAndActive =
+            (currentSubscription?.data?.plan === 'pro' ||
+              currentSubscription?.data?.plan === 'basic') &&
+            endDate > currentDate;
+          const settableSubscription = {
+            ...currentSubscription?.data,
+            isActive: endDate > currentDate,
+            isPremiumPlanAndActive,
+          };
+          setSubscription(settableSubscription);
+          await AsyncStorage.setItem(
+            'subscription',
+            JSON.stringify(settableSubscription),
+          );
+        } else {
+          await AsyncStorage.removeItem('subscription');
+          setSubscription({
+            plan: 'na',
+            isActive: false,
+            isPremiumPlanAndActive: false,
+          });
+        }
       }
-    } catch (error) {}
+    } catch (error) {
+      console.error('[AuthContext] subscriptionCheck error:', error);
+    } finally {
+      setIsCheckingSubscription(false);
+    }
   };
 
   const refreshSubscription = useCallback(async () => {
     await subscriptionCheck(true);
-  }, [subscription]);
+  }, []);
 
   const resetSubscription = useCallback(async (subscriptionData = null) => {
     try {
