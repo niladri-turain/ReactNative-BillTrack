@@ -140,7 +140,15 @@ const BusinessSetup = () => {
       });
       return;
     }
-    if (email.length > 0 && !validateEmail(email)) {
+    if (email.length === 0) {
+      Toast.show({
+        message: 'Email ID is required',
+        type: 'error',
+        position: 'top',
+      });
+      return;
+    }
+    if (!validateEmail(email)) {
       Toast.show({
         message: 'Enter a valid email',
         type: 'error',
@@ -246,7 +254,7 @@ const BusinessSetup = () => {
               onPress={() => handleOpenBottomSheet('businessType')}
             />
             <SimpleTextInput
-              placeholder="Email(Optional)"
+              placeholder="Email"
               maxLength={100}
               keyboardType="email-address"
               value={email}

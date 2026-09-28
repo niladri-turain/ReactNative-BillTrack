@@ -138,12 +138,12 @@ const AuthProvider = ({children}) => {
     } catch (error) {}
   };
 
-  const subscriptionCheck = async () => {
+  const subscriptionCheck = async (forceRefresh = false) => {
     try {
       const token = await AsyncStorage.getItem('token');
       if (token) {
         const subscriptionData = await AsyncStorage.getItem('subscription');
-        if (subscriptionData && subscription !== null) {
+        if (subscriptionData && subscription !== null && !forceRefresh) {
           const parsedSubscription = JSON.parse(subscriptionData);
           const endDate = new Date(parsedSubscription?.endDate);
           const currentDate = new Date();
@@ -199,6 +199,10 @@ const AuthProvider = ({children}) => {
     } catch (error) {}
   };
 
+  const refreshSubscription = useCallback(async () => {
+    await subscriptionCheck(true);
+  }, [subscription]);
+
   const resetSubscription = useCallback(async (subscriptionData = null) => {
     try {
       await AsyncStorage.setItem(
@@ -247,9 +251,10 @@ const AuthProvider = ({children}) => {
       resetBusiness,
       subscription,
       resetSubscription,
+      refreshSubscription,
       updateNumberOfInvoices
     };
-  }, [authToken, isLoggedOut, user, business, subscription]);
+  }, [authToken, isLoggedOut, user, business, subscription, refreshSubscription]);
 
   if (isLoading) {
     return null;

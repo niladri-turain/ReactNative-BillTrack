@@ -202,7 +202,7 @@ const Subscription = memo(() => {
       const orderResponse = await subscriptionService.createSubscriptionOrder({
         token,
         planId: plan.id,
-        currentVersionId: plan.currentVersionId,
+        planVersionId: plan.planVersionId,
       });
       console.log('[Subscription] Order create response:', orderResponse);
 
@@ -376,9 +376,10 @@ const Subscription = memo(() => {
                   </Text>
                   {plan?.id === currentPlan.planId && (
                     <Text style={styles.activePlanBadge} numberOfLines={1}>
-                      {plan.price === 0
+                      {/* {plan.price === 0
                         ? getRemainingTime(currentPlan.endDate)
-                        : 'Active Plan'}
+                        :  */}
+                        Active Plan
                     </Text>
                   )}
                 </View>

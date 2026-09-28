@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {memo, useState, useEffect, useRef} from 'react';
+import React, {memo, useState, useEffect, useRef, useCallback} from 'react';
 import {Layout} from '../Layout';
 import {
   ProfileCard,
@@ -27,7 +27,7 @@ import {font, gap, icon, margin, padding} from '../../utils/responsive';
 import Lucide from '@react-native-vector-icons/lucide';
 import MaterialIcons from '@react-native-vector-icons/material-icons';
 import AntDesign from '@react-native-vector-icons/ant-design';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {
   useAuth,
   useAuthToken,
@@ -70,7 +70,7 @@ const Account = memo(() => {
   const subscription = useSubscription();
   const currentPlan = mapCurrentSubscription(subscription);
   const isGstEnabled = useGstEnabled();
-  const {logout, resetBusiness} = useAuth();
+  const {logout, resetBusiness, refreshSubscription} = useAuth();
   const updateUserFields = useUpdateUserFields();
   const updateBusinessFields = useUpdateBusinessFields();
   const {clearAllProducts} = useProduct();
@@ -114,6 +114,12 @@ const Account = memo(() => {
   useEffect(() => {
     setEmail(userEmail);
   }, [userEmail]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshSubscription();
+    }, [refreshSubscription]),
+  );
 
   // LOADING STATE
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);

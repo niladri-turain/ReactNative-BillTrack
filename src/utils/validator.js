@@ -45,59 +45,10 @@ function validateEmail(email) {
   }
 
   const trimmedEmail = email.trim();
+  // Enhanced Regex for email validation
+  const emailPattern = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
 
-  if (!trimmedEmail) {
-    return false;
-  }
-
-  const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-
-  if (!emailPattern.test(trimmedEmail)) {
-    return false;
-  }
-
-  const parts = trimmedEmail.split('@');
-
-  if (parts.length !== 2) {
-    return false;
-  }
-
-  const [localPart, domainPart] = parts;
-
-  if (localPart.length === 0 || localPart.length > 64) {
-    return false;
-  }
-
-  if (localPart.startsWith('.') || localPart.endsWith('.')) {
-    return false;
-  }
-
-  if (localPart.includes('..')) {
-    return false;
-  }
-
-  if (domainPart.length === 0 || domainPart.length > 255) {
-    return false;
-  }
-
-  if (
-    domainPart.startsWith('.') ||
-    domainPart.endsWith('.') ||
-    domainPart.startsWith('-') ||
-    domainPart.endsWith('-')
-  ) {
-    return false;
-  }
-
-  if (domainPart.includes('..')) {
-    return false;
-  }
-
-  if (!domainPart.includes('.')) {
-    return false;
-  }
-
-  return true;
+  return emailPattern.test(String(trimmedEmail).toLowerCase());
 }
 
 function validateIndianPincode(pincode) {

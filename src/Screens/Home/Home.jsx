@@ -52,6 +52,7 @@ const Home = () => {
   const [isInitialLoad, setIsInitialLoad] = useState(invoices.length === 0);
   const [lastInvoicesLength, setLastInvoicesLength] = useState(invoices.length);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
 
   // useEffect(() => {
   //   // Show modal if user is on a free plan or has no active subscription
@@ -124,7 +125,13 @@ const Home = () => {
         {isInitialLoad && !salesData ? (
           <HomeChartShimmer />
         ) : (
-          <HomeChartComponent refreshTrigger={refreshTrigger}  />
+          <HomeChartComponent
+            refreshTrigger={refreshTrigger}
+            onSubscriptionRequired={(msg) => {
+              setModalMessage(msg);
+              setShowSubscriptionModal(true);
+            }}
+          />
         )}
         
         {/* <HomeTopCard /> */}
@@ -168,14 +175,15 @@ const Home = () => {
         </View>
       </ScrollView>
 
-      {/* <SubscriptionModal
+      <SubscriptionModal
         visible={showSubscriptionModal}
+        message={modalMessage}
         onClose={() => setShowSubscriptionModal(false)}
         onUpgrade={() => {
           setShowSubscriptionModal(false);
           navigation.navigate('Account', {screen: 'Subscription'});
         }}
-      /> */}
+      />
     </Layout>
   );
 };
