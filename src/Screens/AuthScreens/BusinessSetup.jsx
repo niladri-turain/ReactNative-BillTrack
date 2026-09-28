@@ -142,7 +142,7 @@ const BusinessSetup = () => {
     }
     if (email.length === 0) {
       Toast.show({
-        message: 'Email ID is required',
+        message: 'Please enter your email',
         type: 'error',
         position: 'top',
       });
