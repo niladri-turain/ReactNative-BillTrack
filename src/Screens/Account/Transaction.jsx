@@ -9,6 +9,7 @@ import {subscriptionService} from '../../Services/SubscriptionService';
 import {useFocusEffect} from '@react-navigation/native';
 import {colors} from '../../utils/colors';
 import {mapSubscriptionTransactions} from '../../Models/SubscriptionTransactionModel';
+import MaterialIcons from '@react-native-vector-icons/material-icons';
 
 const Transaction = () => {
   const token = useAuthToken();
@@ -106,6 +107,14 @@ const Transaction = () => {
                   Until {formatDate(item.endDate)}
                 </Text>
               )}
+              <View style={styles.downloadInvoiceButton}>
+                <MaterialIcons
+                  name="file-download"
+                  size={font(20)}
+                  color={colors.primary}
+                />
+                <Text style={styles.downloadInvoiceText}>Download invoice</Text>
+              </View>
             </View>
             <View style={styles.textContainer}>
               <Text
@@ -155,6 +164,18 @@ const styles = StyleSheet.create({
   },
   smallText: {
     fontSize: font(12),
+    fontFamily: fonts.inSemiBold,
+  },
+  downloadInvoiceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: gap(4),
+    marginTop: 2,
+  },
+  downloadInvoiceText: {
+    color: colors.primary,
+    fontSize: font(11),
     fontFamily: fonts.inSemiBold,
   },
 });
