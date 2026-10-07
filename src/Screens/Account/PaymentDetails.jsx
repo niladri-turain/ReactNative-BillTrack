@@ -100,21 +100,25 @@ const PaymentDetails = memo(() => {
   return (
     <Layout>
       <SecondaryHeader title="Payment Details" isSearch={false} />
-      <ScrollView style={styles.container}>
-        <View style={styles.content}>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => setIsModalVisible(true)}>
-            <Ionicons name="add-circle-outline" size={icon(24)} color={colors.white} />
-            <Text style={styles.addButtonText}>Add UPI ID</Text>
-          </TouchableOpacity>
-
+      <View style={styles.screen}>
+        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+          {/* Keep this heading available for later use.
           <Text style={styles.sectionTitle}>Your UPI IDs</Text>
+          */}
 
           {upiIds.length === 0 ? (
             <View style={styles.emptyState}>
-              <MaterialIcons name="qr-code-scanner" size={icon(60)} color={colors.border} />
-              <Text style={styles.emptyText}>No UPI IDs added yet.</Text>
+              <View style={styles.emptyIconWrap}>
+                <MaterialIcons
+                  name="qr-code-scanner"
+                  size={icon(40)}
+                  color={colors.primary}
+                />
+              </View>
+              <Text style={styles.emptyText}>No UPI IDs yet</Text>
+              <Text style={styles.emptyDescription}>
+                Add a UPI ID to keep your payment details handy.
+              </Text>
             </View>
           ) : (
             upiIds.map((item) => (
@@ -141,8 +145,19 @@ const PaymentDetails = memo(() => {
               </TouchableOpacity>
             ))
           )}
-        </View>
-      </ScrollView>
+        </ScrollView>
+
+        {upiIds.length === 0 && (
+          <TouchableOpacity
+            style={styles.floatingAddButton}
+            onPress={() => setIsModalVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Add UPI ID">
+            <Text style={styles.addButtonText}>Add UPI ID</Text>
+            <Ionicons name="add" size={icon(20)} color="#fff" />
+          </TouchableOpacity>
+        )}
+      </View>
 
       <CommonModal
         visible={isModalVisible}
@@ -166,24 +181,37 @@ const PaymentDetails = memo(() => {
 });
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.white,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.white,
   },
   content: {
     padding: padding(16),
+    flexGrow: 1,
   },
-  addButton: {
-    backgroundColor: colors.primary,
+  floatingAddButton: {
+    position: 'absolute',
+    alignSelf: 'center',
+    bottom: padding(24),
+    backgroundColor: colors.sucess,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: padding(14),
-    borderRadius: 8,
-    marginBottom: margin(20),
+    paddingHorizontal: padding(18),
+    height: icon(46),
+    borderRadius: icon(30),
+    gap: padding(10),
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 3},
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   addButtonText: {
-    color: colors.white,
+    color: '#fff',
     fontSize: font(16),
     fontFamily: fonts.Bold,
     marginLeft: margin(8),
@@ -253,15 +281,32 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   emptyState: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: margin(50),
+    paddingBottom: padding(50),
+  },
+  emptyIconWrap: {
+    width: icon(80),
+    height: icon(80),
+    borderRadius: icon(56),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary + '12',
+    marginBottom: margin(20),
   },
   emptyText: {
-    fontSize: font(16),
+    fontSize: font(15),
+    color: colors.text,
+    fontFamily: fonts.Bold,
+  },
+  emptyDescription: {
+    maxWidth: '78%',
+    marginTop: margin(8),
     color: colors.textGrey,
-    marginTop: margin(10),
+    fontSize: font(12),
     fontFamily: fonts.Medium,
+    textAlign: 'center',
   },
   modalContent: {
     padding: padding(20),
