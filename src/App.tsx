@@ -25,6 +25,7 @@ import {
   OfflineScreen,
   Onboarding,
   OtpVerify,
+  PaymentDetails,
   PrinterSetup,
   Product,
   SalesReport,
@@ -165,6 +166,7 @@ const AccountStack = memo(() => {
       <Stack.Screen name="ActiveProducts" component={ActiveProducts} />
       <Stack.Screen name="Transaction" component={Transaction} />
        <Stack.Screen name="CancelInvoiceList" component={CancelInvoiceList} />
+       <Stack.Screen name="PaymentDetails" component={PaymentDetails} />
 
          <Stack.Screen
         name="InvoiceDetails"

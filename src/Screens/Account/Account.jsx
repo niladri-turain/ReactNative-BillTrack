@@ -530,6 +530,13 @@ const Account = memo(() => {
           />
           <SettingItemsCard
             mainIcon={
+              <MaterialIcons name="payment" size={icon(24)} color={colors.primary} />
+            }
+            title="Payment Details"
+            onpress={() => handleNavigation({screen: 'PaymentDetails'})}
+          />
+          <SettingItemsCard
+            mainIcon={
               <MaterialIcons
                 name="logout"
                 size={icon(22)}

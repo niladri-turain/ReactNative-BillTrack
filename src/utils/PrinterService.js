@@ -293,7 +293,22 @@ class PrinterService {
 
       // UPI QR Code for Payment
       try {
-        const upiId = '7059238072@ybl';
+        let upiId = '7059238072@ybl'; // fallback value
+        try {
+          const storedUpi = await AsyncStorage.getItem('upi_ids');
+          if (storedUpi) {
+            const upiList = JSON.parse(storedUpi);
+            const defaultUpiObj = upiList.find(item => item.isDefault);
+            if (defaultUpiObj && defaultUpiObj.upi) {
+              upiId = defaultUpiObj.upi;
+            } else if (upiList.length > 0) {
+              upiId = upiList[0].upi;
+            }
+          }
+        } catch (storageError) {
+          console.error('Error fetching default UPI from storage:', storageError);
+        }
+
         const totalAmount = this.cleanAmount(invoice.totalAmount);
         const businessName = business?.name || 'Payment';
         const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(businessName)}&am=${totalAmount}&cu=INR`;
