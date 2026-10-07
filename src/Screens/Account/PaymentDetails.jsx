@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ToastAndroid,
+  Alert,
 } from 'react-native';
 import {Layout} from '../Layout';
 import {SecondaryHeader, SimpleTextInput, CommonModal} from '../../Components';
@@ -25,6 +26,7 @@ const PaymentDetails = memo(() => {
   const [newLabel, setNewLabel] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const loadUpiIds = useCallback(async () => {
     if (!token) return;
@@ -89,6 +91,39 @@ const PaymentDetails = memo(() => {
     }
   };
 
+  const handleDeleteUpi = id => {
+    Alert.alert('Delete UPI ID', 'Are you sure you want to delete this UPI ID?', [
+      {text: 'Cancel', style: 'cancel'},
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          setDeletingId(id);
+          try {
+            const response = await businessUpiService.deleteUpiId(token, id);
+            if (response?.status) {
+              await loadUpiIds();
+              ToastAndroid.show(
+                response?.message || 'UPI ID deleted successfully',
+                ToastAndroid.SHORT,
+              );
+            } else {
+              ToastAndroid.show(
+                response?.message || 'Unable to delete UPI ID',
+                ToastAndroid.LONG,
+              );
+            }
+          } catch (error) {
+            console.error('[PaymentDetails] Failed to delete UPI ID:', error);
+            ToastAndroid.show('Unable to delete UPI ID', ToastAndroid.LONG);
+          } finally {
+            setDeletingId(null);
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <Layout>
       <SecondaryHeader title="Payment Details" isSearch={false} />
@@ -132,7 +167,18 @@ const PaymentDetails = memo(() => {
                   )}
                 </View>
                 <View style={styles.actionContainer}>
-                  <Ionicons name="trash-outline" size={icon(20)} color={colors.error} />
+                  <TouchableOpacity
+                    style={styles.deleteIcon}
+                    onPress={() => handleDeleteUpi(item.id)}
+                    disabled={deletingId === item.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete ${item.upiId}`}>
+                    <Ionicons
+                      name="trash-outline"
+                      size={icon(20)}
+                      color={colors.error}
+                    />
+                  </TouchableOpacity>
                   <View style={styles.radioOuter}>
                     {item.isDefault && <View style={styles.radioInner} />}
                   </View>
