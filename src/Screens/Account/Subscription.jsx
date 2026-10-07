@@ -209,7 +209,7 @@ const Subscription = memo(() => {
       if (!orderResponse?.status) {
         console.error('[Subscription] Order creation failed:', orderResponse);
         ToastAndroid.show(
-          orderResponse?.message || 'Failed to create order',
+          'Payment failure',
           ToastAndroid.LONG,
         );
         return;
@@ -273,7 +273,7 @@ const Subscription = memo(() => {
             '[Subscription] activateSubscription failed:',
             activationResponse,
           );
-          ToastAndroid.show(activationResponse?.message, ToastAndroid.LONG);
+          ToastAndroid.show('Payment failure', ToastAndroid.LONG);
         })
         .catch(error => {
           console.error('[Subscription] Razorpay checkout error/cancelled:', {
@@ -285,14 +285,11 @@ const Subscription = memo(() => {
             metadata: error?.metadata,
             raw: error,
           });
-          ToastAndroid.show(
-            error?.description || 'Payment Cancelled',
-            ToastAndroid.LONG,
-          );
+          ToastAndroid.show('Payment failure', ToastAndroid.LONG);
         });
     } catch (error) {
       console.error('[Subscription] handleSubscribe error:', error);
-      ToastAndroid.show('Something went wrong. Please try again.', ToastAndroid.LONG);
+      ToastAndroid.show('Payment failure', ToastAndroid.LONG);
     } finally {
       setIsLoading(false);
     }
