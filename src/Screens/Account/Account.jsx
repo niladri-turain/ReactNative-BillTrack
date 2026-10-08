@@ -313,7 +313,7 @@ const Account = memo(() => {
 
     try {
       setIsVerifyLoading(true);
-      const data = await authService.changePhone(userId, phone);
+      const data = await authService.changePhone(userId, phone, token);
       if (data.status) {
         setOtpSentMessage(data.message);
         setShowOtpFields(true);
@@ -340,7 +340,7 @@ const Account = memo(() => {
 
     try {
       setIsVerifyLoading(true);
-      const data = await authService.verifyPhone(userId, enteredOtp);
+      const data = await authService.verifyPhone(userId, enteredOtp, token);
       if (data.status) {
         ToastAndroid.show(data.message, ToastAndroid.SHORT);
         updateUserFields({phone: phone});

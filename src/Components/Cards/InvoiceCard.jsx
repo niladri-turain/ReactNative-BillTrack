@@ -221,7 +221,7 @@ const InvoiceCard = ({invoice, onRefresh}) => {
     }
     try {
       setIsPrintingLoading(true);
-      const invoiceItems = await invoiceService.getInvoiceItems(invoice?.id);
+      const invoiceItems = await invoiceService.getInvoiceItems(invoice?.id, token);
       const {gstListCalculate, items, subTotalAmount, totalQuantity} =
         calculateInvoiceData(invoiceItems?.items, invoice?.discountAmount);
       await printerService.printInvoice(

@@ -451,6 +451,7 @@ const CreateBill = () => {
         const invoice = data?.invoice;
         const invoiceItems = await invoiceService.getInvoiceItems(
           invoice?.id,
+          token,
         );
         const {gstListCalculate, items, subTotalAmount, totalQuantity} =
           calculateInvoiceData(invoiceItems?.items, invoice?.discountAmount);

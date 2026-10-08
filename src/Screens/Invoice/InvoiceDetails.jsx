@@ -12,7 +12,7 @@ import React, {useEffect, useMemo, useState} from 'react';
 import {Layout} from '../Layout';
 import {DottedDivider, SecondaryHeader} from '../../Components';
 import {fonts} from '../../utils/fonts';
-import {useBusiness, useUser} from '../../Contexts/AuthContext';
+import {useAuthToken, useBusiness, useUser} from '../../Contexts/AuthContext';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {invoiceService} from '../../Services/InvoiceService';
 import {API_URL} from '../../utils/config';
@@ -44,6 +44,7 @@ const InvoiceDetails = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const {invoice} = route.params;
+  const token = useAuthToken();
   const business = useBusiness();
   const isCancelled = invoice?.status?.toLowerCase() === 'canceled';
 
@@ -132,7 +133,7 @@ const InvoiceDetails = () => {
   const fetchInvoices = async () => {
     try {
       setIsLoading(true);
-      const data = await invoiceService.getInvoiceItems(invoice.id);
+      const data = await invoiceService.getInvoiceItems(invoice.id, token);
       if (data?.status) {
         const bName =
           data?.businessName ||
@@ -204,7 +205,7 @@ const InvoiceDetails = () => {
 
   useEffect(() => {
     fetchInvoices();
-  }, [invoice]);
+  }, [invoice, token]);
 
   const hasAnyHsn = invoiceItems.some(item => item?.hsnCode || item?.hsn || (item?.gstPercentage && parseFloat(item?.gstPercentage) > 0));
 
