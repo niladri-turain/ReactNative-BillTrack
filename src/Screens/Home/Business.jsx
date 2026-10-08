@@ -58,7 +58,8 @@ const Business = () => {
 
   // STATE VARIABLES
   const [mobileNumber, setMobileNumber] = useState(business?.phone || userPhone || '');
-  const [email, setEmail] = useState(userEmail || '');
+  const businessEmail = business?.email || business?.businessEmail || userEmail || '';
+  const [email, setEmail] = useState(businessEmail);
   const [gstNumber, setGstNumber] = useState(business?.gstNumber || '');
   const [street, setStreet] = useState(business?.street || '');
   const [city, setCity] = useState(business?.city || '');
@@ -85,8 +86,17 @@ const Business = () => {
   }, []);
 
   useEffect(() => {
-    setEmail(userEmail || '');
-  }, [userEmail]);
+    setEmail(businessEmail);
+  }, [businessEmail]);
+
+  useEffect(() => {
+    console.log('[Business Settings] Business email on page:', {
+      businessEmail: business?.email,
+      businessEmailAlias: business?.businessEmail,
+      userEmail,
+      displayedEmail: email,
+    });
+  }, [business, businessEmail, email, userEmail]);
 
   const handleOpenModal = ({type}) => {
     setModalType(type);
@@ -563,7 +573,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   onpress={() => {}}
                   textFontSize={14}
                   disabled={true}
-                  value={userEmail || ''}
+                  value={email}
                   showIcon={false}
                 />
                 <NavigationCardWithValue
