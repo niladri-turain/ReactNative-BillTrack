@@ -35,6 +35,8 @@ const SecondaryHeader = ({
   isNotification = true,
   isApps = false,
   isRestart = false,
+  isTransaction = false,
+  onTransactionPress = () => {},
   handleRestartClick = () => {},
   handleAppClick = () => {},
   handleBack: customHandleBack, // Added customHandleBack prop
@@ -100,6 +102,20 @@ const SecondaryHeader = ({
       </View>
       {!isSearchActive && (
         <View style={styles.rightContainer}>
+          {isTransaction && (
+            <TouchableOpacity
+              style={styles.transactionButton}
+              onPress={onTransactionPress}
+              accessibilityRole="button"
+              accessibilityLabel="View transactions">
+              <MaterialDesignIcons
+                name="swap-horizontal"
+                size={icon(24)}
+                color={colors.primary}
+              />
+              <Text style={styles.transactionText}>Transaction</Text>
+            </TouchableOpacity>
+          )}
           {isApps && (
             <TouchableOpacity onPress={handleAppClick}>
               <Octicons name="apps" size={icon(22)} />
@@ -179,6 +195,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: gap(10),
+  },
+  transactionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: gap(4),
+    paddingVertical: padding(6),
+  },
+  transactionText: {
+    color: colors.primary,
+    fontSize: font(14),
+    fontFamily: fonts.onMedium,
   },
   title: {
     fontSize: font(16),

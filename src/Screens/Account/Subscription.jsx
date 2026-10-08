@@ -18,6 +18,7 @@ import React, {
   useTransition,
 } from 'react';
 import {useFocusEffect} from '@react-navigation/native';
+import {useNavigation} from '@react-navigation/native';
 import {Layout} from '../Layout';
 import {DottedDivider, Loader, SecondaryHeader} from '../../Components';
 import {
@@ -48,6 +49,7 @@ import {mapSubscriptionActivation} from '../../Models/SubscriptionActivationMode
 import {mapSubscriptionOrder} from '../../Models/SubscriptionOrderModel';
 
 const Subscription = memo(() => {
+  const navigation = useNavigation();
   const subscription = useSubscription();
   const {resetSubscription} = useAuth();
   const token = useAuthToken();
@@ -307,7 +309,7 @@ const Subscription = memo(() => {
   if (isPlansLoading && plans.length === 0) {
     return (
       <Layout>
-        <SecondaryHeader title="Subscription" isSearch={false} />
+        <SecondaryHeader title="Subscription" isSearch={false} isTransaction onTransactionPress={() => navigation.navigate('Transaction')} />
         <View style={styles.centerContainer}>
           <Loader />
         </View>
@@ -318,7 +320,7 @@ const Subscription = memo(() => {
   if (plansError && plans.length === 0) {
     return (
       <Layout>
-        <SecondaryHeader title="Subscription" isSearch={false} />
+        <SecondaryHeader title="Subscription" isSearch={false} isTransaction onTransactionPress={() => navigation.navigate('Transaction')} />
         <View style={styles.centerContainer}>
           <Text style={styles.errorText}>{plansError}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={fetchActivePlans}>
@@ -331,7 +333,7 @@ const Subscription = memo(() => {
 
   return (
     <Layout>
-      <SecondaryHeader title="Subscription" isSearch={false} />
+      <SecondaryHeader title="Subscription" isSearch={false} isTransaction onTransactionPress={() => navigation.navigate('Transaction')} />
 
       <ScrollView
         style={{flex: 1}}

@@ -474,17 +474,6 @@ const Account = memo(() => {
             }
           />
           <SettingItemsCard
-            onpress={() => handleNavigation({screen: 'Transaction'})}
-            mainIcon={
-              <Lucide
-                name="arrow-right-left"
-                size={icon(22)}
-                color={colors.primary}
-              />
-            }
-            title="Transaction"
-          />
-          <SettingItemsCard
             mainIcon={
               <MaterialIcons
                 name="settings"
