@@ -109,7 +109,7 @@ class SubscriptionService {
   }
 
   async allSubscriptions(token) {
-    const uri = this.baseUrl + '/subscription';
+    const uri = this.baseUrl + '/invoices?page=1&limit=20';
     const headers = {
       Authorization: `Bearer ${token}`,
     };
