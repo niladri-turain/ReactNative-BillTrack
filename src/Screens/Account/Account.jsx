@@ -265,18 +265,21 @@ const Account = memo(() => {
       const businessPayload = {
         token: token,
         name: name,
+        email: email,
         phone: phone,
       };
-      await businessService.updateBusiness(businessPayload);
+      const businessUpdate = await businessService.updateBusiness(businessPayload);
 
       if (data.status) {
         ToastAndroid.show(data.message, ToastAndroid.SHORT, ToastAndroid.TOP);
         updateUserFields({name: name, email: email, phone: phone});
 
-        if (data.business) {
-          resetBusiness({...data.business, name: name, phone: phone});
+        if (businessUpdate?.business) {
+          resetBusiness({...businessUpdate.business, name, email, phone});
+        } else if (data.business) {
+          resetBusiness({...data.business, name, email, phone});
         } else {
-          updateBusinessFields({name: name, phone: phone});
+          updateBusinessFields({name, email, phone});
         }
 
         handleCloseModal();
