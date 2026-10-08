@@ -27,6 +27,7 @@ const PaymentDetails = memo(() => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [updatingDefaultId, setUpdatingDefaultId] = useState(null);
 
   const loadUpiIds = useCallback(async () => {
     if (!token) return;
@@ -73,6 +74,7 @@ const PaymentDetails = memo(() => {
         token,
         upiId: newUpi.trim(),
         label: newLabel,
+        isDefault: upiIds.length === 0,
       });
       if (response?.status) {
         setNewUpi('');
@@ -122,6 +124,43 @@ const PaymentDetails = memo(() => {
         },
       },
     ]);
+  };
+
+  const confirmSetDefaultUpi = async id => {
+    setUpdatingDefaultId(id);
+    try {
+      const response = await businessUpiService.setDefaultUpiId(token, id);
+      if (response?.status) {
+        await loadUpiIds();
+        ToastAndroid.show(
+          response?.message || 'Default UPI ID updated successfully',
+          ToastAndroid.SHORT,
+        );
+      } else {
+        ToastAndroid.show(
+          response?.message || 'Unable to update default UPI ID',
+          ToastAndroid.LONG,
+        );
+      }
+    } catch (error) {
+      console.error('[PaymentDetails] Failed to update default UPI ID:', error);
+      ToastAndroid.show('Unable to update default UPI ID', ToastAndroid.LONG);
+    } finally {
+      setUpdatingDefaultId(null);
+    }
+  };
+
+  const handleSetDefaultUpi = id => {
+    const upi = upiIds.find(item => item.id === id);
+    Alert.alert(
+      'Set default UPI ID',
+      `Do you want to set ${upi?.upiId || 'this UPI ID'} as the default?`,
+      [
+        {text: 'No', style: 'cancel'},
+        {text: 'Yes', onPress: () => confirmSetDefaultUpi(id)},
+      ],
+      {cancelable: true},
+    );
   };
 
   return (
@@ -179,9 +218,18 @@ const PaymentDetails = memo(() => {
                       color={colors.error}
                     />
                   </TouchableOpacity>
-                  <View style={styles.radioOuter}>
+                  <TouchableOpacity
+                    style={styles.radioOuter}
+                    onPress={() => handleSetDefaultUpi(item.id)}
+                    disabled={item.isDefault || updatingDefaultId === item.id}
+                    accessibilityRole="radio"
+                    accessibilityState={{
+                      checked: item.isDefault,
+                      disabled: item.isDefault || updatingDefaultId === item.id,
+                    }}
+                    accessibilityLabel={`Set ${item.upiId} as default`}>
                     {item.isDefault && <View style={styles.radioInner} />}
-                  </View>
+                  </TouchableOpacity>
                 </View>
               </View>
             ))
@@ -191,6 +239,7 @@ const PaymentDetails = memo(() => {
         <TouchableOpacity
           style={styles.floatingAddButton}
           onPress={() => setIsModalVisible(true)}
+          disabled={isLoading}
           accessibilityRole="button"
           accessibilityLabel="Add UPI ID">
           <Text style={styles.addButtonText}>Add UPI ID</Text>

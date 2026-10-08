@@ -34,9 +34,9 @@ class BusinessUpiService {
     }
   }
 
-  async addUpiId({token, upiId, label}) {
+  async addUpiId({token, upiId, label, isDefault}) {
     const headers = {Authorization: `Bearer ${token}`};
-    const payload = {upiId, isDefault: false};
+    const payload = {upiId, isDefault: Boolean(isDefault)};
     if (label?.trim()) {
       payload.label = label.trim();
     }
@@ -83,6 +83,33 @@ class BusinessUpiService {
       console.error('[BusinessUpiService] DELETE error status:', error.response?.status);
       console.error('[BusinessUpiService] DELETE error response:', error.response?.data);
       console.error('[BusinessUpiService] DELETE error message:', error.message);
+      return error.response?.data || {status: false, message: error.message};
+    }
+  }
+
+  async setDefaultUpiId(token, id) {
+    const uri = `${this.baseUrl}/${id}/default`;
+    const headers = {Authorization: `Bearer ${token}`};
+    console.log('[BusinessUpiService] PATCH URL:', uri);
+    console.log('[BusinessUpiService] PATCH headers:', {
+      Authorization: token ? 'Bearer [token present]' : 'Bearer [missing]',
+    });
+
+    try {
+      const response = await axios.patch(uri, {}, {headers});
+      console.log('[BusinessUpiService] PATCH status:', response.status);
+      console.log('[BusinessUpiService] PATCH response:', response.data);
+      return {
+        ...response.data,
+        data: response.data?.data
+          ? BusinessUpiModel.fromJson(response.data.data)
+          : response.data?.data,
+      };
+    } catch (error) {
+      console.error('[BusinessUpiService] PATCH error URL:', uri);
+      console.error('[BusinessUpiService] PATCH error status:', error.response?.status);
+      console.error('[BusinessUpiService] PATCH error response:', error.response?.data);
+      console.error('[BusinessUpiService] PATCH error message:', error.message);
       return error.response?.data || {status: false, message: error.message};
     }
   }
