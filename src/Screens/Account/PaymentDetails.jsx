@@ -194,16 +194,18 @@ const PaymentDetails = memo(() => {
             upiIds.map(item => (
               <View
                 key={item.id}
-                style={[styles.upiCard, item.isDefault && styles.defaultCard]}
+                style={styles.upiCard}
               >
                 <View style={styles.upiInfo}>
-                  <Text style={styles.upiText}>{item.upiId}</Text>
+                  <View style={styles.upiTitleRow}>
+                    <Text style={styles.upiText}>{item.upiId}</Text>
+                    {item.isDefault && (
+                      <View style={styles.defaultBadge}>
+                        <Text style={styles.defaultBadgeText}>Default</Text>
+                      </View>
+                    )}
+                  </View>
                   {!!item.label && <Text style={styles.upiLabel}>{item.label}</Text>}
-                  {item.isDefault && (
-                    <View style={styles.defaultBadge}>
-                      <Text style={styles.defaultBadgeText}>Default</Text>
-                    </View>
-                  )}
                 </View>
                 <View style={styles.actionContainer}>
                   <TouchableOpacity
@@ -333,12 +335,14 @@ const styles = StyleSheet.create({
     marginBottom: margin(12),
     backgroundColor: '#fff',
   },
-  defaultCard: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary + '05',
-  },
   upiInfo: {
     flex: 1,
+  },
+  upiTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: padding(8),
   },
   upiText: {
     fontSize: font(16),
@@ -356,8 +360,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: padding(8),
     paddingVertical: padding(2),
     borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginTop: margin(4),
   },
   defaultBadgeText: {
     color: '#fff',
