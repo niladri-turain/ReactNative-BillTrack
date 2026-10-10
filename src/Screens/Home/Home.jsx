@@ -44,6 +44,7 @@ const Home = () => {
   const navigation = useNavigation();
   const token = useAuthToken();
   const subscription = useSubscription();
+  const latestInvoices = invoices.slice(0, 10);
 
   // Loading State
   const [isRefreshing, setRefreshing] = useState(false);
@@ -138,7 +139,7 @@ const Home = () => {
 
         <View style={styles.invoiceContainer}>
           <View style={styles.invoiceHeader}>
-            <Text style={fonts.headerText}>All Invoice List</Text>
+            <Text style={fonts.headerText}>Recent Invoice</Text>
             <TouchableOpacity
               style={styles.headerRight}
               onPress={() => {
@@ -154,8 +155,8 @@ const Home = () => {
               .map((_, index) => (
                 <InvoiceCardShimmer key={'invoiceShimmer' + index} />
               ))
-          ) : invoices.length > 0 ? (
-            invoices.map((item, index) => (
+          ) : latestInvoices.length > 0 ? (
+            latestInvoices.map((item, index) => (
               <InvoiceCard
                 invoice={item}
                 key={index + '_invoice_card'}
