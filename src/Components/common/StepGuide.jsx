@@ -11,6 +11,7 @@ import {colors} from '../../utils/colors';
 import {fonts} from '../../utils/fonts';
 import {font, padding} from '../../utils/responsive';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const {width: screenWidth, height: screenHeight} = Dimensions.get('window');
 
@@ -21,6 +22,10 @@ const StepGuide = ({target, text, onNext, visible, onClose, targetLayout, arrowP
   // If using the older 'visible' prop pattern from BusinessSetup
   const isVisible = visible !== undefined ? visible : true;
   const handleNext = onNext || onClose;
+  const handleSkip = async () => {
+    await AsyncStorage.setItem('skipAllStepGuides', 'true');
+    handleNext?.();
+  };
 
   const {x, y, width, height} = layout;
 
@@ -36,6 +41,9 @@ const StepGuide = ({target, text, onNext, visible, onClose, targetLayout, arrowP
               : {top: y + height + 20},
             {left: screenWidth * 0.1},
           ]}>
+          <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+            <Text style={styles.skipText}>Skip</Text>
+          </TouchableOpacity>
           <Text style={styles.text}>{text}</Text>
           <TouchableOpacity style={styles.button} onPress={handleNext}>
             <Text style={styles.buttonText}>Next</Text>
@@ -84,6 +92,16 @@ const styles = StyleSheet.create({
     color: '#333',
     textAlign: 'center',
     marginBottom: 10,
+  },
+  skipButton: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  skipText: {
+    color: colors.primary,
+    fontFamily: fonts.popSemiBold,
+    fontSize: font(13),
   },
   button: {
     flexDirection: 'row',

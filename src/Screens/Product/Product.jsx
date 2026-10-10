@@ -111,6 +111,7 @@ const Product = () => {
 
   useEffect(() => {
     const checkGuide = async () => {
+      if (await AsyncStorage.getItem('skipAllStepGuides')) return;
       const hasSeenStep1 = await AsyncStorage.getItem('hasSeenProductStep1');
       if (!hasSeenStep1 && Products.length === 0 && !isLoading) {
         setTimeout(() => {
@@ -158,6 +159,7 @@ const Product = () => {
   const handleOpenModal = () => {
     setShowModal(true);
     const checkStep2 = async () => {
+      if (await AsyncStorage.getItem('skipAllStepGuides')) return;
       const hasSeenStep2 = await AsyncStorage.getItem('hasSeenProductStep2');
       if (!hasSeenStep2) {
         setTimeout(() => {

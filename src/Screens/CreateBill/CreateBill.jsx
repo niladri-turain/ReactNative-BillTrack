@@ -151,6 +151,7 @@ const CreateBill = () => {
 
   useEffect(() => {
     const checkStep1 = async () => {
+      if (await AsyncStorage.getItem('skipAllStepGuides')) return;
       const hasSeen = await AsyncStorage.getItem('hasSeenCreateBillStep1');
       if (!hasSeen && product.length > 0) {
         setGuideStep(1);
@@ -162,6 +163,7 @@ const CreateBill = () => {
 
   useEffect(() => {
     const checkStep2 = async () => {
+      if (await AsyncStorage.getItem('skipAllStepGuides')) return;
       const hasSeen = await AsyncStorage.getItem('hasSeenCreateBillStep2');
       if (!hasSeen && quantity > 0 && guideStep !== 3) {
         // Re-measure create button as it might have moved or just appeared
@@ -177,6 +179,7 @@ const CreateBill = () => {
     bottomSheetRef.current?.expand();
     Keyboard.dismiss();
     const checkStep3 = async () => {
+      if (await AsyncStorage.getItem('skipAllStepGuides')) return;
       const hasSeen = await AsyncStorage.getItem('hasSeenCreateBillStep3');
       if (!hasSeen) {
         setGuideStep(3);

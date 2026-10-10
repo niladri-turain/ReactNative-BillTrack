@@ -71,6 +71,7 @@ const BusinessSetup = () => {
 
   useEffect(() => {
     const checkGuide = async () => {
+      if (await AsyncStorage.getItem('skipAllStepGuides')) return;
       const hasSeen = await AsyncStorage.getItem('hasSeenBusinessSetupGuide');
       if (!hasSeen) {
         // We'll show it after a short delay to ensure layout is ready
