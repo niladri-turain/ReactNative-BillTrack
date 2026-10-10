@@ -604,21 +604,21 @@ Proceed only if you have completed the required steps and approvals.`,
             </View>
             <View style={styles.rowContainer}>
               <Text>Business Information</Text>
-                  <NavigationCardWithValue
-                  mainIcon={
-                    <MaterialIcons
-                      name="label"
-                      size={icon(20)}
-                      color={colors.primary}
-                    />
-                  }
-                  title="Prefix"
-                  onpress={() => handleOpenModal({type: 'Prefix'})}
-                  textFontSize={14}
-                  disabled={false}
-                  value={prefix}
-                  isEdit={true}
-                />
+{/*                   <NavigationCardWithValue */}
+{/*                   mainIcon={ */}
+{/*                     <MaterialIcons */}
+{/*                       name="label" */}
+{/*                       size={icon(20)} */}
+{/*                       color={colors.primary} */}
+{/*                     /> */}
+{/*                   } */}
+{/*                   title="Prefix" */}
+{/*                   onpress={() => handleOpenModal({type: 'Prefix'})} */}
+{/*                   textFontSize={14} */}
+{/*                   disabled={false} */}
+{/*                   value={prefix} */}
+{/*                   isEdit={true} */}
+{/*                 /> */}
               <View style={styles.primaryInfoContainer}>
                 <NavigationCardWithValue
                   mainIcon={
