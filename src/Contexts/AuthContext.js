@@ -52,6 +52,16 @@ const AuthProvider = ({children}) => {
     } catch (error) {}
   };
 
+  const updateAuthToken = async token => {
+    if (!token) return;
+    try {
+      await AsyncStorage.setItem('token', token);
+      setAuthToken(token);
+    } catch (error) {
+      console.error('[AuthContext] Failed to update auth token:', error);
+    }
+  };
+
   const setBusinessData = async businessData => {
     try {
       await AsyncStorage.setItem('business', JSON.stringify(businessData));
@@ -251,6 +261,7 @@ const AuthProvider = ({children}) => {
       authToken,
       isLoggedOut,
       login,
+      updateAuthToken,
       logout,
       user,
       setUserData,

@@ -138,7 +138,7 @@ class AuthService {
   }
 
   // VERIFY CHANGE PHONE
-  async verifyPhone(userId, otp, token) {
+  async verifyPhone(userId, otp) {
     try {
       const uri = this.baseUrl + 'verify-change-phone';
       const payload = {
@@ -149,11 +149,11 @@ class AuthService {
       console.log('--- AuthService: verifyChangePhone ---');
       console.log('URL:', uri);
       console.log('Payload/Body:', payload);
-      const headers = token ? {Authorization: `Bearer ${token}`} : {};
-      console.log('Authorization:', token ? 'Bearer [token present]' : 'Bearer [missing]');
+        const headers = token ? {Authorization: `Bearer ${token}`} : {};
       const response = await axios.post(uri, payload, {headers});
 
       console.log('Status Code:', response.status);
+        console.log('token:', token);
 
       const data = await response.data;
       console.log('Response Data:', data);
