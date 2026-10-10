@@ -769,8 +769,18 @@ const CreateBill = () => {
                         return;
                       }
                       discountInvalidToastShown.current = false;
-                      if (text <= totalPrice) {
-                        setDiscount(text);
+
+                      let normalizedText = text.startsWith('.')
+                        ? `0${text}`
+                        : text;
+                      const [integerPart, decimalPart] = normalizedText.split('.');
+                      const normalizedInteger = integerPart.replace(/^0+(?=\d)/, '');
+                      normalizedText = decimalPart === undefined
+                        ? normalizedInteger
+                        : `${normalizedInteger}.${decimalPart.slice(0, 2)}`;
+
+                      if (!normalizedText || Number(normalizedText) <= totalPrice) {
+                        setDiscount(normalizedText);
                       } else {
                         discountInputRef.current?.setNativeProps({
                           text: String(discount),
