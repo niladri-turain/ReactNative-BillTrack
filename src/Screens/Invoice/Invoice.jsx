@@ -39,11 +39,13 @@ import { invoiceService } from '../../Services/InvoiceService';
 import { useAuthToken, useSubscription } from '../../Contexts/AuthContext';
 import { useInvoice } from '../../Contexts/InvoiceContext';
 
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // Constants moved outside component to prevent recreation
-const SNAP_POINTS = ['50%'];
+const SNAP_POINTS = ['40%'];
 const SHIMMER_DATA = [1, 2, 3];
 const SORT_OPTIONS = [
+  { label: 'All Invoices', value: 'all' },
   { label: 'Newest First', value: 'date_desc' },
   { label: 'Oldest First', value: 'date_asc' },
   { label: 'Amount High to Low', value: 'amount_high_to_low' },
@@ -104,20 +106,45 @@ const SortOption = memo(({ label, value, isSelected, onSelect, isLast }) => (
 ));
 
 const Invoice = () => {
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const token = useAuthToken();
   const subscription = useSubscription();
   const { invoices, resetInvoices, invoicesFetched } = useInvoice();
 
   // STATE VARIABLES
-  const [sortBy, setSortBy] = useState('date_desc');
+  const [sortBy, setSortBy] = useState('all');
   const [pageNumber, setPageNumber] = useState(0);
   const [isLoading, setIsLoading] = useState(!invoicesFetched);
   const [isInitialLoad, setIsInitialLoad] = useState(!invoicesFetched);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [paginationTotalPage, setPaginationTotalPage] = useState(0);
   const [paginationHasNextPage, setPaginationHasNextPage] = useState(false);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [query, setQuery] = useState('');
   const [lastInvoicesLength, setLastInvoicesLength] = useState(invoices.length);
+  const [isSortingOpen, setIsSortingOpen] = useState(false);
+
+  const defaultTabBarStyle = useMemo(
+    () => ({
+      height: 85 + insets.bottom,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingTop: padding(10),
+    }),
+    [insets.bottom],
+  );
+
+  useEffect(() => {
+    const tabNavigation = navigation.getParent();
+    if (!tabNavigation) return undefined;
+
+    tabNavigation.setOptions({
+      tabBarStyle: isSortingOpen ? {display: 'none'} : defaultTabBarStyle,
+    });
+
+    return () => tabNavigation.setOptions({tabBarStyle: defaultTabBarStyle});
+  }, [navigation, isSortingOpen, defaultTabBarStyle]);
 
   const bottomSheetRef = useRef(null);
   const invoicesRef = useRef(invoices);
@@ -158,7 +185,12 @@ const Invoice = () => {
         const data =
           sortBy === 'cancelled'
             ? await invoiceService.getCancelInvoices(token, page, 10, 'date_desc')
-            : await invoiceService.getInvoices(token, page, 10, sortBy);
+            : await invoiceService.getInvoices(
+                token,
+                page,
+                10,
+                sortBy === 'all' ? 'date_desc' : sortBy,
+              );
         if (data?.status) {
           if (page === 0) {
             resetInvoices(data?.data || []);
@@ -168,6 +200,9 @@ const Invoice = () => {
           const pagination = data?.pagination;
           setPaginationTotalPage(pagination?.totalPage);
           setPaginationHasNextPage(pagination?.hasNext);
+          setTotalRecords(
+            pagination?.totalRecords ?? data?.totalRecords ?? 0,
+          );
         }
       } catch (error) {
       } finally {
@@ -203,14 +238,17 @@ const Invoice = () => {
     setIsRefreshing(true);
     await fetchInvoices(0);
     setIsRefreshing(false);
-    setSortBy('date_desc');
   }, [fetchInvoices]);
 
   // Memoized header component
   const ListHeaderComponent = useMemo(
     () => (
       <View style={styles.topHeader}>
-        <Text style={styles.titleText}>All Invoice List</Text>
+        <Text style={styles.titleText}>
+          {SORT_OPTIONS.find(option => option.value === sortBy)?.label ||
+            'All Invoices'}{' '}
+          ({totalRecords})
+        </Text>
         <TouchableOpacity
           style={styles.sortButton}
           onPress={handleOpenBottomSheet}>
@@ -219,7 +257,7 @@ const Invoice = () => {
         </TouchableOpacity>
       </View>
     ),
-    [handleOpenBottomSheet],
+    [handleOpenBottomSheet, sortBy, totalRecords],
   );
 
   // Optimized render functions
@@ -345,6 +383,7 @@ const Invoice = () => {
         backdropComponent={renderBackdrop}
         animationConfigs={ANIMATION_CONFIG}
         backgroundStyle={styles.bottomSheetBackground}
+        onChange={index => setIsSortingOpen(index >= 0)}
         enableOverDrag={false}
         enableHandlePanningGesture={false}>
         <BottomSheetView style={styles.bottomSheetContainer}>

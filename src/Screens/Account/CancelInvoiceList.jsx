@@ -38,9 +38,12 @@ import {font, margin, padding} from '../../utils/responsive';
 import {invoiceService} from '../../Services/InvoiceService';
 import {useAuthToken, useSubscription} from '../../Contexts/AuthContext';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 // Constants moved outside component to prevent recreation
-const SNAP_POINTS = ['50%'];
+// Keep the sorting sheet close to its content so it does not leave a large
+// empty area below the Apply button.
+const SNAP_POINTS = ['35%'];
 const SHIMMER_DATA = [1, 2, 3];
 const SORT_OPTIONS = [
   { label: 'Newest First', value: 'date_desc' },
@@ -106,6 +109,7 @@ const CancelInvoiceList = memo(() => {
   const token = useAuthToken();
   const subscription = useSubscription();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
 
   // STATE VARIABLES
   const [sortBy, setSortBy] = useState('date_desc');
@@ -116,6 +120,29 @@ const CancelInvoiceList = memo(() => {
   const [paginationTotalPage, setPaginationTotalPage] = useState(0);
   const [paginationHasNextPage, setPaginationHasNextPage] = useState(false);
   const [query, setQuery] = useState('');
+  const [isSortingOpen, setIsSortingOpen] = useState(false);
+
+  const defaultTabBarStyle = useMemo(
+    () => ({
+      height: 85 + insets.bottom,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingTop: padding(10),
+    }),
+    [insets.bottom],
+  );
+
+  useEffect(() => {
+    // CancelInvoiceList belongs to AccountStack, which is itself a tab.
+    const tabNavigation = navigation.getParent();
+    if (!tabNavigation) return undefined;
+
+    tabNavigation.setOptions({
+      tabBarStyle: isSortingOpen ? {display: 'none'} : defaultTabBarStyle,
+    });
+
+    return () => tabNavigation.setOptions({tabBarStyle: defaultTabBarStyle});
+  }, [navigation, isSortingOpen, defaultTabBarStyle]);
 
   const bottomSheetRef = useRef(null);
 
@@ -346,6 +373,7 @@ const CancelInvoiceList = memo(() => {
         backdropComponent={renderBackdrop}
         animationConfigs={ANIMATION_CONFIG}
         backgroundStyle={styles.bottomSheetBackground}
+        onChange={index => setIsSortingOpen(index >= 0)}
         enableOverDrag={false}
         enableHandlePanningGesture={false}>
         <BottomSheetView style={styles.bottomSheetContainer}>
