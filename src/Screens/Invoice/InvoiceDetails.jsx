@@ -511,7 +511,7 @@ const InvoiceDetails = () => {
               </View>
             )}
             
-            <DottedDivider borderWidth={0.8} />
+            {groupedGstList.length > 0 && <DottedDivider borderWidth={0.8} />}
 
             {/* GST BREAKDOWN SECTION */}
             {groupedGstList.map((item, index) => (

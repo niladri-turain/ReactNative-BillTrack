@@ -41,6 +41,7 @@ import {
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import ToastService from '../../Components/Toasts/ToastService';
 import {businessService} from '../../Services/BusinessService';
+import {stateService} from '../../Services/StateService';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -65,6 +66,10 @@ const Business = () => {
   const [city, setCity] = useState(business?.city || '');
   const [pincode, setPincode] = useState(business?.pinCode || '');
   const [state, setState] = useState(business?.state || '');
+  const [stateId, setStateId] = useState(business?.stateId || null);
+  const [states, setStates] = useState([]);
+  const [tempStateId, setTempStateId] = useState(business?.stateId || null);
+  const [showStateOptions, setShowStateOptions] = useState(false);
   const [prefix, setPrefix] = useState(business?.prefix || '');
   const [tempValue, setTempValue] = useState('');
 
@@ -73,6 +78,22 @@ const Business = () => {
 
   // LOADING STATE
   const [isSaveLoading, setIsSaveLoading] = useState(false);
+
+  useEffect(() => {
+    const loadStates = async () => {
+      const response = await stateService.getStates(token);
+      if (response?.status && Array.isArray(response.data)) {
+        setStates(response.data);
+        const currentState = response.data.find(
+          item => item.id === Number(business?.stateId) || item.name === business?.state,
+        );
+        if (currentState) {
+          setStateId(currentState.id);
+        }
+      }
+    };
+    if (token) loadStates();
+  }, [token, business?.stateId, business?.state]);
 
   const fetchBusinessCategory = async () => {
     try {
@@ -101,6 +122,7 @@ const Business = () => {
   const handleOpenModal = ({type}) => {
     setModalType(type);
     setIsModal(true);
+    setShowStateOptions(false);
     switch (type) {
       case 'Phone Number':
         setTempValue(mobileNumber);
@@ -113,6 +135,7 @@ const Business = () => {
         break;
       case 'State':
         setTempValue(state);
+        setTempStateId(stateId);
         break;
       case 'City':
         setTempValue(city);
@@ -133,6 +156,7 @@ const Business = () => {
 
   const handleCloseModal = () => {
     setIsModal(false);
+    setShowStateOptions(false);
   };
 
   useEffect(() => {
@@ -287,7 +311,7 @@ const Business = () => {
           gstNumber: updatedValues.gstNumber,
           street: updatedValues.street,
           city: updatedValues.city,
-          state: updatedValues.state,
+          stateId: modalType === 'State' ? tempStateId : stateId,
           pinCode: updatedValues.pincode,
           email: updatedValues.email,
           phone: updatedValues.phone,
@@ -310,6 +334,7 @@ const Business = () => {
           setCity(updatedValues.city);
           setPincode(updatedValues.pincode);
           setState(updatedValues.state);
+          if (modalType === 'State') setStateId(tempStateId);
           setPrefix(updatedValues.prefix);
 
           await resetBusiness(updatedBusiness);
@@ -402,12 +427,32 @@ Proceed only if you have completed the required steps and approvals.`,
         );
       case 'State':
         return (
-          <SimpleTextInput
-            label="Enter State"
-            value={tempValue}
-            setValue={setTempValue}
-            keyboardType="default"
-          />
+          <View style={styles.stateDropdownContainer}>
+            <TouchableOpacity
+              style={styles.stateDropdown}
+              onPress={() => setShowStateOptions(value => !value)}>
+              <Text style={styles.stateDropdownText}>{tempValue || 'Select state'}</Text>
+              <MaterialIcons name="arrow-drop-down" size={24} color="#777" />
+            </TouchableOpacity>
+            {showStateOptions && (
+              <ScrollView style={styles.stateOptions} nestedScrollEnabled>
+                {states.length ? states.map(item => (
+                    <TouchableOpacity
+                      key={String(item.id)}
+                      style={styles.stateOption}
+                      onPress={() => {
+                        setTempValue(item.name);
+                        setTempStateId(item.id);
+                        setShowStateOptions(false);
+                      }}>
+                      <Text style={styles.stateOptionText}>{item.name}</Text>
+                    </TouchableOpacity>
+                  )) : (
+                    <Text style={styles.stateOptionText}>No states available</Text>
+                  )}
+              </ScrollView>
+            )}
+          </View>
         );
       case 'City':
         return (
@@ -453,7 +498,7 @@ Proceed only if you have completed the required steps and approvals.`,
       default:
         return null;
     }
-  }, [modalType, tempValue]);
+  }, [modalType, tempValue, states, showStateOptions, tempStateId]);
 
   // Store original values for comparison
   const initialValues = useMemo(
@@ -836,6 +881,46 @@ const styles = StyleSheet.create({
   inputContainer: {
     marginVertical: gap(16),
     gap: gap(16),
+  },
+  stateDropdown: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  stateDropdownContainer: {
+    position: 'relative',
+  },
+  stateDropdownText: {
+    color: '#222',
+    fontSize: font(14),
+  },
+  stateOptions: {
+    position: 'absolute',
+    top: 48,
+    left: 0,
+    right: 0,
+    maxHeight: 220,
+    zIndex: 10,
+    elevation: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+  },
+  stateOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ddd',
+  },
+  stateOptionText: {
+    color: '#222',
+    fontSize: font(14),
   },
   submitButton: {
     alignSelf: 'center',

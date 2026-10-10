@@ -95,7 +95,7 @@ class BusinessService {
     gstNumber,
     street,
     city,
-    state,
+    stateId,
     pinCode,
     email,
     phone,
@@ -115,8 +115,8 @@ class BusinessService {
     if (city) {
       payload.city = city;
     }
-    if (state) {
-      payload.state = state;
+    if (stateId !== undefined && stateId !== null && stateId !== '') {
+      payload.stateId = stateId;
     }
     if (pinCode) {
       payload.pinCode = pinCode;
