@@ -279,22 +279,16 @@ const InvoiceDetails = () => {
               </Text>
               {(fetchedUserPhone || business?.phone) && (
                 <View style={styles.topKeyValueStyle}>
-                  <Text style={[styles.keyText, {fontSize: font(14)}]}>
-                    Phone Number:{' '}
-                  </Text>
                   <Text style={[styles.valueText, {fontSize: font(14)}]}>
                     {fetchedUserPhone || business?.phone}
                   </Text>
                 </View>
               )}
               <View style={styles.topKeyValueStyle}>
-                <Text style={[styles.keyText, {fontSize: font(14)}]}>
-                  Address:{' '}
-                </Text>
                 <Text
                   style={[
                     styles.valueText,
-                    {width: '50%', fontSize: font(14)},
+                    {width: '70%', fontSize: font(14), textAlign: 'center'},
                   ]}>
                   {business?.street}, {business?.city}, {business?.state},{' '}
                   {business?.pinCode}
@@ -325,15 +319,15 @@ const InvoiceDetails = () => {
                   {gap: sizes.subSecondContainerGap},
                 ]}>
                 <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                  <Text style={[styles.invoiceText, {fontSize: font(14), width: sizes.labelWidth}]}>
-                    Invoice No :
+                  <Text style={[styles.invoiceText, {fontSize: font(14), marginRight: 6}]}>
+                    Inv :
                   </Text>
                   <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
                     {invoice.invoiceNumber}
                   </Text>
                 </View>
                 <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                  <Text style={[styles.invoiceText, {fontSize: font(14), width: sizes.labelWidth}]}>
+                  <Text style={[styles.invoiceText, {fontSize: font(14), marginRight: 6}]}>
                     Date :
                   </Text>
                   <Text style={[styles.invoiceText, {fontSize: font(14)}]}>

@@ -584,7 +584,7 @@ const Product = () => {
                   placeholder={''}
                   value={productName}
                   setValue={(val) => {
-                    setProductName(val);
+                    setProductName(val.replace(/[^\p{L} ]/gu, '').replace(/^ +/, ''));
                     setProductNameError('');
                   }}
                   hasError={(productName && !validateProductName(productName)) || !!productNameError}
@@ -621,10 +621,20 @@ const Product = () => {
                     placeholder={''}
                     value={productPrice}
                     setValue={(val) => {
-                      setProductPrice(val);
+                      let numericValue = val.replace(/[^\d.]/g, '');
+                      const decimalIndex = numericValue.indexOf('.');
+                      if (decimalIndex !== -1) {
+                        numericValue =
+                          numericValue.slice(0, decimalIndex + 1) +
+                          numericValue.slice(decimalIndex + 1).replace(/\./g, '').slice(0, 2);
+                      }
+                      if (numericValue.startsWith('.')) {
+                        numericValue = `0${numericValue}`;
+                      }
+                      setProductPrice(numericValue);
                       setProductPriceError('');
                     }}
-                    keyboardType="numeric"
+                    keyboardType="decimal-pad"
                     hasError={(productPrice && !validatePrice(productPrice)) || !!productPriceError}
                   />
                   {!!productPriceError && (

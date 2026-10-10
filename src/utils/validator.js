@@ -13,7 +13,7 @@ function validateProductName(productName) {
     return false;
   }
 
-  return true;
+  return /^[\p{L} ]+$/u.test(productName.trim());
 }
 
 function validateIndianPhone(phoneNumber) {
@@ -202,8 +202,9 @@ function greeting() {
 }
 
 function validatePrice(price) {
-  const num = Number(price);
-  return !isNaN(num) && num >= 0;
+  if (typeof price !== 'string' && typeof price !== 'number') return false;
+  const value = String(price);
+  return /^\d+(\.\d{1,2})?$/.test(value) && Number(value) >= 0;
 }
 
 export {
