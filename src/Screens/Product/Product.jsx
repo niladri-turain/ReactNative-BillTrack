@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import {Layout} from '../Layout';
 import {
   BottomSheetInput,
@@ -547,6 +548,13 @@ const Product = () => {
         backdropColor={'#00000005'}
         onRequestClose={handleCloseModal}>
         <Pressable onPress={handleCloseModal} style={styles.modelContainer}>
+          <KeyboardAwareScrollView
+            style={{maxHeight: '90%'}}
+            enableOnAndroid
+            extraScrollHeight={20}
+            keyboardOpeningTime={0}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag">
           <Pressable onPress={() => {}} style={styles.modelSubContainer}>
             <View style={styles.imageCOntainer}>
               <Image
@@ -699,6 +707,7 @@ const Product = () => {
               </TouchableOpacity>
             </View>
           </Pressable>
+          </KeyboardAwareScrollView>
         </Pressable>
         <StepGuide
           visible={guideStep === 2}

@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import React, {useEffect, useMemo, useState, useRef} from 'react';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import LinearGradient from 'react-native-linear-gradient';
 import {
   CommonModal,
@@ -542,15 +543,20 @@ Proceed only if you have completed the required steps and approvals.`,
   return (
     <KeyboardAvoidingView
       style={{flex: 1}}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       enabled={!isModal}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
       <GestureHandlerRootView style={{flex: 1}}>
         <Layout>
           <SecondaryHeader title="Business Setting" isSearch={false} />
-          <ScrollView
+          <KeyboardAwareScrollView
             style={{flex: 1}}
-            contentContainerStyle={styles.container}>
+            contentContainerStyle={styles.container}
+            enableOnAndroid
+            extraScrollHeight={20}
+            keyboardOpeningTime={0}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag">
             <View style={[styles.rowContainer, styles.profileContainer]}>
               <LinearGradient
                 colors={['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8']}
@@ -752,7 +758,7 @@ Proceed only if you have completed the required steps and approvals.`,
                 />
               </View>
             </View>
-          </ScrollView>
+          </KeyboardAwareScrollView>
           {/* {!isModal && ( */}
           {/* <AnimatedPressable
             style={[styles.saveChangesContainer, {opacity: fadeAnim}]}
@@ -769,7 +775,12 @@ Proceed only if you have completed the required steps and approvals.`,
             visible={isModal}
             handleClose={handleCloseModal}
             animationType="fade">
-            <View style={styles.modalContainer}>
+            <KeyboardAwareScrollView
+              style={[styles.modalContainer, {maxHeight: '85%'}]}
+              enableOnAndroid
+              extraScrollHeight={20}
+              keyboardOpeningTime={0}
+              keyboardShouldPersistTaps="handled">
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Change {modalType}</Text>
                 <TouchableOpacity onPress={handleCloseModal}>
@@ -804,7 +815,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   <Text style={styles.submitButtonText}>SUBMIT</Text>
                 )}
               </TouchableOpacity>
-            </View>
+            </KeyboardAwareScrollView>
           </CommonModal>
         </Layout>
       </GestureHandlerRootView>

@@ -4,7 +4,6 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -12,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import React, {useEffect, useState} from 'react';
 import {AuthLayout} from '../Layout';
 import {fonts} from '../../utils/fonts';
@@ -94,9 +94,9 @@ const Login = () => {
     <AuthLayout>
       <KeyboardAvoidingView
         style={{flex: 1}}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
-        <ScrollView
+        <KeyboardAwareScrollView
           style={{flex: 1}}
           contentContainerStyle={{
             flexGrow: 1,
@@ -105,7 +105,11 @@ const Login = () => {
             gap: 10,
             paddingVertical: margin(20),
           }}
+          enableOnAndroid
+          extraScrollHeight={20}
+          keyboardOpeningTime={0}
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled">
           <Image
             source={require('./../../../asset/images/login.png')}
@@ -157,7 +161,7 @@ const Login = () => {
               )}
             </TouchableOpacity>
           </View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
     </AuthLayout>
   );

@@ -30,7 +30,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import BottomSheet, {
   BottomSheetBackdrop,
-  BottomSheetView,
+  BottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import {fonts} from '../../utils/fonts';
@@ -115,6 +115,7 @@ const CreateBill = () => {
   const [totalPrice, setTotalPrice] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [isPaymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [discount, setDiscount] = useState(0);
   const discountInvalidToastShown = useRef(false);
@@ -135,6 +136,18 @@ const CreateBill = () => {
   const sendButtonRef = useRef(null);
   const bottomSheetRef = useRef(null);
   const snapPoints = useMemo(() => ['40%'], []);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSubscription = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
+    const hideSubscription = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const measureRef = (key, ref) => {
     if (ref.current) {
@@ -677,7 +690,9 @@ const CreateBill = () => {
   return (
     <KeyboardAvoidingView
       style={{flex: 1}}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      enabled={Platform.OS === 'ios' || isKeyboardVisible}
+      keyboardVerticalOffset={0}>
       <GestureHandlerRootView style={{flex: 1}}>
         <Layout>
           <SecondaryHeader
@@ -828,6 +843,9 @@ const CreateBill = () => {
           ref={bottomSheetRef}
           snapPoints={snapPoints}
           index={-1}
+          keyboardBehavior="fillParent"
+          keyboardBlurBehavior="restore"
+          android_keyboardInputMode="adjustResize"
           handleComponent={() => null}
           backgroundStyle={{borderRadius: 0}}
           backdropComponent={renderBackdrop}
@@ -835,7 +853,10 @@ const CreateBill = () => {
             duration: 250,
           }}
           enableHandlePanningGesture={false}>
-          <BottomSheetView style={{flex: 1, padding: padding(15)}}>
+          <BottomSheetScrollView
+            style={{flex: 1}}
+            contentContainerStyle={{padding: padding(15)}}
+            keyboardShouldPersistTaps="handled">
             <View style={styles.bottomSheetContaienr}>
               <Text style={styles.bottomSheetTitleText}>
                 Enter customer phone number
@@ -922,7 +943,7 @@ const CreateBill = () => {
                 </TouchableOpacity>
               )}
             </View>
-          </BottomSheetView>
+          </BottomSheetScrollView>
         </BottomSheet>
 
         {/* Bluetooth Scanner Modal */}

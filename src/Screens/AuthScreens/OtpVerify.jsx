@@ -5,7 +5,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import {AuthLayout} from './../Layout/index';
 import {fonts} from '../../utils/fonts';
 import {colors} from '../../utils/colors';
@@ -144,11 +144,14 @@ const OtpVerify = () => {
     <AuthLayout>
       <KeyboardAvoidingView
         style={{flex: 1}}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}>
-        <ScrollView
+        <KeyboardAwareScrollView
           style={{flex: 1}}
           contentContainerStyle={styles.container}
+          enableOnAndroid
+          extraScrollHeight={20}
+          keyboardOpeningTime={0}
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
@@ -227,7 +230,7 @@ const OtpVerify = () => {
               <Text style={styles.buttonText}>VERIFY OTP</Text>
             )}
           </TouchableOpacity> */}
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
       <CommonModal visible={isModal}>
         <View style={styles.modelCard}>

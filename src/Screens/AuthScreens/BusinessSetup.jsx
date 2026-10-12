@@ -3,13 +3,13 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {AuthLayout} from '../Layout';
 import {fonts} from '../../utils/fonts';
@@ -216,12 +216,19 @@ const BusinessSetup = () => {
 
   return (
     <AuthLayout>
-      {/* <KeyboardAvoidingView
+      <KeyboardAvoidingView
         style={{flex: 1}}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}> */}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}>
       <GestureHandlerRootView style={{flex: 1}}>
-        <ScrollView style={{flex: 1}} contentContainerStyle={styles.container}>
+        <KeyboardAwareScrollView
+          style={{flex: 1}}
+          contentContainerStyle={styles.container}
+          enableOnAndroid
+          extraScrollHeight={20}
+          keyboardOpeningTime={0}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag">
           <Image
             style={styles.image}
             source={require('./../../../asset/images/business.png')}
@@ -278,7 +285,7 @@ const BusinessSetup = () => {
             onPress={handleContinue}>
             <Text style={styles.buttonText}>CONTINUE</Text>
           </TouchableOpacity>
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
         <StepGuide
           visible={guideVisible}
@@ -362,14 +369,14 @@ const BusinessSetup = () => {
           </View>
         </BottomSheet>
       </GestureHandlerRootView>
-      {/* </KeyboardAvoidingView> */}
+      </KeyboardAvoidingView>
     </AuthLayout>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     gap: gap(10),

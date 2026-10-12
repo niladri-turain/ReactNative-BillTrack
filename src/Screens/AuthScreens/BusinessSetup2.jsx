@@ -6,13 +6,13 @@ import {
   Modal,
   PermissionsAndroid,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   ToastAndroid,
   TouchableOpacity,
   View,
 } from 'react-native';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import React, {useEffect, useState} from 'react';
 import {AuthLayout} from '../Layout';
 import {SimpleTextInput, StepGuide} from '../../Components';
@@ -230,11 +230,18 @@ const BusinessSetup2 = () => {
 
   return (
     <AuthLayout>
-      {/* <KeyboardAvoidingView
+      <KeyboardAvoidingView
         style={{flex: 1}}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}> */}
-      <ScrollView style={{flex: 1}} contentContainerStyle={styles.container}>
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}>
+      <KeyboardAwareScrollView
+        style={{flex: 1}}
+        contentContainerStyle={styles.container}
+        enableOnAndroid
+        extraScrollHeight={20}
+        keyboardOpeningTime={0}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag">
         <Image
           style={styles.image}
           source={require('./../../../asset/images/business.png')}
@@ -314,7 +321,7 @@ const BusinessSetup2 = () => {
             <Text style={styles.buttonText}>PROCEED</Text>
           )}
         </TouchableOpacity>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <Modal
         visible={isStateModalVisible}
@@ -353,14 +360,14 @@ const BusinessSetup2 = () => {
         text="complete business setup"
         arrowPosition="bottom"
       />
-      {/* </KeyboardAvoidingView> */}
+      </KeyboardAvoidingView>
     </AuthLayout>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     gap: gap(10),

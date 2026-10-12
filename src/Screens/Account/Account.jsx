@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import React, {memo, useState, useEffect, useRef, useCallback} from 'react';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import {Layout} from '../Layout';
 import {
   ProfileCard,
@@ -553,7 +554,12 @@ const Account = memo(() => {
         visible={isModalVisible}
         handleClose={handleCloseModal}
         animationType="slide">
-        <View style={styles.modalContentContainer}>
+        <KeyboardAwareScrollView
+          style={[styles.modalContentContainer, {maxHeight: '85%'}]}
+          enableOnAndroid
+          extraScrollHeight={20}
+          keyboardOpeningTime={0}
+          keyboardShouldPersistTaps="handled">
           <View style={styles.modalHeader}>
             <Text style={styles.modalHeaderTitleText}>
               Update Profile Details
@@ -721,7 +727,7 @@ const Account = memo(() => {
               <Text style={styles.updateBtnText}>UPDATE</Text>
             )}
           </Pressable>
-        </View>
+        </KeyboardAwareScrollView>
       </CommonModal>
     </Layout>
   );
