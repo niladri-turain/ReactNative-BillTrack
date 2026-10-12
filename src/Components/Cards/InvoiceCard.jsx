@@ -8,8 +8,10 @@ import {
   ToastAndroid,
   TouchableOpacity,
   View,
+  DeviceEventEmitter,
 } from 'react-native';
-import React, {memo, useState, useMemo, useRef, useCallback} from 'react';
+import React, {memo, useState, useMemo, useRef, useCallback, useEffect} from 'react';
+import {BluetoothManager} from 'react-native-bluetooth-escpos-printer';
 import {fonts} from '../../utils/fonts';
 import {colors} from '../../utils/colors';
 import DottedDivider from '../Dividers/DottedDivider';
@@ -48,6 +50,17 @@ const InvoiceCard = ({invoice, onRefresh}) => {
   const [devices, setDevices] = useState([]);
   const [isPendingPrint, setIsPendingPrint] = useState(false);
   const [isScannerModalVisible, setIsScannerModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (!isScannerModalVisible) return undefined;
+
+    const connectionListener = DeviceEventEmitter.addListener(
+      BluetoothManager.EVENT_CONNECTED,
+      () => setIsScannerModalVisible(false),
+    );
+
+    return () => connectionListener.remove();
+  }, [isScannerModalVisible]);
 
   const handleOpenScanner = useCallback(() => {
     setIsScannerModalVisible(true);
@@ -231,6 +244,7 @@ const InvoiceCard = ({invoice, onRefresh}) => {
         totalQuantity,
         subTotalAmount,
         business,
+        token,
       );
     } catch (error) {
       console.error(error);

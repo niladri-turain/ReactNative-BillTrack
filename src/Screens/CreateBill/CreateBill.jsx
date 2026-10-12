@@ -1,6 +1,7 @@
 import {
   ActivityIndicator,
   Dimensions,
+  DeviceEventEmitter,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
@@ -14,6 +15,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import {BluetoothManager} from 'react-native-bluetooth-escpos-printer';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Layout} from '../Layout';
 import {
@@ -269,6 +271,17 @@ const CreateBill = () => {
   const [isPendingPrint, setIsPendingPrint] = useState(false);
   const [isScannerModalVisible, setIsScannerModalVisible] = useState(false);
 
+  useEffect(() => {
+    if (!isScannerModalVisible) return undefined;
+
+    const connectionListener = DeviceEventEmitter.addListener(
+      BluetoothManager.EVENT_CONNECTED,
+      () => setIsScannerModalVisible(false),
+    );
+
+    return () => connectionListener.remove();
+  }, [isScannerModalVisible]);
+
   const handleCloseBottomSheet = useCallback(() => {
     bottomSheetRef.current?.close();
     Keyboard.dismiss();
@@ -480,6 +493,7 @@ const CreateBill = () => {
             totalQuantity,
             subTotalAmount,
             {...business, name: businessName},
+            token,
           );
         }
 

@@ -5,6 +5,7 @@ import {
 import {Alert, PermissionsAndroid, Platform} from 'react-native';
 import {formatDate} from './helper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {businessUpiService} from '../Services/BusinessUpiService';
 
 class PrinterService {
   async requestPermission() {
@@ -90,6 +91,23 @@ class PrinterService {
     return parseFloat(cleaned).toFixed(2);
   };
 
+  async getDefaultUpiId(token) {
+    if (!token) return null;
+
+    try {
+      const response = await businessUpiService.getUpiIds(token);
+      if (!response?.status || !Array.isArray(response?.data)) return null;
+
+      const defaultUpi = response.data.find(
+        item => item?.isDefault === true && item?.upiId?.trim(),
+      );
+      return defaultUpi?.upiId?.trim() || null;
+    } catch (error) {
+      console.error('Error fetching default UPI ID for printing:', error);
+      return null;
+    }
+  }
+
   async printInvoice(
     invoice,
     invoiceItems,
@@ -97,8 +115,18 @@ class PrinterService {
     totalQuantity,
     subTotalAmount,
     business,
+    token,
     printerSize = '58',
   ) {
+    const upiId = await this.getDefaultUpiId(token);
+    if (!upiId) {
+      Alert.alert(
+        'UPI ID required',
+        'Add a default UPI ID from Account > Payment Details before printing.',
+      );
+      return false;
+    }
+
     try {
       // 58mm printer usually 32 characters
       const lineLength = 32;
@@ -293,22 +321,6 @@ class PrinterService {
 
       // UPI QR Code for Payment
       try {
-        let upiId = '7059238072@ybl'; // fallback value
-        try {
-          const storedUpi = await AsyncStorage.getItem('upi_ids');
-          if (storedUpi) {
-            const upiList = JSON.parse(storedUpi);
-            const defaultUpiObj = upiList.find(item => item.isDefault);
-            if (defaultUpiObj && defaultUpiObj.upi) {
-              upiId = defaultUpiObj.upi;
-            } else if (upiList.length > 0) {
-              upiId = upiList[0].upi;
-            }
-          }
-        } catch (storageError) {
-          console.error('Error fetching default UPI from storage:', storageError);
-        }
-
         const totalAmount = this.cleanAmount(invoice.totalAmount);
         const businessName = business?.name || 'Payment';
         const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(businessName)}&am=${totalAmount}&cu=INR`;
