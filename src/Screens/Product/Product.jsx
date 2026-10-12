@@ -83,7 +83,7 @@ const Product = () => {
   const [productImage, setProductImage] = useState(null);
   const [productName, setProductName] = useState('');
   const [productNameError, setProductNameError] = useState('');
-  const [productUnit, setProductUnit] = useState('');
+  const [productUnit, setProductUnit] = useState('NA');
   const [productUnitError, setProductUnitError] = useState('');
   const [productPrice, setProductPrice] = useState('');
   const [productPriceError, setProductPriceError] = useState('');
@@ -149,7 +149,7 @@ const Product = () => {
     setProductImage(null);
     setProductName('');
     setProductNameError('');
-    setProductUnit('');
+    setProductUnit('NA');
     setProductUnitError('');
     setProductPrice('');
     setProductPriceError('');
@@ -183,7 +183,7 @@ const Product = () => {
     setProductId(item.id);
     setProductName(item.name);
     setProductPrice(item.price || '');
-    setProductUnit(item.unitType.toUpperCase() || '');
+    setProductUnit(item.unitType?.toUpperCase() || 'NA');
     setProductImage(item.logo);
     setHsnCode(item.hsn);
     handleOpenModal();
@@ -244,7 +244,11 @@ const Product = () => {
     try {
       const data = await unitService.getUnitsByBusinessCategory(token, businessCategoryId);
       if (data?.status) {
-        setUnits(data?.data || []);
+        const fetchedUnits = data?.data || [];
+        const hasNaUnit = fetchedUnits.some(
+          unit => unit?.name?.toUpperCase() === 'NA' || unit?.shortName?.toUpperCase() === 'NA',
+        );
+        setUnits(hasNaUnit ? fetchedUnits : [{name: 'NA', shortName: 'NA'}, ...fetchedUnits]);
       }
     } catch (error) {
       console.error("Failed to fetch units:", error);
