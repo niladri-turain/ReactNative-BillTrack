@@ -29,11 +29,31 @@ const ProductUnitModal = ({
     }
   }, [visible]);
 
+  const unitsWithSelectedValue = React.useMemo(() => {
+    const normalizedValue = String(value || '').trim().toUpperCase();
+    if (!normalizedValue) return units;
+
+    const selectedUnitExists = units.some(
+      unit =>
+        String(unit?.name || '').trim().toUpperCase() === normalizedValue ||
+        String(unit?.shortName || '').trim().toUpperCase() === normalizedValue,
+    );
+
+    if (selectedUnitExists) return units;
+
+    const displayName =
+      normalizedValue === 'NA'
+        ? 'NA'
+        : normalizedValue.charAt(0) + normalizedValue.slice(1).toLowerCase();
+
+    return [{name: displayName, shortName: normalizedValue}, ...units];
+  }, [value, units]);
+
   const sortedUnits = React.useMemo(() => {
-    let filteredUnits = units;
+    let filteredUnits = unitsWithSelectedValue;
 
     if (query) {
-      filteredUnits = units.filter(
+      filteredUnits = unitsWithSelectedValue.filter(
         u =>
           (u.name && u.name.toLowerCase().includes(query.toLowerCase())) ||
           (u.shortName && u.shortName.toLowerCase().includes(query.toLowerCase())),
@@ -42,17 +62,17 @@ const ProductUnitModal = ({
 
     if (!value) return filteredUnits;
 
-    const selected = filteredUnits.find(u => 
-      (u.name && u.name.toUpperCase() === value.toUpperCase()) || 
-      (u.shortName && u.shortName.toUpperCase() === value.toUpperCase())
-    );
-    const rest = filteredUnits.filter(u => 
-      !(u.name && u.name.toUpperCase() === value.toUpperCase()) && 
-      !(u.shortName && u.shortName.toUpperCase() === value.toUpperCase())
+    const normalizedValue = String(value).trim().toUpperCase();
+    const matchesSelectedValue = unit =>
+      String(unit?.name || '').trim().toUpperCase() === normalizedValue ||
+      String(unit?.shortName || '').trim().toUpperCase() === normalizedValue;
+    const selected = filteredUnits.find(matchesSelectedValue);
+    const rest = filteredUnits.filter(
+      unit => !matchesSelectedValue(unit),
     );
 
     return selected ? [selected, ...rest] : filteredUnits;
-  }, [value, query, units]);
+  }, [value, query, unitsWithSelectedValue]);
 
   return (
     <Modal
@@ -88,12 +108,16 @@ const ProductUnitModal = ({
           data={sortedUnits}
           keyExtractor={(_, index) => index + 'unit_flatlist'}
           renderItem={({item}) => {
-            const isSelected = value && item.name && item.name.toUpperCase() === value.toUpperCase();
+            const normalizedValue = String(value || '').trim().toUpperCase();
+            const isSelected =
+              normalizedValue &&
+              (String(item?.name || '').trim().toUpperCase() === normalizedValue ||
+                String(item?.shortName || '').trim().toUpperCase() === normalizedValue);
             return (
               <TouchableOpacity
                 style={styles.itemCOntainer}
                 onPress={() => {
-                  setValue(item.name);
+                  setValue(item.shortName || item.name);
                   handleCancel();
                 }}>
                 <Text style={styles.itemText}>{item.name} {item.shortName ? `(${item.shortName})` : ''}</Text>
