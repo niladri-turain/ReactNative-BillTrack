@@ -18,6 +18,7 @@ const BillProductCard = memo(
   ({width = 113, item, setQuantity, setTotalPrice, hasHsnError = false}) => {
     const PADDING = 8;
     const [count, setCount] = useState(item?.count || 0);
+    const [imageFailed, setImageFailed] = useState(false);
 
     useMemo(() => {
       imageWidth = width - PADDING * 2;
@@ -78,18 +79,21 @@ const BillProductCard = memo(
           }}>
           <Image
             style={[styles.image, {height: imageHeight}]}
+            onError={() => setImageFailed(true)}
             source={
-              item?.logo || item?.image
+              imageFailed
+                ? require('./../../../asset/images/emptyimg.jpg')
+                : item?.logo || item?.image
                 ? (() => {
-                    let uri = item?.logo || item?.image;
+                    let uri = String(item?.logo || item?.image).trim();
                     if (uri.startsWith('http')) {
                       // Fix double prefix and upgrade to https
                       const parts = uri.split('http');
                       uri = 'http' + parts[parts.length - 1];
                       uri = uri.replace('http://', 'https://');
                     } else {
-                      // Relative path
-                      uri = `${API_URL}files/product/${uri}`;
+                      const folder = item?.logo ? 'logo' : 'product';
+                      uri = `${API_URL}files/${folder}/${uri}`;
                     }
                     return {uri};
                   })()

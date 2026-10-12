@@ -36,7 +36,6 @@ import {
   useUpdateUserFields,
   useUpdateBusinessFields,
   useUser,
-  useGstEnabled,
   useSubscription,
 } from '../../Contexts/AuthContext';
 import {mapCurrentSubscription} from '../../Models/CurrentSubscriptionModel';
@@ -70,7 +69,6 @@ const Account = memo(() => {
   const token = useAuthToken();
   const subscription = useSubscription();
   const currentPlan = mapCurrentSubscription(subscription);
-  const isGstEnabled = useGstEnabled();
   const {logout, resetBusiness, refreshSubscription} = useAuth();
   const updateUserFields = useUpdateUserFields();
   const updateBusinessFields = useUpdateBusinessFields();
@@ -559,7 +557,8 @@ const Account = memo(() => {
           enableOnAndroid
           extraScrollHeight={20}
           keyboardOpeningTime={0}
-          keyboardShouldPersistTaps="handled">
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.modalFormContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalHeaderTitleText}>
               Update Profile Details
@@ -606,7 +605,6 @@ const Account = memo(() => {
             value={name}
             setValue={setName}
             hasError={name.length > 0 && !validateName(name)}
-            disabled={isGstEnabled}
           />
           <View>
             <View style={{position: 'relative'}}>
@@ -812,7 +810,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: padding(16),
-    gap: gap(15),
+  },
+  modalFormContent: {
+    gap: gap(12),
+    paddingBottom: padding(8),
   },
   modalHeader: {
     flexDirection: 'row',
