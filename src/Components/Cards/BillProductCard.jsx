@@ -64,6 +64,10 @@ const BillProductCard = memo(
       setCount(item?.count || 0);
     }, [item?.count]);
 
+    useEffect(() => {
+      setImageFailed(false);
+    }, [item?.logo, item?.image]);
+
     return (
       <View
         style={[
