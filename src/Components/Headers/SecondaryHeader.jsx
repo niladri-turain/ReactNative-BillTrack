@@ -21,6 +21,7 @@ import {
   padding,
 } from '../../utils/responsive';
 import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
+import Lucide from '@react-native-vector-icons/lucide';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -35,6 +36,7 @@ const SecondaryHeader = ({
   isNotification = true,
   isApps = false,
   isRestart = false,
+  onSortPress,
   isTransaction = false,
   onTransactionPress = () => {},
   handleRestartClick = () => {},
@@ -97,7 +99,9 @@ const SecondaryHeader = ({
             </TouchableOpacity>
           </View>
         ) : (
-          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+            {title}
+          </Text>
         )}
       </View>
       {!isSearchActive && (
@@ -127,6 +131,16 @@ const SecondaryHeader = ({
             </TouchableOpacity>
           )}
           {isRestart && <RestartButton onPress={handleRestartClick} />}
+          {onSortPress && (
+            <TouchableOpacity
+              style={styles.sortButton}
+              onPress={onSortPress}
+              accessibilityRole="button"
+              accessibilityLabel="Sort invoices">
+              <Text style={styles.sortText}>Sort</Text>
+              <Lucide name="arrow-down-up" size={icon(14)} color={colors.primary} />
+            </TouchableOpacity>
+          )}
 
           {isQuestion && (
             <Pressable>
@@ -209,6 +223,23 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: font(16),
+    fontFamily: fonts.onMedium,
+    flexShrink: 1,
+  },
+  sortButton: {
+    minWidth: 64,
+    height: 30,
+    paddingHorizontal: padding(8),
+    backgroundColor: colors.primary + 20,
+    borderRadius: 5,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: gap(4),
+  },
+  sortText: {
+    color: colors.primary,
+    fontSize: font(12),
     fontFamily: fonts.onMedium,
   },
   searchContainer: {

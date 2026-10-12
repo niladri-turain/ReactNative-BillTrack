@@ -1,5 +1,4 @@
 import {
-  ActivityIndicator,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -25,7 +24,6 @@ import {
   RadioInput,
   SecondaryHeader,
 } from '../../Components';
-import Lucide from '@react-native-vector-icons/lucide';
 import {colors} from '../../utils/colors';
 import {fonts} from '../../utils/fonts';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
@@ -34,7 +32,7 @@ import BottomSheet, {
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import {font, margin, padding} from '../../utils/responsive';
+import {font, padding} from '../../utils/responsive';
 import {invoiceService} from '../../Services/InvoiceService';
 import {useAuthToken, useSubscription} from '../../Contexts/AuthContext';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -52,6 +50,12 @@ const SORT_OPTIONS = [
   { label: 'Amount Low to High', value: 'amount_low_to_high' },
  
 ];
+const SORT_HEADING_LABELS = {
+  date_desc: 'Newest First',
+  date_asc: 'Oldest First',
+  amount_high_to_low: 'High to Low',
+  amount_low_to_high: 'Low to High',
+};
 const STICKY_HEADER_INDICES = [0];
 const ANIMATION_CONFIG = {duration: 300};
 
@@ -119,6 +123,7 @@ const CancelInvoiceList = memo(() => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [paginationTotalPage, setPaginationTotalPage] = useState(0);
   const [paginationHasNextPage, setPaginationHasNextPage] = useState(false);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [query, setQuery] = useState('');
   const [isSortingOpen, setIsSortingOpen] = useState(false);
 
@@ -169,15 +174,18 @@ const CancelInvoiceList = memo(() => {
 
   /* FETCH INVOICES OPTIMIZATION */
   const fetchInvoices = useCallback(
-    async (page = 0) => {
+    async (page = 0, requestedSort = sortBy) => {
       try {
         setIsLoading(true);
-        const data = await invoiceService.getCancelInvoices(token, page, 10, sortBy);
+        const data = await invoiceService.getCancelInvoices(token, page, 10, requestedSort);
         if (data?.status) {
           setInvoices(data?.data);
           const pagination = data?.pagination;
           setPaginationTotalPage(pagination?.totalPage);
           setPaginationHasNextPage(pagination?.hasNext);
+          setTotalRecords(
+            pagination?.totalRecords ?? data?.totalRecords ?? 0,
+          );
           console.log(JSON.stringify(data.data))
         }
       } catch (error) {
@@ -200,6 +208,9 @@ const CancelInvoiceList = memo(() => {
           const pagination = data?.pagination;
           setPaginationTotalPage(pagination?.totalPage);
           setPaginationHasNextPage(pagination?.hasNext);
+          setTotalRecords(
+            pagination?.totalRecords ?? data?.totalRecords ?? 0,
+          );
         }
       } catch (error) {
       } finally {
@@ -234,22 +245,6 @@ const CancelInvoiceList = memo(() => {
 
   // Removed useEffect for pageNumber to prevent double calls and ensure explicit triggers
 
-  // Memoized header component
-  const ListHeaderComponent = useMemo(
-    () => (
-      <View style={styles.topHeader}>
-        <Text style={styles.titleText}>Cancel Invoice List</Text>
-        <TouchableOpacity
-          style={styles.sortButton}
-          onPress={handleOpenBottomSheet}>
-          <Text style={styles.sortText}>Sort</Text>
-          <Lucide name="arrow-down-up" size={12} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-    ),
-    [handleOpenBottomSheet],
-  );
-
   // Optimized render functions
   const keyExtractor = useCallback(
     (item, index) => `${item?.id || index}_cancel_invoice_items`,
@@ -267,17 +262,23 @@ const CancelInvoiceList = memo(() => {
     [onRefresh],
   );
 
+  const handleSelectSort = useCallback(value => {
+    setSortBy(value);
+    setPageNumber(0);
+    bottomSheetRef.current?.close();
+  }, []);
+
   const renderSortOption = useCallback(
     ({item, index}) => (
       <SortOption
         label={item.label}
         value={item.value}
         isSelected={sortBy === item.value}
-        onSelect={setSortBy}
+        onSelect={handleSelectSort}
         isLast={index === SORT_OPTIONS.length - 1}
       />
     ),
-    [sortBy],
+    [sortBy, handleSelectSort],
   );
 
   const sortOptionsKeyExtractor = useCallback(
@@ -327,31 +328,21 @@ const CancelInvoiceList = memo(() => {
     );
   }, [isLoading, pageNumber, invoices, query]);
 
-  const applySorting=async()=>{
-    setPageNumber(0);
-    setIsRefreshing(true);
-    await fetchInvoices(0);
-    setTimeout(() => {
-      bottomSheetRef.current?.close();
-    }, 10);
-    setIsRefreshing(false);
-  }
-
   return (
     <GestureHandlerRootView style={styles.rootView}>
       <Layout>
         <SecondaryHeader
-          title="Cancel Invoice List"
+          title={`Cancelled · ${SORT_HEADING_LABELS[sortBy] || 'Newest First'} (${totalRecords})`}
           query={query}
           onchangeText={handleChangeText}
           isQuestion={false}
           isRestart={true}
           handleRestartClick={onRefresh}
+          onSortPress={handleOpenBottomSheet}
         />
         <FlatList
           style={{flex: 1}}
           contentContainerStyle={[styles.container, {flexGrow: 1}]}
-          ListHeaderComponent={ListHeaderComponent}
           data={filteredInvoices}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
@@ -390,10 +381,6 @@ const CancelInvoiceList = memo(() => {
             keyExtractor={sortOptionsKeyExtractor}
             renderItem={renderSortOption}
           />
-          <TouchableOpacity style={styles.applyButton} onPress={applySorting} 
-          disabled={isRefreshing}>
-            {isRefreshing?<ActivityIndicator size={'small'} color={'#fff'} />:<Text style={styles.applyText}>APPLY</Text>}
-          </TouchableOpacity>
         </BottomSheetView>
       </BottomSheet>
     </GestureHandlerRootView>
@@ -404,39 +391,9 @@ const styles = StyleSheet.create({
   rootView: {
     flex: 1,
   },
-  topHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    height: 50,
-    backgroundColor: '#fff',
-    borderRadius: 5,
-    paddingHorizontal: 16,
-    marginTop: 17,
-    marginBottom: 5,
-  },
-  titleText: {
-    fontSize: 14,
-    fontFamily: fonts.inMedium,
-    color: '#000',
-  },
-  sortButton: {
-    width: 77,
-    height: 27,
-    backgroundColor: colors.primary + 20,
-    borderRadius: 5,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 5,
-  },
-  sortText: {
-    fontSize: 12,
-    fontFamily: fonts.onSemiBold,
-    color: colors.primary,
-  },
   container: {
     paddingHorizontal: 16,
+    paddingTop: padding(12),
     gap: 15,
     paddingBottom: 50,
   },
@@ -469,19 +426,6 @@ const styles = StyleSheet.create({
   },
   bottomSheetBackground: {
     borderRadius: 0,
-  },
-  applyButton: {
-    alignSelf: 'center',
-    marginBottom: margin(15),
-    paddingHorizontal: padding(30),
-    paddingVertical: padding(8),
-    backgroundColor: colors.primary,
-    borderRadius: 5,
-  },
-  applyText: {
-    fontSize: font(12),
-    fontFamily: fonts.inBold,
-    color: '#fff',
   },
   footerLoader: {
     justifyContent: 'center',

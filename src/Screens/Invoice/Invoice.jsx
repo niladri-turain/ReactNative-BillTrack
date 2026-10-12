@@ -1,5 +1,4 @@
 import {
-  ActivityIndicator,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -25,7 +24,6 @@ import {
   RadioInput,
   SecondaryHeader,
 } from '../../Components';
-import Lucide from '@react-native-vector-icons/lucide';
 import { colors } from '../../utils/colors';
 import { fonts } from '../../utils/fonts';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -34,7 +32,7 @@ import BottomSheet, {
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { font, margin, padding } from '../../utils/responsive';
+import { font, padding } from '../../utils/responsive';
 import { invoiceService } from '../../Services/InvoiceService';
 import { useAuthToken, useSubscription } from '../../Contexts/AuthContext';
 import { useInvoice } from '../../Contexts/InvoiceContext';
@@ -52,7 +50,14 @@ const SORT_OPTIONS = [
   { label: 'Amount Low to High', value: 'amount_low_to_high' },
   { label: 'Cancelled', value: 'cancelled' },
 ];
-const STICKY_HEADER_INDICES = [0];
+const SORT_HEADING_LABELS = {
+  all: 'All Invoices',
+  date_desc: 'Newest First',
+  date_asc: 'Oldest First',
+  amount_high_to_low: 'High to Low',
+  amount_low_to_high: 'Low to High',
+  cancelled: 'Cancelled',
+};
 const ANIMATION_CONFIG = { duration: 300 };
 
 // Memoized ListFooterComponent
@@ -177,19 +182,19 @@ const Invoice = () => {
 
   /* FETCH INVOICES OPTIMIZATION */
   const fetchInvoices = useCallback(
-    async (page = 0, silent = false) => {
+    async (page = 0, silent = false, requestedSort = sortBy) => {
       try {
         if (!silent && invoicesRef.current.length === 0) {
           setIsLoading(true);
         }
         const data =
-          sortBy === 'cancelled'
+          requestedSort === 'cancelled'
             ? await invoiceService.getCancelInvoices(token, page, 10, 'date_desc')
             : await invoiceService.getInvoices(
                 token,
                 page,
                 10,
-                sortBy === 'all' ? 'date_desc' : sortBy,
+                requestedSort === 'all' ? 'date_desc' : requestedSort,
               );
         if (data?.status) {
           if (page === 0) {
@@ -240,26 +245,6 @@ const Invoice = () => {
     setIsRefreshing(false);
   }, [fetchInvoices]);
 
-  // Memoized header component
-  const ListHeaderComponent = useMemo(
-    () => (
-      <View style={styles.topHeader}>
-        <Text style={styles.titleText}>
-          {SORT_OPTIONS.find(option => option.value === sortBy)?.label ||
-            'All Invoices'}{' '}
-          ({totalRecords})
-        </Text>
-        <TouchableOpacity
-          style={styles.sortButton}
-          onPress={handleOpenBottomSheet}>
-          <Text style={styles.sortText}>Sort</Text>
-          <Lucide name="arrow-down-up" size={12} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-    ),
-    [handleOpenBottomSheet, sortBy, totalRecords],
-  );
-
   // Optimized render functions
   const keyExtractor = useCallback(
     (item, index) => `${item?.id || index}_invoice_items`,
@@ -277,17 +262,23 @@ const Invoice = () => {
     [onRefresh],
   );
 
+  const handleSelectSort = useCallback(value => {
+    setSortBy(value);
+    setPageNumber(0);
+    bottomSheetRef.current?.close();
+  }, []);
+
   const renderSortOption = useCallback(
     ({ item, index }) => (
       <SortOption
         label={item.label}
         value={item.value}
         isSelected={sortBy === item.value}
-        onSelect={setSortBy}
+        onSelect={handleSelectSort}
         isLast={index === SORT_OPTIONS.length - 1}
       />
     ),
-    [sortBy],
+    [sortBy, handleSelectSort],
   );
 
   const sortOptionsKeyExtractor = useCallback(
@@ -337,35 +328,24 @@ const Invoice = () => {
     );
   }, [isLoading, pageNumber, invoices, query, isInitialLoad]);
 
-  const applySorting = async () => {
-    setPageNumber(0);
-    setIsRefreshing(true);
-    await fetchInvoices(0);
-    setTimeout(() => {
-      bottomSheetRef.current?.close();
-    }, 10);
-    setIsRefreshing(false);
-  }
-
   return (
     <GestureHandlerRootView style={styles.rootView}>
       <Layout>
         <SecondaryHeader
-          title="Invoice list"
+          title={`${SORT_HEADING_LABELS[sortBy] || 'All Invoices'} (${totalRecords})`}
           query={query}
           onchangeText={handleChangeText}
           isQuestion={false}
           isRestart={true}
           handleRestartClick={onRefresh}
+          onSortPress={handleOpenBottomSheet}
         />
         <FlatList
           style={{ flex: 1 }}
           contentContainerStyle={[styles.container, { flexGrow: 1 }]}
-          ListHeaderComponent={ListHeaderComponent}
           data={filteredInvoices}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
-          stickyHeaderIndices={STICKY_HEADER_INDICES}
           refreshControl={refreshControl}
           removeClippedSubviews={true}
           maxToRenderPerBatch={5}
@@ -400,10 +380,6 @@ const Invoice = () => {
             keyExtractor={sortOptionsKeyExtractor}
             renderItem={renderSortOption}
           />
-          <TouchableOpacity style={styles.applyButton} onPress={applySorting}
-            disabled={isRefreshing}>
-            {isRefreshing ? <ActivityIndicator size={'small'} color={'#fff'} /> : <Text style={styles.applyText}>APPLY</Text>}
-          </TouchableOpacity>
         </BottomSheetView>
       </BottomSheet>
     </GestureHandlerRootView>
@@ -414,39 +390,9 @@ const styles = StyleSheet.create({
   rootView: {
     flex: 1,
   },
-  topHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    height: 50,
-    backgroundColor: '#fff',
-    borderRadius: 5,
-    paddingHorizontal: 16,
-    marginTop: 17,
-    marginBottom: 5,
-  },
-  titleText: {
-    fontSize: 14,
-    fontFamily: fonts.inMedium,
-    color: '#000',
-  },
-  sortButton: {
-    width: 77,
-    height: 27,
-    backgroundColor: colors.primary + 20,
-    borderRadius: 5,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 5,
-  },
-  sortText: {
-    fontSize: 12,
-    fontFamily: fonts.onSemiBold,
-    color: colors.primary,
-  },
   container: {
     paddingHorizontal: 16,
+    paddingTop: padding(12),
     gap: 15,
     paddingBottom: 50,
   },
@@ -479,19 +425,6 @@ const styles = StyleSheet.create({
   },
   bottomSheetBackground: {
     borderRadius: 0,
-  },
-  applyButton: {
-    alignSelf: 'center',
-    marginBottom: margin(15),
-    paddingHorizontal: padding(30),
-    paddingVertical: padding(8),
-    backgroundColor: colors.primary,
-    borderRadius: 5,
-  },
-  applyText: {
-    fontSize: font(12),
-    fontFamily: fonts.inBold,
-    color: '#fff',
   },
   footerLoader: {
     justifyContent: 'center',
