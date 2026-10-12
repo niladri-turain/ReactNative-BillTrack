@@ -24,6 +24,7 @@ const ProductCard = memo(
     editFunction = () => {},
   }) => {
     const PADDING = 8;
+    const [imageFailed, setImageFailed] = useState(false);
     const {imageHeight, buttonSize, iconSize, bottomMarginTop} = useMemo(() => {
       const imageWidth = width - PADDING * 2;
       return {
@@ -42,8 +43,11 @@ const ProductCard = memo(
           onLongPress={handleLongPress}>
           <Image
             style={[styles.image, {height: imageHeight}]}
+            onError={() => setImageFailed(true)}
             source={
-              (() => {
+              imageFailed
+                ? require('./../../../asset/images/emptyimg.jpg')
+                : (() => {
                 const imgPath = item?.logo || item?.image;
                 if (!imgPath)
                   return require('./../../../asset/images/emptyimg.jpg');

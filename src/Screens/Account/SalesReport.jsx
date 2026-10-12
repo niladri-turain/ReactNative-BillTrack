@@ -384,7 +384,10 @@ const SalesReport = memo(() => {
                 </ScrollView>
               </View>
               <View style={{paddingBottom: padding(5)}}>
-                <SalesAreaChart barData={chartData?.data} />
+                <SalesAreaChart
+                  barData={chartData?.data}
+                  referenceBarCount={6}
+                />
               </View>
             </View>
           )}

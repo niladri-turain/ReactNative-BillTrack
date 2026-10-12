@@ -4,7 +4,7 @@ import {BarChart} from 'react-native-gifted-charts';
 import {colors} from '../../utils/colors';
 import {font, HOME_CHART_HEIGHT} from '../../utils/responsive';
 
-const SalesAreaChart = memo(({barData = []}) => {
+const SalesAreaChart = memo(({barData = [], referenceBarCount}) => {
   // Memoize chart calculations to prevent unnecessary recalculations
   const chartConfig = useMemo(() => {
     const maxValue = Math.max(...barData.map(item => item.value));
@@ -17,7 +17,8 @@ const SalesAreaChart = memo(({barData = []}) => {
     const availableWidth = screenWidth - 100;
 
     // Calculate dynamic bar width and spacing based on number of bars
-    const numberOfBars = barData?.length || 1;
+    // Sales Report keeps the six-month bar size for every selected period.
+    const numberOfBars = referenceBarCount || barData?.length || 1;
     const calculatedBarWidth = Math.max(
       Math.floor((availableWidth / numberOfBars) * 0.6),
       8,
@@ -32,7 +33,7 @@ const SalesAreaChart = memo(({barData = []}) => {
       calculatedBarWidth,
       calculatedSpacing,
     };
-  }, [barData]);
+  }, [barData, referenceBarCount]);
 
   // Memoize style objects to prevent recreation on each render
   const xAxisLabelStyle = useMemo(() => ({fontSize: font(9)}), []);

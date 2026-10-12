@@ -7,7 +7,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import React from 'react';
+import React, {useState} from 'react';
 import {
   font,
   gap,
@@ -20,12 +20,17 @@ import {colors} from '../../utils/colors';
 import {API_URL} from '../../utils/config';
 
 const ProductCardRow = ({item, onpressCard = () => {}}) => {
+  const [imageFailed, setImageFailed] = useState(false);
+
   return (
     <Pressable style={styles.container} onPress={onpressCard}>
       <View style={styles.leftCOntainer}>
         <Image
+          onError={() => setImageFailed(true)}
           source={
-            (() => {
+            imageFailed
+              ? require('./../../../asset/images/emptyimg.jpg')
+              : (() => {
               const imgPath = item?.image;
               if (!imgPath)
                 return require('./../../../asset/images/emptyimg.jpg');
