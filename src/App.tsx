@@ -299,7 +299,10 @@ const AppStack = memo(() => {
         listeners={({ navigation }) => ({
           tabPress: (e) => {
             e.preventDefault();
-            navigation.navigate('Invoice', { screen: 'Invoice' });
+            navigation.navigate('Invoice', {
+              screen: 'Invoice',
+              params: { resetInvoiceList: Date.now() },
+            });
           },
         })}
       />

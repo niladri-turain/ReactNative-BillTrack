@@ -37,7 +37,7 @@ import { invoiceService } from '../../Services/InvoiceService';
 import { useAuthToken, useSubscription } from '../../Contexts/AuthContext';
 import { useInvoice } from '../../Contexts/InvoiceContext';
 
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // Constants moved outside component to prevent recreation
 const SNAP_POINTS = ['40%'];
@@ -112,6 +112,7 @@ const SortOption = memo(({ label, value, isSelected, onSelect, isLast }) => (
 
 const Invoice = () => {
   const navigation = useNavigation();
+  const route = useRoute();
   const insets = useSafeAreaInsets();
   const token = useAuthToken();
   const subscription = useSubscription();
@@ -228,6 +229,17 @@ const Invoice = () => {
       }
     }, [fetchInvoices, invoicesFetched, invoices.length, pageNumber]),
   );
+
+  // Home's "See more" action and the Invoice tab both request a fresh,
+  // unfiltered list when entering this screen.
+  useEffect(() => {
+    if (route.params?.resetInvoiceList == null) return;
+    setSortBy('all');
+    setPageNumber(0);
+    setQuery('');
+    fetchInvoices(0, false, 'all');
+    navigation.setParams({ resetInvoiceList: undefined });
+  }, [route.params?.resetInvoiceList, fetchInvoices, navigation]);
 
   const handleLoadMore = useCallback(async () => {
     if (paginationHasNextPage && !isLoading) {
