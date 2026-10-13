@@ -35,13 +35,15 @@ class SalesReportService {
     }
   }
 
-  // Export Sales Report (Returns config for download)
-  async exportSalesReport({token, period, type}) {
+  // Build the authenticated financial report export URL.
+  async exportSalesReport({token, from, to, type}) {
     try {
-      const uri = `${this.baseUrl}sales/export/${type}?period=${period}`;
+      const uri = `${this.baseUrl}financial/export/${encodeURIComponent(
+        type,
+      )}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
 
       console.log('--- exportSalesReport ---');
-      console.log('Params:', {period, type});
+      console.log('Params:', {from, to, type});
       console.log('URL:', uri);
 
       return {

@@ -1,4 +1,6 @@
 import {
+  ActivityIndicator,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -35,6 +37,8 @@ import AntDesign from '@react-native-vector-icons/ant-design';
 import {useAuthToken} from '../../Contexts/AuthContext';
 import {salesReportService} from '../../Services/SalesReportService';
 import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
+import ReactNativeBlobUtil from 'react-native-blob-util';
+import FileViewer from 'react-native-file-viewer';
 import ToastService from '../../Components/Toasts/ToastService';
 
 const SalesReport = memo(() => {
@@ -52,6 +56,7 @@ const SalesReport = memo(() => {
 
   // Loading State
   const [isLoading, setIsLaoding] = useState(false);
+  const [isDownloadLoading, setIsDownloadLoading] = useState(false);
   const [isRefreshing, setRefreshing] = useState(false);
 
   // bottomsheet contents
@@ -167,11 +172,112 @@ const SalesReport = memo(() => {
     setIsPeriodDropdownOpen(false);
   };
 
-  const handleDownloadPress = () => {
-    ToastService.show({
-      message: 'Report download will be available when the new API is connected',
-      type: 'info',
-    });
+  const toApiDate = date =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+      2,
+      '0',
+    )}-${String(date.getDate()).padStart(2, '0')}`;
+
+  const getDownloadDateRange = () => {
+    if (isDateRangeSelected) {
+      if (!fromDate) return null;
+      return {from: fromDate, to: today};
+    }
+
+    const from = new Date(today);
+    switch (selectedDownload || 'Monthly') {
+      case 'Quarterly':
+        from.setDate(1);
+        from.setMonth(from.getMonth() - 2);
+        break;
+      case 'Yearly':
+        from.setFullYear(from.getFullYear() - 1);
+        break;
+      case 'Monthly':
+      default:
+        from.setDate(1);
+        break;
+    }
+    return {from, to: today};
+  };
+
+  const handleDownloadPress = async () => {
+    if (!selectedDownloadType || isDownloadLoading) return;
+
+    const dateRange = getDownloadDateRange();
+    if (!dateRange) {
+      ToastService.show({
+        message: 'Please select a From date',
+        type: 'error',
+      });
+      return;
+    }
+
+    const type = selectedDownloadType.toLowerCase();
+    const from = toApiDate(dateRange.from);
+    const to = toApiDate(dateRange.to);
+    setIsDownloadLoading(true);
+
+    try {
+      const configResult = await salesReportService.exportSalesReport({
+        token,
+        from,
+        to,
+        type,
+      });
+      if (!configResult?.status || !configResult?.url) {
+        throw new Error(configResult?.message || 'Could not prepare report');
+      }
+
+      const extension = type === 'excel' ? 'xlsx' : type;
+      const fileName = `Sales_Report_${from}_to_${to}.${extension}`;
+      const {fs, config} = ReactNativeBlobUtil;
+      const directory =
+        Platform.OS === 'android' ? fs.dirs.DownloadDir : fs.dirs.DocumentDir;
+      const filePath = `${directory}/${fileName}`;
+      const mime =
+        type === 'excel'
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          : type === 'pdf'
+          ? 'application/pdf'
+          : 'text/csv';
+
+      const response = await config({
+        fileCache: true,
+        path: filePath,
+        addAndroidDownloads: {
+          useDownloadManager: true,
+          notification: true,
+          path: filePath,
+          description: 'Downloading sales report...',
+          mime,
+          mediaScannable: true,
+        },
+      }).fetch('GET', configResult.url, {
+        Authorization: `Bearer ${token}`,
+      });
+
+      const status = response.info()?.status;
+      if (status < 200 || status >= 300) {
+        throw new Error(`Report download failed (${status})`);
+      }
+
+      ToastService.show({
+        message: 'Report downloaded successfully',
+        type: 'success',
+        duration: 2000,
+      });
+      handleCloseBottomSheet();
+      await FileViewer.open(response.path(), {showOpenWithDialog: true});
+    } catch (error) {
+      console.error('Sales report download failed:', error);
+      ToastService.show({
+        message: 'Could not download or open the report',
+        type: 'error',
+      });
+    } finally {
+      setIsDownloadLoading(false);
+    }
   };
 
 
@@ -454,9 +560,15 @@ const SalesReport = memo(() => {
                 !selectedDownloadType && styles.downloadButtonDisabled,
               ]}
               onPress={handleDownloadPress}
-              disabled={!selectedDownloadType}
-              accessibilityState={{disabled: !selectedDownloadType}}>
-              <Text style={styles.downloadButtonText}>Download</Text>
+              disabled={!selectedDownloadType || isDownloadLoading}
+              accessibilityState={{
+                disabled: !selectedDownloadType || isDownloadLoading,
+              }}>
+              {isDownloadLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.downloadButtonText}>Download</Text>
+              )}
             </TouchableOpacity>
           </ScrollView>
         </BottomSheetView>
