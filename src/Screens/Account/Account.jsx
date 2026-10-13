@@ -189,11 +189,23 @@ const Account = memo(() => {
 
           if (data.status) {
             ToastAndroid.show(data.message, ToastAndroid.SHORT);
-            if (data.business) {
-              resetBusiness(data.business);
-            } else {
-              updateBusinessFields({logoUrl: data.logoUrl || data.logo || logoUrl});
-            }
+            const businessResponse = await businessService.getBusiness(token);
+            const latestBusiness = businessResponse?.status
+              ? businessResponse.data
+              : data?.business || data?.data?.business || {};
+            const uploadData = data?.data || data;
+            const updatedLogoUrl =
+              latestBusiness?.logoUrl ||
+              uploadData?.logoUrl ||
+              uploadData?.logo ||
+              data?.logoUrl ||
+              data?.logo ||
+              logoUrl;
+
+            await updateBusinessFields({
+              ...latestBusiness,
+              logoUrl: updatedLogoUrl,
+            });
             setNewImage(image);
           } else {
             ToastAndroid.show(

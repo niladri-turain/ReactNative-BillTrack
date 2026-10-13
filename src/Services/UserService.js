@@ -42,8 +42,7 @@ class UserService {
 
   async updateUserProfileImage({profileImage, token}) {
     try {
-      // const uri = `${this.baseUrl}business/update-logo`;
-      const uri = `https://bill.billtrack.co.in/api/v1/business/update-logo`;
+      const uri = `${API_URL}business/update-logo`;
       const formData = new FormData();
       formData.append('logo', profileImage);
 
