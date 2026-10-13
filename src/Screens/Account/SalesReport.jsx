@@ -184,14 +184,21 @@ const SalesReport = memo(() => {
       return {from: fromDate, to: today};
     }
 
+    if (selectedDownload === 'Yearly') {
+      // Financial year starts on April 1; before April, use the prior year.
+      const financialYearStart = new Date(
+        today.getFullYear() - (today.getMonth() < 3 ? 1 : 0),
+        3,
+        1,
+      );
+      return {from: financialYearStart, to: today};
+    }
+
     const from = new Date(today);
     switch (selectedDownload || 'Monthly') {
       case 'Quarterly':
         from.setDate(1);
         from.setMonth(from.getMonth() - 2);
-        break;
-      case 'Yearly':
-        from.setFullYear(from.getFullYear() - 1);
         break;
       case 'Monthly':
       default:
@@ -214,7 +221,7 @@ const SalesReport = memo(() => {
     }
 
     const type = selectedDownloadType.toLowerCase();
-    const from = toApiDate(dateRange.from);
+    const from = dateRange.from ? toApiDate(dateRange.from) : undefined;
     const to = toApiDate(dateRange.to);
     setIsDownloadLoading(true);
 
