@@ -26,10 +26,10 @@ const ProductActiveCard = ({item, toggle}) => {
       uri = `https://${cleanPath}`;
     } else {
       // Relative path logic
-      // If it's from the 'logo' field, it's typically in the logo folder
-      const folder = item?.logo ? 'logo' : 'product';
       const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
-      uri = `${baseUrl}/files/${folder}/${uri}`;
+      // Product images are stored under the product folder, even when the
+      // API returns the filename in its `logo` field.
+      uri = `${baseUrl}/files/product/${uri}`;
     }
 
     // Fix spaces and special characters for the final URI

@@ -128,7 +128,7 @@ const ActiveProducts = () => {
         return;
       }
 
-      const result = await productService.updateProductStatus(changed);
+      const result = await productService.updateProductStatus(token, changed);
       if (result?.status) {
         ToastService.show({
           message: 'Changes saved successfully!',
