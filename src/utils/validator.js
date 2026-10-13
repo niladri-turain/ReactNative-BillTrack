@@ -204,7 +204,7 @@ function greeting() {
 function validatePrice(price) {
   if (typeof price !== 'string' && typeof price !== 'number') return false;
   const value = String(price);
-  return /^\d+(\.\d{1,2})?$/.test(value) && Number(value) >= 0;
+  return /^[1-9]\d{0,6}(\.\d{1,2})?$/.test(value) && Number(value) > 0;
 }
 
 export {

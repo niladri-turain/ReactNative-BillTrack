@@ -640,20 +640,15 @@ const Product = () => {
                     placeholder={''}
                     value={productPrice}
                     setValue={(val) => {
-                      let numericValue = val.replace(/[^\d.]/g, '');
-                      const decimalIndex = numericValue.indexOf('.');
-                      if (decimalIndex !== -1) {
-                        numericValue =
-                          numericValue.slice(0, decimalIndex + 1) +
-                          numericValue.slice(decimalIndex + 1).replace(/\./g, '').slice(0, 2);
+                      // Accept up to 7 integer digits and 2 decimal digits;
+                      // prices must start with 1-9 (no zero prefix).
+                      if (/^(?:[1-9]\d{0,6}(?:\.\d{0,2})?)?$/.test(val)) {
+                        setProductPrice(val);
+                        setProductPriceError('');
                       }
-                      if (numericValue.startsWith('.')) {
-                        numericValue = `0${numericValue}`;
-                      }
-                      setProductPrice(numericValue);
-                      setProductPriceError('');
                     }}
                     keyboardType="decimal-pad"
+                    maxLength={10}
                     hasError={(productPrice && !validatePrice(productPrice)) || !!productPriceError}
                   />
                   {!!productPriceError && (
