@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {memo, useCallback, useMemo, useState} from 'react';
+import React, {memo, useCallback, useEffect, useMemo, useState} from 'react';
 import {fonts} from '../../utils/fonts';
 import Lucide from '@react-native-vector-icons/lucide';
 import {colors} from '../../utils/colors';
@@ -25,6 +25,9 @@ const ProductCard = memo(
   }) => {
     const PADDING = 8;
     const [imageFailed, setImageFailed] = useState(false);
+    useEffect(() => {
+      setImageFailed(false);
+    }, [item?.logo, item?.image]);
     const {imageHeight, buttonSize, iconSize, bottomMarginTop} = useMemo(() => {
       const imageWidth = width - PADDING * 2;
       return {

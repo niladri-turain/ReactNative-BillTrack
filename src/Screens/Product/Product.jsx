@@ -82,6 +82,7 @@ const Product = () => {
   const [isColumn, setIsColumn] = useState(true);
   const [productId, setProductId] = useState(null);
   const [productImage, setProductImage] = useState(null);
+  const [productImageFailed, setProductImageFailed] = useState(false);
   const [productName, setProductName] = useState('');
   const [productNameError, setProductNameError] = useState('');
   const [productUnit, setProductUnit] = useState('NA');
@@ -148,6 +149,7 @@ const Product = () => {
 
   const setInitialValueOfModal = () => {
     setProductImage(null);
+    setProductImageFailed(false);
     setProductName('');
     setProductNameError('');
     setProductUnit('NA');
@@ -186,6 +188,7 @@ const Product = () => {
     setProductPrice(item.price || '');
     setProductUnit(item.unitType?.toUpperCase() || 'NA');
     setProductImage(item.logo);
+    setProductImageFailed(false);
     setHsnCode(item.hsn);
     handleOpenModal();
     setIsNewProduct(false);
@@ -277,6 +280,7 @@ const Product = () => {
         const allowedTypes = ['image/jpeg', 'image/png', 'image/webp,image/jpg'];
         if (allowedTypes.includes(image.mime)) {
           setProductImage(image);
+          setProductImageFailed(false);
         } else {
           ToastAndroid.show(
             'Only JPG, PNG, and WEBP files are allowed',
@@ -559,8 +563,11 @@ const Product = () => {
             <View style={styles.imageCOntainer}>
               <Image
                 style={styles.image}
+                onError={() => setProductImageFailed(true)}
                 source={
-                  productImage
+                  productImageFailed
+                    ? require('./../../../asset/images/emptyimg.jpg')
+                    : productImage
                     ? typeof productImage === 'string'
                       ? (() => {
                           let uri = productImage;
@@ -570,7 +577,7 @@ const Product = () => {
                             uri = 'http' + parts[parts.length - 1];
                             uri = uri.replace('http://', 'https://');
                           } else {
-                            // Relative path - default to product folder
+                            // Relative path - product images are served from product folder.
                             uri = `${API_URL}files/product/${uri}`;
                           }
                           return {uri};

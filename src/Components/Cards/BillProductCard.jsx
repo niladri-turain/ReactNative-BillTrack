@@ -96,8 +96,9 @@ const BillProductCard = memo(
                       uri = 'http' + parts[parts.length - 1];
                       uri = uri.replace('http://', 'https://');
                     } else {
-                      const folder = item?.logo ? 'logo' : 'product';
-                      uri = `${API_URL}files/${folder}/${uri}`;
+                      // Create Bill uses business products from product/all.
+                      // Their logo filenames are served from the product folder.
+                      uri = `${API_URL}files/product/${uri}`;
                     }
                     return {uri};
                   })()
