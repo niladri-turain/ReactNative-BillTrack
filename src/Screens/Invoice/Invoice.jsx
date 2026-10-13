@@ -40,7 +40,7 @@ import { useInvoice } from '../../Contexts/InvoiceContext';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // Constants moved outside component to prevent recreation
-const SNAP_POINTS = ['40%'];
+const SNAP_POINTS = ['45%'];
 const SHIMMER_DATA = [1, 2, 3];
 const SORT_OPTIONS = [
   { label: 'All Invoices', value: 'all' },
@@ -370,6 +370,7 @@ const Invoice = () => {
       <BottomSheet
         ref={bottomSheetRef}
         snapPoints={SNAP_POINTS}
+        bottomInset={insets.bottom}
         index={-1}
         handleComponent={null}
         backdropComponent={renderBackdrop}
