@@ -553,7 +553,7 @@ const Account = memo(() => {
         handleClose={handleCloseModal}
         animationType="slide">
         <KeyboardAwareScrollView
-          style={[styles.modalContentContainer, {maxHeight: '85%'}]}
+          style={[styles.modalContentContainer, {maxHeight: '95%'}]}
           enableOnAndroid
           extraScrollHeight={20}
           keyboardOpeningTime={0}
