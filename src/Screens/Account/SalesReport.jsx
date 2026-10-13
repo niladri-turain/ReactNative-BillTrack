@@ -1,6 +1,8 @@
 import {
   ActivityIndicator,
+  Modal,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -36,20 +38,31 @@ import BottomSheet, {
 import AntDesign from '@react-native-vector-icons/ant-design';
 import {useAuthToken} from '../../Contexts/AuthContext';
 import {salesReportService} from '../../Services/SalesReportService';
-import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
+import DateTimePicker, {
+  DateTimePickerAndroid,
+} from '@react-native-community/datetimepicker';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import FileViewer from 'react-native-file-viewer';
 import ToastService from '../../Components/Toasts/ToastService';
 
 const SalesReport = memo(() => {
   const token = useAuthToken();
+  const today = new Date();
+  const todayDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
 
   const [selectedPriod, setSelectedPriod] = useState('Monthly');
   const [selectedDownload, setSelectedDownload] = useState(null);
-  const [fromDate, setFromDate] = useState(null);
+  const [fromDate, setFromDate] = useState(() => new Date(todayDate));
+  const [toDate, setToDate] = useState(() => new Date(todayDate));
   const [isDateRangeSelected, setIsDateRangeSelected] = useState(false);
   const [selectedDownloadType, setSelectedDownloadType] = useState(null);
   const [isPeriodDropdownOpen, setIsPeriodDropdownOpen] = useState(false);
+  const [activeDateField, setActiveDateField] = useState(null);
+  const [pickerDate, setPickerDate] = useState(todayDate);
   const [chartData, setChartData] = useState(null);
   const [currentSalesPercentage, setCurrentSalesPercentage] = useState(0);
   const [previousSalesPercentage, setPreviousSalesPercentage] = useState(0);
@@ -63,9 +76,21 @@ const SalesReport = memo(() => {
   const bottomSheetRef = useRef(null);
   const snapPont = useMemo(() => ['62%'], []);
 
-  const handleOpenBottomSheet = useCallback(() => {
+  const handleOpenBottomSheet = () => {
+    const openedToday = new Date();
+    const currentDate = new Date(
+      openedToday.getFullYear(),
+      openedToday.getMonth(),
+      openedToday.getDate(),
+    );
+    setSelectedDownload(null);
+    setFromDate(currentDate);
+    setToDate(new Date(currentDate));
+    setIsDateRangeSelected(false);
+    setSelectedDownloadType(null);
+    setIsPeriodDropdownOpen(false);
     bottomSheetRef.current?.expand();
-  }, []);
+  };
 
   const handleCloseBottomSheet = useCallback(() => {
     bottomSheetRef.current?.close();
@@ -142,7 +167,6 @@ const SalesReport = memo(() => {
     setRefreshing(false);
   };
 
-  const today = new Date();
   const formatDate = date =>
     date
       ? `${String(date.getDate()).padStart(2, '0')}/${String(
@@ -150,23 +174,43 @@ const SalesReport = memo(() => {
         ).padStart(2, '0')}/${date.getFullYear()}`
       : 'Select date';
 
-  const openFromDatePicker = () => {
+  const openDatePicker = field => {
     setSelectedDownload(null);
     setIsDateRangeSelected(true);
     setIsPeriodDropdownOpen(false);
-    DateTimePickerAndroid.open({
-      value: fromDate || today,
+    const isFromDate = field === 'from';
+    const value = isFromDate ? fromDate : toDate;
+    const pickerOptions = {
+      value,
       mode: 'date',
-      maximumDate: today,
+      maximumDate: isFromDate ? toDate : todayDate,
+      ...(isFromDate ? {} : {minimumDate: fromDate}),
       onChange: (event, date) => {
-        if (event.type === 'set' && date) setFromDate(date);
+        if (event.type === 'set' && date) {
+          if (isFromDate) setFromDate(date);
+          else setToDate(date);
+        }
       },
-    });
+    };
+
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open(pickerOptions);
+    } else {
+      setPickerDate(value);
+      setActiveDateField(field);
+    }
+  };
+
+  const confirmIOSDate = () => {
+    if (activeDateField === 'from') setFromDate(pickerDate);
+    if (activeDateField === 'to') setToDate(pickerDate);
+    setActiveDateField(null);
   };
 
   const resetDownloadOptions = () => {
     setSelectedDownload(null);
-    setFromDate(null);
+    setFromDate(new Date(todayDate));
+    setToDate(new Date(todayDate));
     setIsDateRangeSelected(false);
     setSelectedDownloadType(null);
     setIsPeriodDropdownOpen(false);
@@ -180,8 +224,8 @@ const SalesReport = memo(() => {
 
   const getDownloadDateRange = () => {
     if (isDateRangeSelected) {
-      if (!fromDate) return null;
-      return {from: fromDate, to: today};
+      if (!fromDate || !toDate) return null;
+      return {from: fromDate, to: toDate};
     }
 
     if (selectedDownload === 'Yearly') {
@@ -191,10 +235,10 @@ const SalesReport = memo(() => {
         3,
         1,
       );
-      return {from: financialYearStart, to: today};
+      return {from: financialYearStart, to: todayDate};
     }
 
-    const from = new Date(today);
+    const from = new Date(todayDate);
     switch (selectedDownload || 'Monthly') {
       case 'Quarterly':
         from.setDate(1);
@@ -205,7 +249,7 @@ const SalesReport = memo(() => {
         from.setDate(1);
         break;
     }
-    return {from, to: today};
+    return {from, to: todayDate};
   };
 
   const handleDownloadPress = async () => {
@@ -491,7 +535,6 @@ const SalesReport = memo(() => {
                     style={styles.dropdownOption}
                     onPress={() => {
                       setSelectedDownload(period);
-                      setFromDate(null);
                       setIsDateRangeSelected(false);
                       setIsPeriodDropdownOpen(false);
                     }}>
@@ -511,7 +554,7 @@ const SalesReport = memo(() => {
                     selectedDownload && styles.disabledOption,
                   ]}
                   disabled={!!selectedDownload}
-                  onPress={openFromDatePicker}>
+                    onPress={() => openDatePicker('from')}>
                   <Text
                     style={[
                       styles.dateText,
@@ -523,9 +566,15 @@ const SalesReport = memo(() => {
               </View>
               <View style={styles.dateColumn}>
                 <Text style={styles.optionLabel}>To date</Text>
-                <View style={[styles.dateButton, styles.disabledOption]}>
-                  <Text style={styles.dateText}>{formatDate(today)}</Text>
-                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.dateButton,
+                    selectedDownload && styles.disabledOption,
+                  ]}
+                  disabled={!!selectedDownload}
+                  onPress={() => openDatePicker('to')}>
+                  <Text style={styles.dateText}>{formatDate(toDate)}</Text>
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -580,6 +629,45 @@ const SalesReport = memo(() => {
           </ScrollView>
         </BottomSheetView>
       </BottomSheet>
+      <Modal
+        transparent
+        visible={!!activeDateField}
+        animationType="fade"
+        onRequestClose={() => setActiveDateField(null)}>
+        <Pressable
+          style={styles.datePickerBackdrop}
+          onPress={() => setActiveDateField(null)}>
+          <Pressable style={styles.datePickerModal} onPress={() => {}}>
+            <Text style={styles.datePickerTitle}>
+              Select {activeDateField === 'from' ? 'From' : 'To'} date
+            </Text>
+            <DateTimePicker
+              value={pickerDate}
+              mode="date"
+              display="spinner"
+              maximumDate={
+                activeDateField === 'from' ? toDate : todayDate
+              }
+              minimumDate={activeDateField === 'to' ? fromDate : undefined}
+              onChange={(_, date) => {
+                if (date) setPickerDate(date);
+              }}
+            />
+            <View style={styles.datePickerActions}>
+              <TouchableOpacity
+                onPress={() => setActiveDateField(null)}
+                style={styles.datePickerAction}>
+                <Text style={styles.datePickerCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmIOSDate}
+                style={styles.datePickerAction}>
+                <Text style={styles.datePickerConfirm}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </GestureHandlerRootView>
   );
 });
@@ -753,6 +841,45 @@ const styles = StyleSheet.create({
     fontSize: font(12),
     fontFamily: fonts.inMedium,
     color: '#000',
+  },
+  datePickerBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: padding(20),
+    backgroundColor: '#00000070',
+  },
+  datePickerModal: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingTop: padding(16),
+    paddingBottom: padding(8),
+  },
+  datePickerTitle: {
+    paddingHorizontal: padding(16),
+    fontFamily: fonts.inSemiBold,
+    fontSize: font(15),
+    color: '#000',
+  },
+  datePickerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: padding(12),
+  },
+  datePickerAction: {
+    paddingHorizontal: padding(12),
+    paddingVertical: padding(8),
+  },
+  datePickerCancel: {
+    color: '#666',
+    fontFamily: fonts.inMedium,
+    fontSize: font(13),
+  },
+  datePickerConfirm: {
+    color: colors.primary,
+    fontFamily: fonts.inSemiBold,
+    fontSize: font(13),
   },
   disabledOption: {
     backgroundColor: '#F2F2F2',
