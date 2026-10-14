@@ -385,7 +385,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
-    margin: 16,
     elevation: 3,
   },
 

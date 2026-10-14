@@ -775,12 +775,7 @@ Proceed only if you have completed the required steps and approvals.`,
             visible={isModal}
             handleClose={handleCloseModal}
             animationType="fade">
-            <KeyboardAwareScrollView
-              style={[styles.modalContainer, {maxHeight: '85%'}]}
-              enableOnAndroid
-              extraScrollHeight={20}
-              keyboardOpeningTime={0}
-              keyboardShouldPersistTaps="handled">
+            <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Change {modalType}</Text>
                 <TouchableOpacity onPress={handleCloseModal}>
@@ -815,7 +810,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   <Text style={styles.submitButtonText}>SUBMIT</Text>
                 )}
               </TouchableOpacity>
-            </KeyboardAwareScrollView>
+            </View>
           </CommonModal>
         </Layout>
       </GestureHandlerRootView>
@@ -878,6 +873,7 @@ const styles = StyleSheet.create({
     padding: padding(16),
     backgroundColor: '#fff',
     borderRadius: 8,
+    width: '100%',
   },
   modalHeader: {
     flexDirection: 'row',

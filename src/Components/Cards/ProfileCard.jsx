@@ -16,6 +16,8 @@ const ProfileCard = memo(
     onpressEditBtn = () => {},
     onPressUpgrade = () => {},
   }) => {
+    const isLatestPlan = planName?.trim() === 'BillTrack Smart + Printer';
+
     return (
       <View style={styles.container}>
         <View style={styles.leftContainer}>
@@ -29,14 +31,19 @@ const ProfileCard = memo(
             {!!planName && (
               <TouchableOpacity
                 style={styles.planBadge}
-                onPress={onPressUpgrade}>
+                onPress={onPressUpgrade}
+                disabled={isLatestPlan}>
                 <Text style={styles.planBadgeText}>{planName}</Text>
-                <Text style={styles.upgradeText}>Upgrade</Text>
-                <AntDesign
-                  name="arrowright"
-                  size={10}
-                  color={colors.primary}
-                />
+                {!isLatestPlan && (
+                  <>
+                    <Text style={styles.upgradeText}>Upgrade</Text>
+                    <AntDesign
+                      name="arrowright"
+                      size={10}
+                      color={colors.primary}
+                    />
+                  </>
+                )}
               </TouchableOpacity>
             )}
           </View>
