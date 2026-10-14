@@ -24,6 +24,11 @@ import {useAuth} from '../../Contexts/AuthContext';
 import {businessService} from '../../Services/BusinessService';
 import {getDeviceDetails} from '../../utils/DeviceInfo';
 import {CommonModal} from '../../Components';
+import {
+  startOtpSmsRetriever,
+  stopOtpSmsRetriever,
+  subscribeToOtp,
+} from '../../utils/OtpSmsRetriever';
 
 const OtpVerify = () => {
   const {login, setBusinessData} = useAuth();
@@ -79,6 +84,7 @@ const OtpVerify = () => {
   const handleResendOtp = async () => {
     try {
       if (timer > 0) return;
+      if (Platform.OS === 'android') await startOtpSmsRetriever();
       const data = await authService.login(mobile);
       if (data?.status) {
         setTimer(90);
@@ -93,9 +99,17 @@ const OtpVerify = () => {
 
   const handleChange = async (value, index) => {
     const newOtp = [...otp];
-    newOtp[index] = value;
+    const digits = value.replace(/\D/g, '').slice(0, 4);
+    if (digits.length > 1) {
+      newOtp.fill('');
+      digits.split('').forEach((digit, digitIndex) => {
+        newOtp[digitIndex] = digit;
+      });
+    } else {
+      newOtp[index] = digits;
+    }
     setOtp(newOtp);
-    if (value !== '' && index < 3) {
+    if (digits.length === 1 && digits !== '' && index < 3) {
       otpRef.current[index + 1].focus();
     }
     const newOtpString = newOtp.join('');
@@ -130,6 +144,18 @@ const OtpVerify = () => {
     setTimeout(() => {
       otpRef.current[0].focus();
     }, 200);
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToOtp(code => {
+      setOtp(code.split(''));
+      validateOtp({parameterOtp: code});
+    });
+
+    return () => {
+      unsubscribe();
+      stopOtpSmsRetriever();
+    };
   }, []);
 
   useEffect(() => {
@@ -184,7 +210,9 @@ const OtpVerify = () => {
                     ref={ref => (otpRef.current[index] = ref)}
                     value={value}
                     keyboardType="numeric"
-                    maxLength={1}
+                    maxLength={index === 0 ? 4 : 1}
+                    autoComplete={index === 0 ? 'sms-otp' : 'off'}
+                    textContentType={index === 0 ? 'oneTimeCode' : 'none'}
                     style={[
                       styles.otpInput,
                       value !== '' && {

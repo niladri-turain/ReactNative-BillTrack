@@ -276,7 +276,7 @@ const BusinessSetup2 = () => {
 
            <SimpleTextInput
             placeholder="Street"
-            maxLength={50}
+            maxLength={250}
             value={street}
             setValue={setStreet}
             hasError={street.length > 0 && street.length < 3}

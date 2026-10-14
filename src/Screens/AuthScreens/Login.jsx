@@ -29,6 +29,7 @@ import {
 import {validateIndianPhone} from '../../utils/validator';
 import {authService} from '../../Services/AuthService';
 import {showPhoneNumberHint} from '@shayrn/react-native-android-phone-number-hint';
+import {startOtpSmsRetriever, stopOtpSmsRetriever} from '../../utils/OtpSmsRetriever';
 
 const Login = () => {
   const navigation = useNavigation();
@@ -66,15 +67,24 @@ const Login = () => {
     setError('');
     try {
       setIsLoading(true);
+      if (Platform.OS === 'android') {
+        try {
+          await startOtpSmsRetriever();
+        } catch (error) {
+          // Keep OTP login available when SMS Retriever cannot start.
+        }
+      }
       const data = await authService.login(number);
       if (data?.status) {
         navigation.navigate('Otp', {
           mobile: number,
         });
       } else {
+        await stopOtpSmsRetriever();
         ToastAndroid.show(data?.message, ToastAndroid.SHORT);
       }
     } catch (error) {
+      await stopOtpSmsRetriever();
       ToastAndroid.show('Something went wrong', ToastAndroid.SHORT);
     } finally {
       setIsLoading(false);
