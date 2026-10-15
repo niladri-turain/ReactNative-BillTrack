@@ -69,7 +69,13 @@ const Account = memo(() => {
   const token = useAuthToken();
   const subscription = useSubscription();
   const currentPlan = mapCurrentSubscription(subscription);
-  const {logout, resetBusiness, refreshSubscription} = useAuth();
+  const {
+    logout,
+    resetBusiness,
+    refreshSubscription,
+    updateAuthToken,
+    setUserData,
+  } = useAuth();
   const updateUserFields = useUpdateUserFields();
   const updateBusinessFields = useUpdateBusinessFields();
   const {clearAllProducts} = useProduct();
@@ -353,10 +359,18 @@ const Account = memo(() => {
       setIsVerifyLoading(true);
       const data = await authService.verifyPhone(userId, enteredOtp, token);
       if (data.status) {
-        ToastAndroid.show(data.message, ToastAndroid.SHORT);
-        updateUserFields({phone: phone});
-        updateBusinessFields({phone: phone});
+        if (data.token) {
+          await updateAuthToken(data.token);
+        }
+        if (data.user) {
+          await setUserData(data.user);
+        } else {
+          updateUserFields({phone: phone});
+        }
+        await updateBusinessFields({phone: data.user?.phone || phone});
         handleCloseModal();
+        ToastAndroid.show(data.message || 'Phone number changed successfully', ToastAndroid.SHORT);
+        navigation.getParent()?.navigate('Home', {screen: 'Home'});
       } else {
         setPhoneError(data.message || 'OTP verification failed');
       }
