@@ -170,11 +170,14 @@ const InvoiceDetails = () => {
         setInvoiceItems(sortedItems);
         const grouped = Object.values(
           result.gstListCalculate.reduce((acc, item) => {
-            const key = item.gstPercentage;
+            const isIgst = item.gstType === 'IGST';
+            const fullRate = isIgst ? item.gstPercentage : item.gstPercentage * 2;
+            const key = `${fullRate}:${isIgst ? 'igst' : 'cgst'}`;
 
             if (!acc[key]) {
               acc[key] = {
-                gstPercentage: key,
+                gstPercentage: fullRate,
+                isIgst,
                 items: [],
                 totalRate: 0,
                 totalGstAmount: 0,
@@ -187,7 +190,7 @@ const InvoiceDetails = () => {
             acc[key].totalGstAmount += item.gstAmount;
 
             // Rate should count only once per product
-            if (item.gstType === 'CGST') {
+            if (item.gstType === 'CGST' || item.gstType === 'IGST') {
               acc[key].totalRate += item.rate;
             }
 
@@ -525,7 +528,7 @@ const InvoiceDetails = () => {
                   ]}>
                   <View style={styles.subSecondContainer}>
                     <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                      {(Number(item.gstPercentage) * 2).toFixed(2)}% GST Items
+                      {Number(item.gstPercentage).toFixed(2)}% GST Items
                     </Text>
                   </View>
                   <View style={styles.subSecondContainer}>
