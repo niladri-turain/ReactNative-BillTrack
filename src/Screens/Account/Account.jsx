@@ -518,19 +518,13 @@ const Account = memo(() => {
             title="About Billtrack"
             onpress={() => handleNavigation({screen: 'About'})}
           />
-           <SettingItemsCard
-            mainIcon={
-              // <AntDesign
-              //   name="invoice"
-              //   size={icon(22)}
-              //   color={colors.primary}
-              // />
-              <Ionicons name="close-circle-outline" size={icon(28)} color={colors.primary} />
-
-            }
+          {/* Keep this entry available in source for when cancelled invoice history is needed again.
+          <SettingItemsCard
+            mainIcon={<Ionicons name="close-circle-outline" size={icon(28)} color={colors.primary} />}
             title="Cancel Invoice List"
             onpress={() => handleNavigation({screen: 'CancelInvoiceList'})}
           />
+          */}
           <SettingItemsCard
             mainIcon={
               <MaterialIcons name="payment" size={icon(24)} color={colors.primary} />
