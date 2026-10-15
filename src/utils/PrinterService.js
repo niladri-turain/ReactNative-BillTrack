@@ -114,6 +114,8 @@ class PrinterService {
     gstList,
     totalQuantity,
     subTotalAmount,
+    breakdownTotalAmount,
+    roundOffAmount,
     business,
     token,
     printerSize = '58',
@@ -271,6 +273,29 @@ class PrinterService {
         }
       }
 
+      await BluetoothEscposPrinter.printColumn(
+        summaryWidths,
+        [
+          BluetoothEscposPrinter.ALIGN.LEFT,
+          BluetoothEscposPrinter.ALIGN.RIGHT,
+        ],
+        ['Total Amount :', this.cleanAmount(breakdownTotalAmount)],
+        {},
+      );
+
+      await BluetoothEscposPrinter.printColumn(
+        summaryWidths,
+        [
+          BluetoothEscposPrinter.ALIGN.LEFT,
+          BluetoothEscposPrinter.ALIGN.RIGHT,
+        ],
+        [
+          'Round Off :',
+            `${roundOffAmount > 0 ? '+' : roundOffAmount < 0 ? '-' : ''}${this.cleanAmount(Math.abs(roundOffAmount || 0))}`,
+        ],
+        {},
+      );
+
       await BluetoothEscposPrinter.printText(dashLine, {});
 
       // Payment Method
@@ -292,7 +317,7 @@ class PrinterService {
           BluetoothEscposPrinter.ALIGN.LEFT,
           BluetoothEscposPrinter.ALIGN.RIGHT,
         ],
-        ['Total Amount :', this.cleanAmount(invoice.totalAmount)],
+        ['Final Amount :', this.cleanAmount(invoice.totalAmount)],
         {},
       );
       await BluetoothEscposPrinter.setBlob(0);

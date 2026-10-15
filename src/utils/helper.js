@@ -54,7 +54,7 @@ function formatTime12Hour(isoString) {
 }
 
 // responsible to calculate the invoice data
-const calculateInvoiceData = (items, totalDiscount = 0) => {
+const calculateInvoiceData = (items, totalDiscount = 0, authoritativeTotal = null) => {
   const calculatedItems = [];
   const gstListCalculate = [];
   let totalQuantity = 0;
@@ -65,6 +65,18 @@ const calculateInvoiceData = (items, totalDiscount = 0) => {
     (acc, item) => acc + parseFloat(item?.originalPrice || item?.rate || 0) * Number(item?.quantity || 0),
     0,
   );
+
+  // Round currency to paisa and compensate for floating-point calculation drift.
+  const round2 = num => {
+    const value = Number(num);
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+
+    const magnitude = Math.abs(value);
+    const epsilon = Number.EPSILON * Math.max(1, magnitude);
+    return Math.sign(value) * Math.round((magnitude + epsilon) * 100) / 100;
+  };
 
   items.forEach(item => {
     const originalPrice = parseFloat(item?.originalPrice || item?.rate || 0);
@@ -86,7 +98,15 @@ const calculateInvoiceData = (items, totalDiscount = 0) => {
 
     if (gstPercentage !== 0) {
       taxableRate = discountedPricePerUnit / (1 + gstPercentage / 100);
-      const totalGstAmountForItem = (discountedPricePerUnit - taxableRate) * quantity;
+      const discountedLineAmount = round2(discountedPricePerUnit * quantity);
+      const taxableValueForItem = round2(taxableRate * quantity);
+      // Round each line's GST, then apply the same rounded half to CGST and
+      // SGST. Any paisa difference is shown separately as invoice round-off.
+      const totalGstAmountForItem = round2(
+        discountedLineAmount - taxableValueForItem,
+      );
+      const cgstAmount = round2(totalGstAmountForItem / 2);
+      const sgstAmount = cgstAmount;
 
       // 5. Calculate CGST/SGST
       const addOrUpdateGst = (type, percentage, amount, baseValue) => {
@@ -106,8 +126,8 @@ const calculateInvoiceData = (items, totalDiscount = 0) => {
         }
       };
 
-      addOrUpdateGst('CGST', gstPercentage / 2, totalGstAmountForItem / 2, taxableRate * quantity);
-      addOrUpdateGst('SGST', gstPercentage / 2, totalGstAmountForItem / 2, taxableRate * quantity);
+      addOrUpdateGst('CGST', gstPercentage / 2, cgstAmount, taxableValueForItem);
+      addOrUpdateGst('SGST', gstPercentage / 2, sgstAmount, taxableValueForItem);
     }
 
     calculatedItems.push({
@@ -121,9 +141,6 @@ const calculateInvoiceData = (items, totalDiscount = 0) => {
     });
   });
 
-  // Use a precise rounding function to 2 decimal places
-  const round2 = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
-
   const roundedSubTotal = round2(subTotalAmount);
   const netTotal = round2(subTotalAmount - totalDiscount);
 
@@ -132,12 +149,45 @@ const calculateInvoiceData = (items, totalDiscount = 0) => {
     g.rate = round2(g.rate);
   });
 
+  // Show any paisa-level difference between the rounded tax breakdown and
+  // the saved payable amount as an explicit round-off value.
+  let roundOffAmount = 0;
+  let breakdownTotalAmount = netTotal;
+  const maxAllowedRoundOff = 0.5;
+  const hasOnlyGstItems = items.length > 0 && items.every(
+    item => Number(item?.gstPercentage || 0) > 0,
+  );
+  if (hasOnlyGstItems && gstListCalculate.length > 0) {
+    const payableTotal = authoritativeTotal !== null &&
+      authoritativeTotal !== undefined &&
+      authoritativeTotal !== '' &&
+      Number.isFinite(Number(authoritativeTotal))
+      ? Number(authoritativeTotal)
+      : netTotal;
+    const backendTotalDifference = round2(payableTotal - netTotal);
+    const taxableTotal = gstListCalculate
+      .filter(g => g.gstType === 'CGST')
+      .reduce((sum, g) => sum + g.rate, 0);
+    const taxTotal = gstListCalculate.reduce((sum, g) => sum + g.gstAmount, 0);
+    breakdownTotalAmount = round2(taxableTotal + taxTotal);
+    const breakdownDifference = round2(payableTotal - taxableTotal - taxTotal);
+
+    if (
+      Math.abs(backendTotalDifference) <= maxAllowedRoundOff &&
+      Math.abs(breakdownDifference) <= maxAllowedRoundOff
+    ) {
+      roundOffAmount = breakdownDifference;
+    }
+  }
+
   return {
     items: calculatedItems,
     gstListCalculate,
     totalQuantity,
     subTotalAmount: roundedSubTotal,
     netTotal: netTotal,
+    breakdownTotalAmount,
+    roundOffAmount,
   };
 };
 

@@ -119,11 +119,19 @@ const InvoiceCard = ({invoice, onRefresh}) => {
       );
       return;
     }
+    const invoiceItems = await invoiceService.getInvoiceItems(invoice?.id, token);
+    const {breakdownTotalAmount, roundOffAmount} = calculateInvoiceData(
+      invoiceItems?.items || [],
+      invoice?.discountAmount,
+      invoice?.totalAmount,
+    );
     await sendToWhatsApp({
       businessName: business?.name,
       invoiceNumber: invoice?.invoiceNumber,
       createdAt: invoice?.createdAt,
       totalAmount: invoice?.totalAmount,
+      breakdownTotalAmount,
+      roundOffAmount,
       paymentMode: invoice?.paymentMode,
       customerNumber: invoice?.customerNumber,
       businessId: business?.id,
@@ -235,14 +243,26 @@ const InvoiceCard = ({invoice, onRefresh}) => {
     try {
       setIsPrintingLoading(true);
       const invoiceItems = await invoiceService.getInvoiceItems(invoice?.id, token);
-      const {gstListCalculate, items, subTotalAmount, totalQuantity} =
-        calculateInvoiceData(invoiceItems?.items, invoice?.discountAmount);
+      const {
+        gstListCalculate,
+        items,
+        subTotalAmount,
+        totalQuantity,
+        breakdownTotalAmount,
+        roundOffAmount,
+      } = calculateInvoiceData(
+        invoiceItems?.items,
+        invoice?.discountAmount,
+        invoice?.totalAmount,
+      );
       await printerService.printInvoice(
         invoice,
         items,
         gstListCalculate,
         totalQuantity,
         subTotalAmount,
+        breakdownTotalAmount,
+        roundOffAmount,
         business,
         token,
       );

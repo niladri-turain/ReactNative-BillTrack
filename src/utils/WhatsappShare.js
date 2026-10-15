@@ -6,6 +6,8 @@ const sendToWhatsApp = async ({
   invoiceNumber,
   createdAt,
   totalAmount,
+  breakdownTotalAmount = totalAmount,
+  roundOffAmount = 0,
   paymentMode,
   businessName,
   businessId,
@@ -62,7 +64,9 @@ const sendToWhatsApp = async ({
 Invoice No.:   ${invoiceNumber}
 Date:              ${formatDate(createdAt)}
 Customer:      ${customerNumber}
-Amount Paid:  ₹${totalAmount}
+Total Amount:  ₹${Number(breakdownTotalAmount || 0).toFixed(2)}
+Round Off:     ${roundOffAmount > 0 ? '+' : roundOffAmount < 0 ? '-' : ''}₹${Math.abs(Number(roundOffAmount) || 0).toFixed(2)}
+Final Amount:  ₹${Number(totalAmount || 0).toFixed(2)}
 Paid via:          ${paymentMode || 'Cash'}
 ━━━━━━━━━━━━━━━━━
 

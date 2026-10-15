@@ -482,8 +482,19 @@ const CreateBill = () => {
           invoice?.id,
           token,
         );
-        const {gstListCalculate, items, subTotalAmount, totalQuantity} =
-          calculateInvoiceData(invoiceItems?.items, invoice?.discountAmount);
+        const {
+          gstListCalculate,
+          items,
+          subTotalAmount,
+          totalQuantity,
+          breakdownTotalAmount,
+          roundOffAmount,
+        } =
+          calculateInvoiceData(
+            invoiceItems?.items,
+            invoice?.discountAmount,
+            invoice?.totalAmount,
+          );
 
         if (printer) {
           await printerService.printInvoice(
@@ -492,6 +503,8 @@ const CreateBill = () => {
             gstListCalculate,
             totalQuantity,
             subTotalAmount,
+            breakdownTotalAmount,
+            roundOffAmount,
             {...business, name: businessName},
             token,
           );
@@ -623,6 +636,11 @@ const CreateBill = () => {
       });
       if (data?.status) {
         addInvoices(data?.invoice);
+        const whatsappAmounts = calculateInvoiceData(
+          selectedItems,
+          discount,
+          data?.invoice?.totalAmount,
+        );
         ToastService.show({
           message: 'Bill Created Successfully', 
           type: 'success',
@@ -644,6 +662,8 @@ const CreateBill = () => {
             createdAt: data?.invoice?.createdAt,
             customerNumber: data?.invoice?.customerNumber,
             totalAmount: data?.invoice?.totalAmount,
+            breakdownTotalAmount: whatsappAmounts.breakdownTotalAmount,
+            roundOffAmount: whatsappAmounts.roundOffAmount,
             paymentMode: data?.invoice?.paymentMode,
             businessId: business?.id,
           });
