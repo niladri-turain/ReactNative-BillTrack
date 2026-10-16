@@ -255,21 +255,72 @@ class PrinterService {
         );
       }
 
-      // GST Breakdown
-      if (gstList && gstList.length > 0) {
-        for (const gst of gstList) {
+      // Group GST components by full tax rate so taxable value prints once
+      // for CGST + SGST, or once for IGST.
+      const gstGroups = new Map();
+      for (const gst of gstList || []) {
+        const gstType = String(gst?.gstType || '').toUpperCase();
+        const componentRate = Number(gst?.gstPercentage) || 0;
+        const isIgst = gstType === 'IGST';
+        const totalRate = isIgst ? componentRate : componentRate * 2;
+        const key = `${totalRate}:${isIgst ? 'IGST' : 'GST'}`;
+        const group = gstGroups.get(key) || {
+          totalRate,
+          isIgst,
+          taxableAmount: 0,
+          hasTaxableAmount: false,
+          taxLines: [],
+        };
+
+        // calculateInvoiceData supplies the same taxable amount on CGST and
+        // SGST rows, so only take it from one component.
+        if ((isIgst || gstType === 'CGST') && !group.hasTaxableAmount) {
+          group.taxableAmount =
+            gst?.rate ?? gst?.taxableAmount ?? gst?.taxableValue ?? 0;
+          group.hasTaxableAmount = true;
+        }
+        group.taxLines.push({
+          label: `${gstType} ${componentRate}%`,
+          amount: gst?.gstAmount,
+        });
+        gstGroups.set(key, group);
+      }
+
+      if (gstGroups.size > 0) {
+        await BluetoothEscposPrinter.printText(dashLine, {});
+        for (const group of [...gstGroups.values()].sort(
+          (a, b) => a.totalRate - b.totalRate,
+        )) {
           await BluetoothEscposPrinter.printColumn(
             summaryWidths,
             [
               BluetoothEscposPrinter.ALIGN.LEFT,
               BluetoothEscposPrinter.ALIGN.RIGHT,
             ],
-            [
-              `${gst.gstType} ${gst.gstPercentage}% :`,
-              this.cleanAmount(gst.gstAmount),
-            ],
+            [`${group.totalRate.toFixed(2)}% GST Items`, ''],
             {},
           );
+          await BluetoothEscposPrinter.printColumn(
+            summaryWidths,
+            [
+              BluetoothEscposPrinter.ALIGN.LEFT,
+              BluetoothEscposPrinter.ALIGN.RIGHT,
+            ],
+            ['Taxable Value', this.cleanAmount(group.taxableAmount)],
+            {},
+          );
+          for (const taxLine of group.taxLines) {
+            await BluetoothEscposPrinter.printColumn(
+              summaryWidths,
+              [
+                BluetoothEscposPrinter.ALIGN.LEFT,
+                BluetoothEscposPrinter.ALIGN.RIGHT,
+              ],
+              [taxLine.label, this.cleanAmount(taxLine.amount)],
+              {},
+            );
+          }
+          await BluetoothEscposPrinter.printText('\n', {});
         }
       }
 
