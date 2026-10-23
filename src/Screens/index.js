@@ -30,6 +30,7 @@ import AppSettings from './Account/Settings/AppSettings';
 import ActiveProducts from './Account/ActiveProducts';
 import Transaction from './Account/Transaction';
 import CancelInvoiceList from './Account/CancelInvoiceList';
+import PaymentDetails from './Account/PaymentDetails';
 
 // PRODUCT
 import Product from './Product/Product';
@@ -67,4 +68,5 @@ export {
   AppSettings,
   OfflineScreen,
   CancelInvoiceList,
+  PaymentDetails,
 };

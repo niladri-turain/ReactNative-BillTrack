@@ -82,7 +82,6 @@ const ItemCard = ({
   products,
   selectedItems = [],
   setSelectedItem,
-  existingProductNames = new Set(),
 }) => {
   const hasItems = products?.products?.length > 0;
 
@@ -130,19 +129,19 @@ const ItemCard = ({
 
   const renderItem = useCallback(
     ({item}) => {
-      const isExisting = existingProductNames.has(
-        item?.name?.toLowerCase().trim(),
-      );
+      const isExisting = item?.isAdded === true && item?.productId != null;
       return (
         <SelectableItem
           item={item}
-          isSelected={selectedItems.some(i => i.id === item.id)}
+          isSelected={
+            isExisting || selectedItems.some(i => i.id === item.id)
+          }
           handleSelectAndDeselect={handleSelectAndDeselect}
           isExisting={isExisting}
         />
       );
     },
-    [selectedItems, handleSelectAndDeselect, existingProductNames],
+    [selectedItems, handleSelectAndDeselect],
   );
 
   const keyExtractor = useCallback((item, index) => index.toString(), []);

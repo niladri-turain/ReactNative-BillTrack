@@ -12,7 +12,7 @@ import React, {useEffect, useMemo, useState} from 'react';
 import {Layout} from '../Layout';
 import {DottedDivider, SecondaryHeader} from '../../Components';
 import {fonts} from '../../utils/fonts';
-import {useBusiness, useUser} from '../../Contexts/AuthContext';
+import {useAuthToken, useBusiness, useUser} from '../../Contexts/AuthContext';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {invoiceService} from '../../Services/InvoiceService';
 import {API_URL} from '../../utils/config';
@@ -44,6 +44,7 @@ const InvoiceDetails = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const {invoice} = route.params;
+  const token = useAuthToken();
   const business = useBusiness();
   const isCancelled = invoice?.status?.toLowerCase() === 'canceled';
 
@@ -74,6 +75,8 @@ const InvoiceDetails = () => {
   const [groupedGstList, setGroupedGstList] = useState([]);
   const [totalQuantity, setTotalQuantity] = useState(0);
   const [subTotalAmount, setSubTotalAmount] = useState(0);
+  const [breakdownTotalAmount, setBreakdownTotalAmount] = useState(0);
+  const [roundOffAmount, setRoundOffAmount] = useState(0);
   const [fetchedBusinessName, setFetchedBusinessName] = useState(
     invoice?.businessName || '',
   );
@@ -132,7 +135,7 @@ const InvoiceDetails = () => {
   const fetchInvoices = async () => {
     try {
       setIsLoading(true);
-      const data = await invoiceService.getInvoiceItems(invoice.id);
+      const data = await invoiceService.getInvoiceItems(invoice.id, token);
       if (data?.status) {
         const bName =
           data?.businessName ||
@@ -149,7 +152,11 @@ const InvoiceDetails = () => {
           setFetchedUserPhone(uPhone);
         }
         // Call the calculation function with discount
-        const result = calculateInvoiceData(data?.items, invoice?.discountAmount || 0);
+        const result = calculateInvoiceData(
+          data?.items,
+          invoice?.discountAmount || 0,
+          invoice?.totalAmount,
+        );
         // Update all states with the returned values
         const sortedItems = [...result.items].sort((a, b) => {
           const gstA = parseFloat(a.gstPercentage) || 0;
@@ -158,14 +165,19 @@ const InvoiceDetails = () => {
         });
         setTotalQuantity(result.totalQuantity);
         setSubTotalAmount(result.subTotalAmount);
+        setBreakdownTotalAmount(result.breakdownTotalAmount);
+        setRoundOffAmount(result.roundOffAmount);
         setInvoiceItems(sortedItems);
         const grouped = Object.values(
           result.gstListCalculate.reduce((acc, item) => {
-            const key = item.gstPercentage;
+            const isIgst = item.gstType === 'IGST';
+            const fullRate = isIgst ? item.gstPercentage : item.gstPercentage * 2;
+            const key = `${fullRate}:${isIgst ? 'igst' : 'cgst'}`;
 
             if (!acc[key]) {
               acc[key] = {
-                gstPercentage: key,
+                gstPercentage: fullRate,
+                isIgst,
                 items: [],
                 totalRate: 0,
                 totalGstAmount: 0,
@@ -178,7 +190,7 @@ const InvoiceDetails = () => {
             acc[key].totalGstAmount += item.gstAmount;
 
             // Rate should count only once per product
-            if (item.gstType === 'CGST') {
+            if (item.gstType === 'CGST' || item.gstType === 'IGST') {
               acc[key].totalRate += item.rate;
             }
 
@@ -204,7 +216,7 @@ const InvoiceDetails = () => {
 
   useEffect(() => {
     fetchInvoices();
-  }, [invoice]);
+  }, [invoice, token]);
 
   const hasAnyHsn = invoiceItems.some(item => item?.hsnCode || item?.hsn || (item?.gstPercentage && parseFloat(item?.gstPercentage) > 0));
 
@@ -278,22 +290,16 @@ const InvoiceDetails = () => {
               </Text>
               {(fetchedUserPhone || business?.phone) && (
                 <View style={styles.topKeyValueStyle}>
-                  <Text style={[styles.keyText, {fontSize: font(14)}]}>
-                    Phone Number:{' '}
-                  </Text>
                   <Text style={[styles.valueText, {fontSize: font(14)}]}>
                     {fetchedUserPhone || business?.phone}
                   </Text>
                 </View>
               )}
               <View style={styles.topKeyValueStyle}>
-                <Text style={[styles.keyText, {fontSize: font(14)}]}>
-                  Address:{' '}
-                </Text>
                 <Text
                   style={[
                     styles.valueText,
-                    {width: '50%', fontSize: font(14)},
+                    {width: '70%', fontSize: font(14), textAlign: 'center'},
                   ]}>
                   {business?.street}, {business?.city}, {business?.state},{' '}
                   {business?.pinCode}
@@ -324,15 +330,15 @@ const InvoiceDetails = () => {
                   {gap: sizes.subSecondContainerGap},
                 ]}>
                 <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                  <Text style={[styles.invoiceText, {fontSize: font(14), width: sizes.labelWidth}]}>
-                    Invoice No :
+                  <Text style={[styles.invoiceText, {fontSize: font(14), marginRight: 6}]}>
+                    Inv :
                   </Text>
                   <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
                     {invoice.invoiceNumber}
                   </Text>
                 </View>
                 <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                  <Text style={[styles.invoiceText, {fontSize: font(14), width: sizes.labelWidth}]}>
+                  <Text style={[styles.invoiceText, {fontSize: font(14), marginRight: 6}]}>
                     Date :
                   </Text>
                   <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
@@ -510,7 +516,7 @@ const InvoiceDetails = () => {
               </View>
             )}
             
-            <DottedDivider borderWidth={0.8} />
+            {groupedGstList.length > 0 && <DottedDivider borderWidth={0.8} />}
 
             {/* GST BREAKDOWN SECTION */}
             {groupedGstList.map((item, index) => (
@@ -522,7 +528,7 @@ const InvoiceDetails = () => {
                   ]}>
                   <View style={styles.subSecondContainer}>
                     <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                      {(Number(item.gstPercentage) * 2).toFixed(2)}% GST Items
+                      {Number(item.gstPercentage).toFixed(2)}% GST Items
                     </Text>
                   </View>
                   <View style={styles.subSecondContainer}>
@@ -575,6 +581,41 @@ const InvoiceDetails = () => {
               </View>
             ))}
 
+            <View
+              style={[
+                styles.secondContainer,
+                {paddingHorizontal: sizes.secondContainerPaddingHorizontal},
+              ]}>
+              <View style={styles.subSecondContainer}>
+                <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
+                  Total Amount
+                </Text>
+              </View>
+              <View style={styles.subSecondContainer}>
+                <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
+                  ₹{breakdownTotalAmount.toFixed(2)}
+                </Text>
+              </View>
+            </View>
+
+            <View
+              style={[
+                styles.secondContainer,
+                {paddingHorizontal: sizes.secondContainerPaddingHorizontal},
+              ]}>
+              <View style={styles.subSecondContainer}>
+                <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
+                  Round Off
+                </Text>
+              </View>
+              <View style={styles.subSecondContainer}>
+                <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
+                  {roundOffAmount > 0 ? '+' : roundOffAmount < 0 ? '-' : ''}₹
+                  {Math.abs(roundOffAmount).toFixed(2)}
+                </Text>
+              </View>
+            </View>
+
             <DottedDivider borderWidth={0.8} />
             
             <View
@@ -589,7 +630,7 @@ const InvoiceDetails = () => {
               </View>
               <View style={styles.subSecondContainer}>
                 <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                  Total Amount : ₹{Number(invoice.totalAmount).toFixed(2)}
+                  Final Amount : ₹{Number(invoice.totalAmount).toFixed(2)}
                 </Text>
               </View>
             </View>

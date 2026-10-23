@@ -53,91 +53,158 @@ function formatTime12Hour(isoString) {
   return `${hours.toString().padStart(2, '0')}:${minutesStr} ${period}`;
 }
 
-// responsible to calculate the invoice data
-const calculateInvoiceData = (items, totalDiscount = 0) => {
-  const calculatedItems = [];
-  const gstListCalculate = [];
-  let totalQuantity = 0;
-  let subTotalAmount = 0;
-
-  // 1. Subtotal calculation (before discount)
-  const actualSubtotal = items.reduce(
-    (acc, item) => acc + parseFloat(item?.originalPrice || item?.rate || 0) * Number(item?.quantity || 0),
-    0,
-  );
-
-  items.forEach(item => {
-    const originalPrice = parseFloat(item?.originalPrice || item?.rate || 0);
+// Calculate invoice values in integer paise, using the same per-item GST
+// rounding as the customer invoice page.
+const calculateInvoiceData = (items = [], totalDiscount = 0, authoritativeTotal = null) => {
+  const toPaise = value => Math.round(Number(value || 0) * 100);
+  const fromPaise = value => value / 100;
+  const sourceItems = Array.isArray(items) ? items : [];
+  const subtotalPaise = sourceItems.reduce((sum, item) => {
+    const price = Number(item?.originalPrice ?? item?.rate ?? 0);
     const quantity = Number(item?.quantity || 0);
+    return sum + Math.round(price * quantity * 100);
+  }, 0);
+  const hasItemDiscounts = sourceItems.some(
+    item => item?.discount !== undefined && item?.discount !== null && item?.discount !== '',
+  );
+  const invoiceDiscountPaise = toPaise(totalDiscount);
+  const grossPaiseList = sourceItems.map(item =>
+    Math.round(Number(item?.originalPrice ?? item?.rate ?? 0) * Number(item?.quantity || 0) * 100),
+  );
+  const allocatedDiscounts = grossPaiseList.map((gross, index) => {
+    if (hasItemDiscounts) return toPaise(sourceItems[index]?.discount);
+    if (!subtotalPaise) return 0;
+    return Math.floor((invoiceDiscountPaise * gross) / subtotalPaise);
+  });
+  // Assign any leftover paisa deterministically so item discounts equal the invoice discount.
+  if (!hasItemDiscounts && subtotalPaise > 0) {
+    let remaining = invoiceDiscountPaise - allocatedDiscounts.reduce((sum, amount) => sum + amount, 0);
+    for (let index = 0; remaining > 0 && index < allocatedDiscounts.length; index += 1) {
+      if (grossPaiseList[index] > 0) {
+        allocatedDiscounts[index] += 1;
+        remaining -= 1;
+        if (index === allocatedDiscounts.length - 1 && remaining > 0) index = -1;
+      }
+    }
+  }
+
+  const calculatedItems = [];
+  const groupMap = new Map();
+  let totalQuantity = 0;
+  let nonGstTotalPaise = 0;
+
+  sourceItems.forEach((item, index) => {
+    const originalPrice = Number(item?.originalPrice ?? item?.rate ?? 0);
+    const quantity = Number(item?.quantity || 0);
+    const rate = Number(item?.gstPercentage || 0);
+    const isIgst = String(item?.gstType || '').toLowerCase() === 'igst';
+    const lineTotalPaise = grossPaiseList[index] - allocatedDiscounts[index];
+    const taxPaise = rate > 0
+      ? Math.round((lineTotalPaise * rate) / (100 + rate))
+      : 0;
+    const taxablePaise = lineTotalPaise - taxPaise;
+    const halfTaxPaise = Math.round(taxPaise / 2);
     totalQuantity += quantity;
-    subTotalAmount += originalPrice * quantity;
 
-    // 2 & 3. Distribute Discount Proportionally
-    let discountedPricePerUnit = originalPrice;
-    if (totalDiscount > 0 && actualSubtotal > 0 && quantity > 0) {
-      const itemTotalOriginal = originalPrice * quantity;
-      const itemProportionalDiscount = (totalDiscount * itemTotalOriginal) / actualSubtotal;
-      discountedPricePerUnit = (itemTotalOriginal - itemProportionalDiscount) / quantity;
-    }
-
-    // 4. Calculate Taxable Value (Taxable = Discounted Price / (1 + GST%/100))
-    let taxableRate = discountedPricePerUnit;
-    const gstPercentage = parseFloat(item?.gstPercentage || 0);
-
-    if (gstPercentage !== 0) {
-      taxableRate = discountedPricePerUnit / (1 + gstPercentage / 100);
-      const totalGstAmountForItem = (discountedPricePerUnit - taxableRate) * quantity;
-
-      // 5. Calculate CGST/SGST
-      const addOrUpdateGst = (type, percentage, amount, baseValue) => {
-        const existing = gstListCalculate.find(
-          g => g.gstType === type && g.gstPercentage === percentage,
-        );
-        if (existing) {
-          existing.gstAmount += amount;
-          existing.rate += baseValue;
-        } else {
-          gstListCalculate.push({
-            gstType: type,
-            gstPercentage: percentage,
-            gstAmount: amount,
-            rate: baseValue,
-          });
-        }
+    if (rate > 0) {
+      const key = `${rate}:${isIgst ? 'igst' : 'cgst'}`;
+      const group = groupMap.get(key) || {
+        rate,
+        isIgst,
+        taxablePaise: 0,
+        taxPaise: 0,
+        halfTaxPaise: 0,
       };
-
-      addOrUpdateGst('CGST', gstPercentage / 2, totalGstAmountForItem / 2, taxableRate * quantity);
-      addOrUpdateGst('SGST', gstPercentage / 2, totalGstAmountForItem / 2, taxableRate * quantity);
+      group.taxablePaise += taxablePaise;
+      group.taxPaise += taxPaise;
+      if (!isIgst) group.halfTaxPaise += halfTaxPaise;
+      groupMap.set(key, group);
+    } else {
+      nonGstTotalPaise += lineTotalPaise;
     }
 
+    const discountedLineTotal = fromPaise(lineTotalPaise);
     calculatedItems.push({
       ...item,
       productName: item.productName || item.name,
-      quantity: quantity,
-      rate: taxableRate,
-      originalPrice: originalPrice,
-      discountedRate: discountedPricePerUnit,
-      gstPercentage: gstPercentage
+      quantity,
+      rate: rate > 0 && quantity ? fromPaise(taxablePaise) / quantity : discountedLineTotal / (quantity || 1),
+      originalPrice,
+      discountedRate: discountedLineTotal / (quantity || 1),
+      gstPercentage: rate,
     });
   });
 
-  // Use a precise rounding function to 2 decimal places
-  const round2 = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
-
-  const roundedSubTotal = round2(subTotalAmount);
-  const netTotal = round2(subTotalAmount - totalDiscount);
-
-  gstListCalculate.forEach(g => {
-    g.gstAmount = round2(g.gstAmount);
-    g.rate = round2(g.rate);
+  const groups = [...groupMap.values()].sort((a, b) =>
+    a.rate - b.rate || Number(a.isIgst) - Number(b.isIgst),
+  );
+  const gstListCalculate = groups.flatMap(group => {
+    const taxable = fromPaise(group.taxablePaise);
+    if (group.isIgst) {
+      return [{
+        gstType: 'IGST',
+        gstPercentage: group.rate,
+        gstAmount: fromPaise(group.taxPaise),
+        rate: taxable,
+      }];
+    }
+    return [
+      {
+        gstType: 'CGST',
+        gstPercentage: group.rate / 2,
+        gstAmount: fromPaise(group.halfTaxPaise),
+        rate: taxable,
+      },
+      {
+        gstType: 'SGST',
+        gstPercentage: group.rate / 2,
+        gstAmount: fromPaise(group.halfTaxPaise),
+        rate: taxable,
+      },
+    ];
   });
+
+  // The invoice-level discount is used for the net total, matching the web
+  // invoice. Per-item discounts are used only to calculate each GST line.
+  const netTotalPaise = subtotalPaise - invoiceDiscountPaise;
+  const payableTotalPaise = authoritativeTotal !== null &&
+    authoritativeTotal !== undefined && authoritativeTotal !== '' &&
+    Number.isFinite(Number(authoritativeTotal))
+    ? toPaise(authoritativeTotal)
+    : netTotalPaise;
+  const hasOnlyGstItems = sourceItems.length > 0 && nonGstTotalPaise === 0 &&
+    sourceItems.every(item => Number(item?.gstPercentage || 0) > 0);
+
+  let breakdownTotalPaise = netTotalPaise;
+  let roundOffPaise = 0;
+  if (hasOnlyGstItems && groups.length > 0) {
+    const displayedTaxPaise = groups.reduce(
+      (sum, group) => sum + (group.isIgst ? group.taxPaise : group.halfTaxPaise * 2),
+      0,
+    );
+    const cgstTaxablePaise = groups
+      .filter(group => !group.isIgst)
+      .reduce((sum, group) => sum + group.taxablePaise, 0);
+    const allTaxablePaise = groups.reduce((sum, group) => sum + group.taxablePaise, 0);
+    breakdownTotalPaise = allTaxablePaise + displayedTaxPaise;
+    const differencePaise = payableTotalPaise - cgstTaxablePaise - displayedTaxPaise;
+    const maxRoundOffPaise = 50;
+    if (
+      Math.abs(payableTotalPaise - netTotalPaise) <= maxRoundOffPaise &&
+      Math.abs(differencePaise) <= maxRoundOffPaise
+    ) {
+      roundOffPaise = differencePaise;
+    }
+  }
 
   return {
     items: calculatedItems,
     gstListCalculate,
     totalQuantity,
-    subTotalAmount: roundedSubTotal,
-    netTotal: netTotal,
+    subTotalAmount: fromPaise(subtotalPaise),
+    netTotal: fromPaise(netTotalPaise),
+    breakdownTotalAmount: fromPaise(breakdownTotalPaise),
+    roundOffAmount: fromPaise(roundOffPaise),
   };
 };
 

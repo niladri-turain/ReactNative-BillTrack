@@ -82,12 +82,12 @@ class SubscriptionService {
     }
   }
 
-  async createSubscriptionOrder({token, planId, currentVersionId}) {
+  async createSubscriptionOrder({token, planId, planVersionId}) {
     const uri = API_URL + 'payment/create-order';
     const payload = {
       planId: String(planId),
       idempotencyKey: generateIdempotencyKey(),
-      currentVersionId: currentVersionId ? Number(currentVersionId) : undefined,
+      planVersionId: planVersionId ? Number(planVersionId) : undefined,
     };
     try {
       const headers = token ? {Authorization: `Bearer ${token}`} : undefined;
@@ -109,17 +109,24 @@ class SubscriptionService {
   }
 
   async allSubscriptions(token) {
-    const uri = this.baseUrl + '/subscription';
+    const uri = this.baseUrl + '/invoices?page=1&limit=20';
+    const headers = {
+      Authorization: `Bearer ${token}`,
+    };
+    console.log('[Transaction] API request:', {method: 'GET', url: uri});
+    console.log('[Transaction] Request headers:', {
+      Authorization: token ? 'Bearer [token present]' : 'Bearer [missing]',
+    });
     try {
-      const response = await axios.get(uri, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      console.log(`[SubscriptionService] GET ${uri} - Status: ${response.status}`);
+      const response = await axios.get(uri, {headers});
+      console.log('[Transaction] Response status:', response.status);
+      console.log('[Transaction] Response data:', response.data);
       return response.data;
     } catch (error) {
-      console.log(`[SubscriptionService] GET ${uri} - Error Status: ${error.response?.status}`);
+      console.error('[Transaction] API error URL:', uri);
+      console.error('[Transaction] Error status:', error.response?.status);
+      console.error('[Transaction] Error response:', error.response?.data);
+      console.error('[Transaction] Error message:', error.message);
       const data = error.response?.data;
       return data;
     }

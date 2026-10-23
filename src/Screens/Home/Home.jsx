@@ -44,6 +44,7 @@ const Home = () => {
   const navigation = useNavigation();
   const token = useAuthToken();
   const subscription = useSubscription();
+  const latestInvoices = invoices.slice(0, 10);
 
   // Loading State
   const [isRefreshing, setRefreshing] = useState(false);
@@ -52,6 +53,7 @@ const Home = () => {
   const [isInitialLoad, setIsInitialLoad] = useState(invoices.length === 0);
   const [lastInvoicesLength, setLastInvoicesLength] = useState(invoices.length);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
 
   // useEffect(() => {
   //   // Show modal if user is on a free plan or has no active subscription
@@ -124,18 +126,27 @@ const Home = () => {
         {isInitialLoad && !salesData ? (
           <HomeChartShimmer />
         ) : (
-          <HomeChartComponent refreshTrigger={refreshTrigger}  />
+          <HomeChartComponent
+            refreshTrigger={refreshTrigger}
+            onSubscriptionRequired={(msg) => {
+              setModalMessage(msg);
+              setShowSubscriptionModal(true);
+            }}
+          />
         )}
         
         {/* <HomeTopCard /> */}
 
         <View style={styles.invoiceContainer}>
           <View style={styles.invoiceHeader}>
-            <Text style={fonts.headerText}>All Invoice List</Text>
+            <Text style={fonts.headerText}>Recent Invoice</Text>
             <TouchableOpacity
               style={styles.headerRight}
               onPress={() => {
-                navigation.navigate('Invoice', { screen: 'Invoice' });
+                navigation.navigate('Invoice', {
+                  screen: 'Invoice',
+                  params: { resetInvoiceList: Date.now() },
+                });
               }}>
               <Text style={styles.headerRightText}>See more</Text>
               <Ionicons name="arrow-forward" size={12} color={colors.primary} />
@@ -147,8 +158,8 @@ const Home = () => {
               .map((_, index) => (
                 <InvoiceCardShimmer key={'invoiceShimmer' + index} />
               ))
-          ) : invoices.length > 0 ? (
-            invoices.map((item, index) => (
+          ) : latestInvoices.length > 0 ? (
+            latestInvoices.map((item, index) => (
               <InvoiceCard
                 invoice={item}
                 key={index + '_invoice_card'}
@@ -168,14 +179,15 @@ const Home = () => {
         </View>
       </ScrollView>
 
-      {/* <SubscriptionModal
+      <SubscriptionModal
         visible={showSubscriptionModal}
+        message={modalMessage}
         onClose={() => setShowSubscriptionModal(false)}
         onUpgrade={() => {
           setShowSubscriptionModal(false);
           navigation.navigate('Account', {screen: 'Subscription'});
         }}
-      /> */}
+      />
     </Layout>
   );
 };

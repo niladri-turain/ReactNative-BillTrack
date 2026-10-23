@@ -1,6 +1,7 @@
 import {
   ActivityIndicator,
   Dimensions,
+  DeviceEventEmitter,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
@@ -14,6 +15,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import {BluetoothManager} from 'react-native-bluetooth-escpos-printer';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Layout} from '../Layout';
 import {
@@ -30,7 +32,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import BottomSheet, {
   BottomSheetBackdrop,
-  BottomSheetView,
+  BottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import {fonts} from '../../utils/fonts';
@@ -115,6 +117,7 @@ const CreateBill = () => {
   const [totalPrice, setTotalPrice] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [isPaymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [discount, setDiscount] = useState(0);
   const discountInvalidToastShown = useRef(false);
@@ -136,6 +139,18 @@ const CreateBill = () => {
   const bottomSheetRef = useRef(null);
   const snapPoints = useMemo(() => ['40%'], []);
 
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSubscription = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
+    const hideSubscription = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
   const measureRef = (key, ref) => {
     if (ref.current) {
       ref.current.measure((x, y, width, height, pageX, pageY) => {
@@ -151,6 +166,7 @@ const CreateBill = () => {
 
   useEffect(() => {
     const checkStep1 = async () => {
+      if (await AsyncStorage.getItem('skipAllStepGuides')) return;
       const hasSeen = await AsyncStorage.getItem('hasSeenCreateBillStep1');
       if (!hasSeen && product.length > 0) {
         setGuideStep(1);
@@ -162,6 +178,7 @@ const CreateBill = () => {
 
   useEffect(() => {
     const checkStep2 = async () => {
+      if (await AsyncStorage.getItem('skipAllStepGuides')) return;
       const hasSeen = await AsyncStorage.getItem('hasSeenCreateBillStep2');
       if (!hasSeen && quantity > 0 && guideStep !== 3) {
         // Re-measure create button as it might have moved or just appeared
@@ -177,6 +194,7 @@ const CreateBill = () => {
     bottomSheetRef.current?.expand();
     Keyboard.dismiss();
     const checkStep3 = async () => {
+      if (await AsyncStorage.getItem('skipAllStepGuides')) return;
       const hasSeen = await AsyncStorage.getItem('hasSeenCreateBillStep3');
       if (!hasSeen) {
         setGuideStep(3);
@@ -252,6 +270,17 @@ const CreateBill = () => {
   const [devices, setDevices] = useState([]);
   const [isPendingPrint, setIsPendingPrint] = useState(false);
   const [isScannerModalVisible, setIsScannerModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (!isScannerModalVisible) return undefined;
+
+    const connectionListener = DeviceEventEmitter.addListener(
+      BluetoothManager.EVENT_CONNECTED,
+      () => setIsScannerModalVisible(false),
+    );
+
+    return () => connectionListener.remove();
+  }, [isScannerModalVisible]);
 
   const handleCloseBottomSheet = useCallback(() => {
     bottomSheetRef.current?.close();
@@ -451,9 +480,21 @@ const CreateBill = () => {
         const invoice = data?.invoice;
         const invoiceItems = await invoiceService.getInvoiceItems(
           invoice?.id,
+          token,
         );
-        const {gstListCalculate, items, subTotalAmount, totalQuantity} =
-          calculateInvoiceData(invoiceItems?.items, invoice?.discountAmount);
+        const {
+          gstListCalculate,
+          items,
+          subTotalAmount,
+          totalQuantity,
+          breakdownTotalAmount,
+          roundOffAmount,
+        } =
+          calculateInvoiceData(
+            invoiceItems?.items,
+            invoice?.discountAmount,
+            invoice?.totalAmount,
+          );
 
         if (printer) {
           await printerService.printInvoice(
@@ -462,7 +503,10 @@ const CreateBill = () => {
             gstListCalculate,
             totalQuantity,
             subTotalAmount,
+            breakdownTotalAmount,
+            roundOffAmount,
             {...business, name: businessName},
+            token,
           );
         }
 
@@ -592,6 +636,11 @@ const CreateBill = () => {
       });
       if (data?.status) {
         addInvoices(data?.invoice);
+        const whatsappAmounts = calculateInvoiceData(
+          selectedItems,
+          discount,
+          data?.invoice?.totalAmount,
+        );
         ToastService.show({
           message: 'Bill Created Successfully', 
           type: 'success',
@@ -613,6 +662,8 @@ const CreateBill = () => {
             createdAt: data?.invoice?.createdAt,
             customerNumber: data?.invoice?.customerNumber,
             totalAmount: data?.invoice?.totalAmount,
+            breakdownTotalAmount: whatsappAmounts.breakdownTotalAmount,
+            roundOffAmount: whatsappAmounts.roundOffAmount,
             paymentMode: data?.invoice?.paymentMode,
             businessId: business?.id,
           });
@@ -673,7 +724,9 @@ const CreateBill = () => {
   return (
     <KeyboardAvoidingView
       style={{flex: 1}}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      enabled={Platform.OS === 'ios' || isKeyboardVisible}
+      keyboardVerticalOffset={0}>
       <GestureHandlerRootView style={{flex: 1}}>
         <Layout>
           <SecondaryHeader
@@ -765,8 +818,18 @@ const CreateBill = () => {
                         return;
                       }
                       discountInvalidToastShown.current = false;
-                      if (text <= totalPrice) {
-                        setDiscount(text);
+
+                      let normalizedText = text.startsWith('.')
+                        ? `0${text}`
+                        : text;
+                      const [integerPart, decimalPart] = normalizedText.split('.');
+                      const normalizedInteger = integerPart.replace(/^0+(?=\d)/, '');
+                      normalizedText = decimalPart === undefined
+                        ? normalizedInteger
+                        : `${normalizedInteger}.${decimalPart.slice(0, 2)}`;
+
+                      if (!normalizedText || Number(normalizedText) <= totalPrice) {
+                        setDiscount(normalizedText);
                       } else {
                         discountInputRef.current?.setNativeProps({
                           text: String(discount),
@@ -814,6 +877,9 @@ const CreateBill = () => {
           ref={bottomSheetRef}
           snapPoints={snapPoints}
           index={-1}
+          keyboardBehavior="fillParent"
+          keyboardBlurBehavior="restore"
+          android_keyboardInputMode="adjustResize"
           handleComponent={() => null}
           backgroundStyle={{borderRadius: 0}}
           backdropComponent={renderBackdrop}
@@ -821,7 +887,10 @@ const CreateBill = () => {
             duration: 250,
           }}
           enableHandlePanningGesture={false}>
-          <BottomSheetView style={{flex: 1, padding: padding(15)}}>
+          <BottomSheetScrollView
+            style={{flex: 1}}
+            contentContainerStyle={{padding: padding(15)}}
+            keyboardShouldPersistTaps="handled">
             <View style={styles.bottomSheetContaienr}>
               <Text style={styles.bottomSheetTitleText}>
                 Enter customer phone number
@@ -908,7 +977,7 @@ const CreateBill = () => {
                 </TouchableOpacity>
               )}
             </View>
-          </BottomSheetView>
+          </BottomSheetScrollView>
         </BottomSheet>
 
         {/* Bluetooth Scanner Modal */}

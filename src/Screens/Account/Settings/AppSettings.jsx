@@ -6,6 +6,7 @@ import { useAppSettings } from '../../../Contexts/AppSettingContexts';
 import { useAuth, useAuthToken } from '../../../Contexts/AuthContext';
 import { subscriptionService } from '../../../Services/SubscriptionService';
 import { colors } from '../../../utils/colors';
+import Ionicons from '@react-native-vector-icons/ionicons';
 
 
 
@@ -48,7 +49,18 @@ const AppSettings = () => {
           />
         }>
 
-        {/* ১. Print on Create Bill Card — needs the current plan's BILL_PRINTING
+        {/* ১. Send WhatsApp Card — locked to the current plan's WHATSAPP_SHARING entitlement */}
+        <SettingCard
+          title="Send WhatsApp"
+          subtitle="Send Bill to WhatsApp"
+          isPremium={false}
+          locked={true}
+          value={appSettings.SEND_TO_WHATSAPP}
+          iconName="logo-whatsapp"
+          iconBgColor="#E8F8EF"
+        />
+
+        {/* ২. Print on Create Bill Card — needs the current plan's BILL_PRINTING
             entitlement to be usable at all, but once granted the user can
             manually turn it on/off */}
         <SettingCard
@@ -60,17 +72,6 @@ const AppSettings = () => {
           onValueChange={val => updateAppSettings('PRINT_ON_CREATE_BILL', val)}
           iconText="🖨️"
           iconBgColor="#FFF0E6"
-        />
-
-        {/* ২. Send WhatsApp Card — locked to the current plan's WHATSAPP_SHARING entitlement */}
-        <SettingCard
-          title="Send WhatsApp"
-          subtitle="Send Bill to WhatsApp"
-          isPremium={false}
-          locked={true}
-          value={appSettings.SEND_TO_WHATSAPP}
-          iconText="💬"
-          iconBgColor="#E8F8EF"
         />
 
         {/* ৩. Send SMS Card — needs the current plan's SMS_SENDING entitlement
@@ -93,13 +94,17 @@ const AppSettings = () => {
 };
 
 
-const SettingCard = ({ title, subtitle, isPremium, locked, value, onValueChange, iconText, iconBgColor }) => {
+const SettingCard = ({ title, subtitle, isPremium, locked, value, onValueChange, iconText, iconName, iconBgColor }) => {
   return (
     <View style={styles.card}>
       <View style={styles.mainRow}>
         {/* Left Icon Container */}
         <View style={[styles.iconContainer, { backgroundColor: iconBgColor }]}>
-          <Text style={{ fontSize: 24 }}>{iconText}</Text>
+          {iconName ? (
+            <Ionicons name={iconName} size={34} color="#25D366" />
+          ) : (
+            <Text style={{ fontSize: 24 }}>{iconText}</Text>
+          )}
         </View>
 
         {/* Middle Content */}

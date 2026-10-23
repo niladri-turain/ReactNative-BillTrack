@@ -15,7 +15,7 @@ import AntDesign from '@react-native-vector-icons/ant-design';
 
 const {width} = Dimensions.get('window');
 
-const SubscriptionModal = ({visible, onClose, onUpgrade}) => {
+const SubscriptionModal = ({visible, onClose, onUpgrade, message}) => {
   return (
     <Modal
       visible={visible}
@@ -32,9 +32,9 @@ const SubscriptionModal = ({visible, onClose, onUpgrade}) => {
             <AntDesign name="crown" size={60} color={colors.primary} />
           </View>
 
-          <Text style={styles.title}>Upgrade to Premium</Text>
+          {/* <Text style={styles.title}>Upgrade to Premium</Text> */}
           <Text style={styles.description}>
-            You are currently using the Free Plan. Upgrade to Premium to unlock all professional features and grow your business.
+            {message || 'You are currently using the Free Plan. Upgrade to Premium to unlock all professional features and grow your business.'}
           </Text>
 
           <TouchableOpacity style={styles.upgradeBtn} onPress={onUpgrade}>

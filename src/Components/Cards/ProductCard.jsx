@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {memo, useCallback, useMemo, useState} from 'react';
+import React, {memo, useCallback, useEffect, useMemo, useState} from 'react';
 import {fonts} from '../../utils/fonts';
 import Lucide from '@react-native-vector-icons/lucide';
 import {colors} from '../../utils/colors';
@@ -24,6 +24,10 @@ const ProductCard = memo(
     editFunction = () => {},
   }) => {
     const PADDING = 8;
+    const [imageFailed, setImageFailed] = useState(false);
+    useEffect(() => {
+      setImageFailed(false);
+    }, [item?.logo, item?.image]);
     const {imageHeight, buttonSize, iconSize, bottomMarginTop} = useMemo(() => {
       const imageWidth = width - PADDING * 2;
       return {
@@ -42,8 +46,11 @@ const ProductCard = memo(
           onLongPress={handleLongPress}>
           <Image
             style={[styles.image, {height: imageHeight}]}
+            onError={() => setImageFailed(true)}
             source={
-              (() => {
+              imageFailed
+                ? require('./../../../asset/images/emptyimg.jpg')
+                : (() => {
                 const imgPath = item?.logo || item?.image;
                 if (!imgPath)
                   return require('./../../../asset/images/emptyimg.jpg');

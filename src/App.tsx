@@ -25,6 +25,7 @@ import {
   OfflineScreen,
   Onboarding,
   OtpVerify,
+  PaymentDetails,
   PrinterSetup,
   Product,
   SalesReport,
@@ -165,6 +166,7 @@ const AccountStack = memo(() => {
       <Stack.Screen name="ActiveProducts" component={ActiveProducts} />
       <Stack.Screen name="Transaction" component={Transaction} />
        <Stack.Screen name="CancelInvoiceList" component={CancelInvoiceList} />
+       <Stack.Screen name="PaymentDetails" component={PaymentDetails} />
 
          <Stack.Screen
         name="InvoiceDetails"
@@ -297,7 +299,10 @@ const AppStack = memo(() => {
         listeners={({ navigation }) => ({
           tabPress: (e) => {
             e.preventDefault();
-            navigation.navigate('Invoice', { screen: 'Invoice' });
+            navigation.navigate('Invoice', {
+              screen: 'Invoice',
+              params: { resetInvoiceList: Date.now() },
+            });
           },
         })}
       />

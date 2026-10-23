@@ -31,7 +31,10 @@ const NavigationCardWithValue = ({
         {tag && <Text style={styles.newText}>{tagText}</Text>}
       </View>
       <View style={styles.rightContainer}>
-        <Text style={[styles.itemText, {fontSize: font(textFontSize)}]}>
+        <Text
+          numberOfLines={1}
+          ellipsizeMode="middle"
+          style={[styles.itemText, styles.valueText, {fontSize: font(textFontSize)}]}>
           {value}
         </Text>
         {showIcon && (
@@ -61,6 +64,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: gap(16),
+    flexShrink: 1,
   },
   itemText: {
     fontFamily: fonts.popRegular,
@@ -75,11 +79,16 @@ const styles = StyleSheet.create({
     fontSize: font(10),
   },
   rightContainer: {
-    flex: 0.8,
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     gap: gap(16),
     justifyContent: 'flex-end',
     alignItems: 'center',
+  },
+  valueText: {
+    flexShrink: 1,
+    textAlign: 'right',
   },
 });
 

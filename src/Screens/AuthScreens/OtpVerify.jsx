@@ -5,7 +5,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import {AuthLayout} from './../Layout/index';
 import {fonts} from '../../utils/fonts';
 import {colors} from '../../utils/colors';
@@ -24,6 +24,11 @@ import {useAuth} from '../../Contexts/AuthContext';
 import {businessService} from '../../Services/BusinessService';
 import {getDeviceDetails} from '../../utils/DeviceInfo';
 import {CommonModal} from '../../Components';
+import {
+  startOtpSmsRetriever,
+  stopOtpSmsRetriever,
+  subscribeToOtp,
+} from '../../utils/OtpSmsRetriever';
 
 const OtpVerify = () => {
   const {login, setBusinessData} = useAuth();
@@ -79,6 +84,7 @@ const OtpVerify = () => {
   const handleResendOtp = async () => {
     try {
       if (timer > 0) return;
+      if (Platform.OS === 'android') await startOtpSmsRetriever();
       const data = await authService.login(mobile);
       if (data?.status) {
         setTimer(90);
@@ -93,9 +99,17 @@ const OtpVerify = () => {
 
   const handleChange = async (value, index) => {
     const newOtp = [...otp];
-    newOtp[index] = value;
+    const digits = value.replace(/\D/g, '').slice(0, 4);
+    if (digits.length > 1) {
+      newOtp.fill('');
+      digits.split('').forEach((digit, digitIndex) => {
+        newOtp[digitIndex] = digit;
+      });
+    } else {
+      newOtp[index] = digits;
+    }
     setOtp(newOtp);
-    if (value !== '' && index < 3) {
+    if (digits.length === 1 && digits !== '' && index < 3) {
       otpRef.current[index + 1].focus();
     }
     const newOtpString = newOtp.join('');
@@ -133,6 +147,18 @@ const OtpVerify = () => {
   }, []);
 
   useEffect(() => {
+    const unsubscribe = subscribeToOtp(code => {
+      setOtp(code.split(''));
+      validateOtp({parameterOtp: code});
+    });
+
+    return () => {
+      unsubscribe();
+      stopOtpSmsRetriever();
+    };
+  }, []);
+
+  useEffect(() => {
     if (timer > 0) {
       setTimeout(() => {
         setTimer(timer - 1);
@@ -144,11 +170,14 @@ const OtpVerify = () => {
     <AuthLayout>
       <KeyboardAvoidingView
         style={{flex: 1}}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}>
-        <ScrollView
+        <KeyboardAwareScrollView
           style={{flex: 1}}
           contentContainerStyle={styles.container}
+          enableOnAndroid
+          extraScrollHeight={20}
+          keyboardOpeningTime={0}
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
@@ -181,7 +210,9 @@ const OtpVerify = () => {
                     ref={ref => (otpRef.current[index] = ref)}
                     value={value}
                     keyboardType="numeric"
-                    maxLength={1}
+                    maxLength={index === 0 ? 4 : 1}
+                    autoComplete={index === 0 ? 'sms-otp' : 'off'}
+                    textContentType={index === 0 ? 'oneTimeCode' : 'none'}
                     style={[
                       styles.otpInput,
                       value !== '' && {
@@ -227,7 +258,7 @@ const OtpVerify = () => {
               <Text style={styles.buttonText}>VERIFY OTP</Text>
             )}
           </TouchableOpacity> */}
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
       <CommonModal visible={isModal}>
         <View style={styles.modelCard}>
@@ -382,7 +413,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
-    margin: 16,
     elevation: 3,
   },
 

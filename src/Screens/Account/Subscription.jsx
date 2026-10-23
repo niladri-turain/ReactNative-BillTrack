@@ -18,6 +18,7 @@ import React, {
   useTransition,
 } from 'react';
 import {useFocusEffect} from '@react-navigation/native';
+import {useNavigation} from '@react-navigation/native';
 import {Layout} from '../Layout';
 import {DottedDivider, Loader, SecondaryHeader} from '../../Components';
 import {
@@ -48,6 +49,7 @@ import {mapSubscriptionActivation} from '../../Models/SubscriptionActivationMode
 import {mapSubscriptionOrder} from '../../Models/SubscriptionOrderModel';
 
 const Subscription = memo(() => {
+  const navigation = useNavigation();
   const subscription = useSubscription();
   const {resetSubscription} = useAuth();
   const token = useAuthToken();
@@ -138,17 +140,36 @@ const Subscription = memo(() => {
 
   const isSelectedPlanActive =
     !!plans[activeIndex] && plans[activeIndex].id === currentPlan.planId;
+  const currentPlanEndTime = currentPlan.endDate
+    ? new Date(currentPlan.endDate.replace(' ', 'T')).getTime()
+    : null;
+  const hasActiveSubscription =
+    !!currentPlan.planId &&
+    (currentPlanEndTime === null || currentPlanEndTime > Date.now());
+  const activePlan = plans.find(plan => plan.id === currentPlan.planId);
+  const canUpgradeToSelectedPlan =
+    !hasActiveSubscription ||
+    (!!activePlan &&
+      Number(plans[activeIndex]?.price) > Number(activePlan.price));
 
   // Scroll when clicking bottom buttons
   const handleScrollTo = useCallback(pageIndex => {
     if (!scrollRef.current) return;
+    const requestedPlan = plans[pageIndex];
+    if (
+      hasActiveSubscription &&
+      requestedPlan?.id !== currentPlan.planId &&
+      (!activePlan || Number(requestedPlan?.price) <= Number(activePlan.price))
+    ) {
+      return;
+    }
     setActiveIndex(pageIndex);
     scrollRef.current.scrollTo({
       x: pageIndex * ScreenWidth,
       y: 0,
       animated: true,
     });
-  }, []);
+  }, [currentPlan.planId, hasActiveSubscription, plans]);
 
   // Update active index when scrolling horizontally
   const handleMomentumScrollEnd = useCallback(
@@ -170,14 +191,23 @@ const Subscription = memo(() => {
     const plan = plans[activeIndex];
     if (!plan) return;
 
+    if (
+      hasActiveSubscription &&
+      (!activePlan || Number(plan.price) <= Number(activePlan.price))
+    ) {
+      ToastAndroid.show(
+        'You can only upgrade to a higher-priced plan',
+        ToastAndroid.LONG,
+      );
+      return;
+    }
+
     if (plan.price === 0) {
       ToastAndroid.show('The free plan cannot be purchased', ToastAndroid.LONG);
       return;
     }
 
-    const planExpired = currentPlan.endDate
-      ? new Date(currentPlan.endDate).getTime() < Date.now()
-      : false;
+    const planExpired = !hasActiveSubscription;
     const topPlan = plans[plans.length - 1];
 
     if (currentPlan.planId === plan.id && !planExpired) {
@@ -202,14 +232,14 @@ const Subscription = memo(() => {
       const orderResponse = await subscriptionService.createSubscriptionOrder({
         token,
         planId: plan.id,
-        currentVersionId: plan.currentVersionId,
+        planVersionId: plan.planVersionId,
       });
       console.log('[Subscription] Order create response:', orderResponse);
 
       if (!orderResponse?.status) {
         console.error('[Subscription] Order creation failed:', orderResponse);
         ToastAndroid.show(
-          orderResponse?.message || 'Failed to create order',
+          'Payment failure',
           ToastAndroid.LONG,
         );
         return;
@@ -240,59 +270,39 @@ const Subscription = memo(() => {
       }
 
       console.log('[Subscription] Opening Razorpay checkout with options:', options);
-      RazorpayCheckout.open(options)
-        .then(async data => {
-          console.log('[Subscription] Razorpay checkout success:', data);
-          const activationPayload = {
-            token,
-            planId: plan.id,
-            razorpayOrderId: data?.razorpay_order_id,
-            razorpayPaymentId: data?.razorpay_payment_id,
-            razorpaySignature: data?.razorpay_signature,
-          };
-          console.log('[Subscription] Calling activateSubscription with:', activationPayload);
-          const activationResponse =
-            await subscriptionService.activateSubscription(activationPayload);
-          console.log('[Subscription] activateSubscription response:', activationResponse);
+      const paymentData = await RazorpayCheckout.open(options);
+      console.log('[Subscription] Razorpay checkout success:', paymentData);
+      const activationPayload = {
+        token,
+        planId: plan.id,
+        razorpayOrderId: paymentData?.razorpay_order_id,
+        razorpayPaymentId: paymentData?.razorpay_payment_id,
+        razorpaySignature: paymentData?.razorpay_signature,
+      };
+      const activationResponse =
+        await subscriptionService.activateSubscription(activationPayload);
 
-          if (activationResponse?.status) {
-            const activatedSubscription = mapSubscriptionActivation(
-              activationResponse?.data,
-            );
-            console.log('[Subscription] Activated subscription:', activatedSubscription);
-            // Refresh the current-subscription so the active-plan
-            // highlight/border/disabled button reflect the change immediately
-            await fetchCurrentSubscription();
-            ToastAndroid.show(
-              activationResponse?.message || 'Subscription activation success',
-              ToastAndroid.LONG,
-            );
-            return;
-          }
-          console.error(
-            '[Subscription] activateSubscription failed:',
-            activationResponse,
-          );
-          ToastAndroid.show(activationResponse?.message, ToastAndroid.LONG);
-        })
-        .catch(error => {
-          console.error('[Subscription] Razorpay checkout error/cancelled:', {
-            code: error?.code,
-            description: error?.description,
-            reason: error?.reason,
-            source: error?.source,
-            step: error?.step,
-            metadata: error?.metadata,
-            raw: error,
-          });
-          ToastAndroid.show(
-            error?.description || 'Payment Cancelled',
-            ToastAndroid.LONG,
-          );
-        });
+      if (activationResponse?.status) {
+        const activatedSubscription = mapSubscriptionActivation(
+          activationResponse?.data,
+        );
+        setCurrentSubscriptionData(activatedSubscription);
+        resetSubscription(activationResponse?.data);
+        await fetchCurrentSubscription();
+        ToastAndroid.show(
+          activationResponse?.message || 'Subscription activation success',
+          ToastAndroid.LONG,
+        );
+      } else {
+        console.error(
+          '[Subscription] activateSubscription failed:',
+          activationResponse,
+        );
+        ToastAndroid.show('Payment failure', ToastAndroid.LONG);
+      }
     } catch (error) {
       console.error('[Subscription] handleSubscribe error:', error);
-      ToastAndroid.show('Something went wrong. Please try again.', ToastAndroid.LONG);
+      ToastAndroid.show('Payment failure', ToastAndroid.LONG);
     } finally {
       setIsLoading(false);
     }
@@ -310,7 +320,7 @@ const Subscription = memo(() => {
   if (isPlansLoading && plans.length === 0) {
     return (
       <Layout>
-        <SecondaryHeader title="Subscription" isSearch={false} />
+        <SecondaryHeader title="Subscription" isSearch={false} isTransaction onTransactionPress={() => navigation.navigate('Transaction')} />
         <View style={styles.centerContainer}>
           <Loader />
         </View>
@@ -321,7 +331,7 @@ const Subscription = memo(() => {
   if (plansError && plans.length === 0) {
     return (
       <Layout>
-        <SecondaryHeader title="Subscription" isSearch={false} />
+        <SecondaryHeader title="Subscription" isSearch={false} isTransaction onTransactionPress={() => navigation.navigate('Transaction')} />
         <View style={styles.centerContainer}>
           <Text style={styles.errorText}>{plansError}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={fetchActivePlans}>
@@ -334,7 +344,7 @@ const Subscription = memo(() => {
 
   return (
     <Layout>
-      <SecondaryHeader title="Subscription" isSearch={false} />
+      <SecondaryHeader title="Subscription" isSearch={false} isTransaction onTransactionPress={() => navigation.navigate('Transaction')} />
 
       <ScrollView
         style={{flex: 1}}
@@ -376,9 +386,10 @@ const Subscription = memo(() => {
                   </Text>
                   {plan?.id === currentPlan.planId && (
                     <Text style={styles.activePlanBadge} numberOfLines={1}>
-                      {plan.price === 0
+                      {/* {plan.price === 0
                         ? getRemainingTime(currentPlan.endDate)
-                        : 'Active Plan'}
+                        :  */}
+                        Active Plan
                     </Text>
                   )}
                 </View>
@@ -411,7 +422,12 @@ const Subscription = memo(() => {
         </ScrollView>
         <View style={styles.bottomContainer}>
           <View style={styles.buttonContainer}>
-            {plans.map((plan, index) => (
+            {plans.map((plan, index) => {
+              const isUnavailable =
+                hasActiveSubscription &&
+                plan.id !== currentPlan.planId &&
+                (!activePlan || Number(plan.price) <= Number(activePlan.price));
+              return (
               <TouchableOpacity
                 key={plan.id}
                 style={[
@@ -419,8 +435,10 @@ const Subscription = memo(() => {
                   {width: buttonWidth},
                   activeIndex === index && {borderColor: '#000'},
                   plan.id === currentPlan.planId && styles.activePayBtn,
+                  isUnavailable && styles.payBtnUnavailable,
                 ]}
-                onPress={() => handleScrollTo(index)}>
+                onPress={() => handleScrollTo(index)}
+                disabled={isUnavailable}>
                 <Text style={styles.payBtnTitleText} numberOfLines={2}>
                   {plan.name}
                 </Text>
@@ -452,24 +470,20 @@ const Subscription = memo(() => {
                   <Text style={styles.saveText}>Save {plan.save}</Text>
                 )}
               </TouchableOpacity>
-            ))}
+              );
+            })}
           </View>
 
           <TouchableOpacity
             style={[
               styles.subscribeBtn,
-              isSelectedPlanActive && styles.subscribeBtnDisabled,
-            ]}
-            onPress={handleSubscribe}
-            disabled={isLoading || isSelectedPlanActive}>
-            {isLoading ? (
-              <ActivityIndicator color={'#fff'} />
-            ) : (
-              <>
-                <Text style={styles.subscribeBtnText}>Subscribe & Pay</Text>
-                <Lucide name="wallet" color={'#fff'} size={icon(20)} />
-              </>
-            )}
+              (isSelectedPlanActive || !canUpgradeToSelectedPlan) &&
+                styles.subscribeBtnDisabled,
+          ]}
+          onPress={handleSubscribe}
+          disabled={isLoading || isSelectedPlanActive || !canUpgradeToSelectedPlan}>
+            <Text style={styles.subscribeBtnText}>Subscribe & Pay</Text>
+            <Lucide name="wallet" color={'#fff'} size={icon(20)} />
           </TouchableOpacity>
 
           <View style={styles.noteContainer}>
@@ -482,6 +496,14 @@ const Subscription = memo(() => {
           </View>
         </View>
       </ScrollView>
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Updating subscription…</Text>
+          </View>
+        </View>
+      )}
     </Layout>
   );
 });
@@ -490,6 +512,28 @@ const Subscription = memo(() => {
 //     STYLES (UNCHANGED)
 // =============================
 const styles = StyleSheet.create({
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.28)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingCard: {
+    minWidth: 190,
+    paddingHorizontal: padding(24),
+    paddingVertical: padding(20),
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    gap: gap(12),
+    elevation: 6,
+  },
+  loadingText: {
+    color: '#1C1C1E',
+    fontSize: font(14),
+    fontFamily: fonts.inMedium,
+  },
   container: {
     paddingVertical: padding(16),
   },
@@ -580,6 +624,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: gap(4),
+  },
+  payBtnUnavailable: {
+    opacity: 0.45,
   },
   activePayBtn: {
     borderColor: colors.primary,

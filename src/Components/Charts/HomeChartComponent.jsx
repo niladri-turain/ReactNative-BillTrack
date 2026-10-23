@@ -25,7 +25,8 @@ import {useInvoice} from '../../Contexts/InvoiceContext';
 const {width} = Dimensions.get('screen');
 
 const HomeChartComponent = memo(
-  ({salesDurations = ['Today', 'Week', 'Month'], refreshTrigger}) => {
+  (props) => {
+    const {salesDurations = ['Today', 'Week', 'Month'], refreshTrigger} = props;
     const token = useAuthToken();
     const {salesData, setSalesData} = useInvoice();
     const [selectedPriod, setSelectedPriod] = React.useState('Today');
@@ -60,6 +61,11 @@ const HomeChartComponent = memo(
               ((totalSales - previousTotalSales) / previousTotalSales) * 100;
           }
           setSalesPercentage(percentage);
+        } else if (data?.status === false && data?.message) {
+          // If response says subscription is required, can trigger callback or handled by Home
+          if (props?.onSubscriptionRequired) {
+            props.onSubscriptionRequired(data.message);
+          }
         }
       } catch (error) {
       } finally {

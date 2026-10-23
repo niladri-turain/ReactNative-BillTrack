@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import {Layout} from '../Layout';
 import {
   BottomSheetInput,
@@ -81,9 +82,10 @@ const Product = () => {
   const [isColumn, setIsColumn] = useState(true);
   const [productId, setProductId] = useState(null);
   const [productImage, setProductImage] = useState(null);
+  const [productImageFailed, setProductImageFailed] = useState(false);
   const [productName, setProductName] = useState('');
   const [productNameError, setProductNameError] = useState('');
-  const [productUnit, setProductUnit] = useState('');
+  const [productUnit, setProductUnit] = useState('NA');
   const [productUnitError, setProductUnitError] = useState('');
   const [productPrice, setProductPrice] = useState('');
   const [productPriceError, setProductPriceError] = useState('');
@@ -111,6 +113,7 @@ const Product = () => {
 
   useEffect(() => {
     const checkGuide = async () => {
+      if (await AsyncStorage.getItem('skipAllStepGuides')) return;
       const hasSeenStep1 = await AsyncStorage.getItem('hasSeenProductStep1');
       if (!hasSeenStep1 && Products.length === 0 && !isLoading) {
         setTimeout(() => {
@@ -146,9 +149,10 @@ const Product = () => {
 
   const setInitialValueOfModal = () => {
     setProductImage(null);
+    setProductImageFailed(false);
     setProductName('');
     setProductNameError('');
-    setProductUnit('');
+    setProductUnit('NA');
     setProductUnitError('');
     setProductPrice('');
     setProductPriceError('');
@@ -158,6 +162,7 @@ const Product = () => {
   const handleOpenModal = () => {
     setShowModal(true);
     const checkStep2 = async () => {
+      if (await AsyncStorage.getItem('skipAllStepGuides')) return;
       const hasSeenStep2 = await AsyncStorage.getItem('hasSeenProductStep2');
       if (!hasSeenStep2) {
         setTimeout(() => {
@@ -181,8 +186,9 @@ const Product = () => {
     setProductId(item.id);
     setProductName(item.name);
     setProductPrice(item.price || '');
-    setProductUnit(item.unitType.toUpperCase() || '');
+    setProductUnit(item.unitType?.toUpperCase() || 'NA');
     setProductImage(item.logo);
+    setProductImageFailed(false);
     setHsnCode(item.hsn);
     handleOpenModal();
     setIsNewProduct(false);
@@ -242,7 +248,11 @@ const Product = () => {
     try {
       const data = await unitService.getUnitsByBusinessCategory(token, businessCategoryId);
       if (data?.status) {
-        setUnits(data?.data || []);
+        const fetchedUnits = data?.data || [];
+        const hasNaUnit = fetchedUnits.some(
+          unit => unit?.name?.toUpperCase() === 'NA' || unit?.shortName?.toUpperCase() === 'NA',
+        );
+        setUnits(hasNaUnit ? fetchedUnits : [{name: 'NA', shortName: 'NA'}, ...fetchedUnits]);
       }
     } catch (error) {
       console.error("Failed to fetch units:", error);
@@ -270,6 +280,7 @@ const Product = () => {
         const allowedTypes = ['image/jpeg', 'image/png', 'image/webp,image/jpg'];
         if (allowedTypes.includes(image.mime)) {
           setProductImage(image);
+          setProductImageFailed(false);
         } else {
           ToastAndroid.show(
             'Only JPG, PNG, and WEBP files are allowed',
@@ -541,12 +552,22 @@ const Product = () => {
         backdropColor={'#00000005'}
         onRequestClose={handleCloseModal}>
         <Pressable onPress={handleCloseModal} style={styles.modelContainer}>
+          <KeyboardAwareScrollView
+            style={{maxHeight: '90%'}}
+            enableOnAndroid
+            extraScrollHeight={20}
+            keyboardOpeningTime={0}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag">
           <Pressable onPress={() => {}} style={styles.modelSubContainer}>
             <View style={styles.imageCOntainer}>
               <Image
                 style={styles.image}
+                onError={() => setProductImageFailed(true)}
                 source={
-                  productImage
+                  productImageFailed
+                    ? require('./../../../asset/images/emptyimg.jpg')
+                    : productImage
                     ? typeof productImage === 'string'
                       ? (() => {
                           let uri = productImage;
@@ -556,7 +577,7 @@ const Product = () => {
                             uri = 'http' + parts[parts.length - 1];
                             uri = uri.replace('http://', 'https://');
                           } else {
-                            // Relative path - default to product folder
+                            // Relative path - product images are served from product folder.
                             uri = `${API_URL}files/product/${uri}`;
                           }
                           return {uri};
@@ -582,7 +603,7 @@ const Product = () => {
                   placeholder={''}
                   value={productName}
                   setValue={(val) => {
-                    setProductName(val);
+                    setProductName(val.replace(/[^\p{L} ]/gu, '').replace(/^ +/, ''));
                     setProductNameError('');
                   }}
                   hasError={(productName && !validateProductName(productName)) || !!productNameError}
@@ -619,10 +640,15 @@ const Product = () => {
                     placeholder={''}
                     value={productPrice}
                     setValue={(val) => {
-                      setProductPrice(val);
-                      setProductPriceError('');
+                      // Accept up to 7 integer digits and 2 decimal digits;
+                      // prices must start with 1-9 (no zero prefix).
+                      if (/^(?:[1-9]\d{0,6}(?:\.\d{0,2})?)?$/.test(val)) {
+                        setProductPrice(val);
+                        setProductPriceError('');
+                      }
                     }}
-                    keyboardType="numeric"
+                    keyboardType="decimal-pad"
+                    maxLength={10}
                     hasError={(productPrice && !validatePrice(productPrice)) || !!productPriceError}
                   />
                   {!!productPriceError && (
@@ -683,6 +709,7 @@ const Product = () => {
               </TouchableOpacity>
             </View>
           </Pressable>
+          </KeyboardAwareScrollView>
         </Pressable>
         <StepGuide
           visible={guideStep === 2}

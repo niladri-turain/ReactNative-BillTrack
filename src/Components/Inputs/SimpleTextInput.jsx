@@ -45,10 +45,13 @@ const SimpleTextInput = ({
           if (upperCase) {
             text = text.toUpperCase();
           }
-          if (text.length <= maxLength && text.length >= minLength)
+          if (
+            (maxLength == null || text.length <= maxLength) &&
+            text.length >= minLength
+          )
             setValue(text);
         }}
-        maxLength={maxLength}
+        maxLength={maxLength ?? undefined}
         style={[styles.inputBox, {fontSize: fontSize}]}
         placeholderTextColor={placeholderTextColor}
         editable={!disabled}

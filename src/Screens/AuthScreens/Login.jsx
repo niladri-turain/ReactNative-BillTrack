@@ -4,7 +4,6 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -12,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import React, {useEffect, useState} from 'react';
 import {AuthLayout} from '../Layout';
 import {fonts} from '../../utils/fonts';
@@ -29,6 +29,7 @@ import {
 import {validateIndianPhone} from '../../utils/validator';
 import {authService} from '../../Services/AuthService';
 import {showPhoneNumberHint} from '@shayrn/react-native-android-phone-number-hint';
+import {startOtpSmsRetriever, stopOtpSmsRetriever} from '../../utils/OtpSmsRetriever';
 
 const Login = () => {
   const navigation = useNavigation();
@@ -66,15 +67,24 @@ const Login = () => {
     setError('');
     try {
       setIsLoading(true);
+      if (Platform.OS === 'android') {
+        try {
+          await startOtpSmsRetriever();
+        } catch (error) {
+          // Keep OTP login available when SMS Retriever cannot start.
+        }
+      }
       const data = await authService.login(number);
       if (data?.status) {
         navigation.navigate('Otp', {
           mobile: number,
         });
       } else {
+        await stopOtpSmsRetriever();
         ToastAndroid.show(data?.message, ToastAndroid.SHORT);
       }
     } catch (error) {
+      await stopOtpSmsRetriever();
       ToastAndroid.show('Something went wrong', ToastAndroid.SHORT);
     } finally {
       setIsLoading(false);
@@ -94,9 +104,9 @@ const Login = () => {
     <AuthLayout>
       <KeyboardAvoidingView
         style={{flex: 1}}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
-        <ScrollView
+        <KeyboardAwareScrollView
           style={{flex: 1}}
           contentContainerStyle={{
             flexGrow: 1,
@@ -105,7 +115,11 @@ const Login = () => {
             gap: 10,
             paddingVertical: margin(20),
           }}
+          enableOnAndroid
+          extraScrollHeight={20}
+          keyboardOpeningTime={0}
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled">
           <Image
             source={require('./../../../asset/images/login.png')}
@@ -157,7 +171,7 @@ const Login = () => {
               )}
             </TouchableOpacity>
           </View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
     </AuthLayout>
   );

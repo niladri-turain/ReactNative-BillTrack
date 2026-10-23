@@ -204,16 +204,20 @@ class ProductService {
   }
 
   // update status of products multiple
-  async updateProductStatus(products) {
+  async updateProductStatus(token, products) {
     try {
       const uri = `${this.baseUrl}/update-products-status`;
       const payload = {
         products: products,
       };
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
       console.log('--- updateProductStatus ---');
       console.log('URL:', uri);
+      console.log('Headers:', headers);
       console.log('Body:', payload);
-      const response = await axios.put(uri, payload);
+      const response = await axios.put(uri, payload, {headers});
       console.log('Response:', response.data);
       console.log('Status Code:', response.status);
       return response.data;

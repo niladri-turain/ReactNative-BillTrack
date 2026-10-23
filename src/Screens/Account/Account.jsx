@@ -12,7 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {memo, useState, useEffect, useRef} from 'react';
+import React, {memo, useState, useEffect, useRef, useCallback} from 'react';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import {Layout} from '../Layout';
 import {
   ProfileCard,
@@ -27,7 +28,7 @@ import {font, gap, icon, margin, padding} from '../../utils/responsive';
 import Lucide from '@react-native-vector-icons/lucide';
 import MaterialIcons from '@react-native-vector-icons/material-icons';
 import AntDesign from '@react-native-vector-icons/ant-design';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {
   useAuth,
   useAuthToken,
@@ -35,7 +36,6 @@ import {
   useUpdateUserFields,
   useUpdateBusinessFields,
   useUser,
-  useGstEnabled,
   useSubscription,
 } from '../../Contexts/AuthContext';
 import {mapCurrentSubscription} from '../../Models/CurrentSubscriptionModel';
@@ -69,8 +69,13 @@ const Account = memo(() => {
   const token = useAuthToken();
   const subscription = useSubscription();
   const currentPlan = mapCurrentSubscription(subscription);
-  const isGstEnabled = useGstEnabled();
-  const {logout, resetBusiness} = useAuth();
+  const {
+    logout,
+    resetBusiness,
+    refreshSubscription,
+    updateAuthToken,
+    setUserData,
+  } = useAuth();
   const updateUserFields = useUpdateUserFields();
   const updateBusinessFields = useUpdateBusinessFields();
   const {clearAllProducts} = useProduct();
@@ -114,6 +119,12 @@ const Account = memo(() => {
   useEffect(() => {
     setEmail(userEmail);
   }, [userEmail]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshSubscription();
+    }, [refreshSubscription]),
+  );
 
   // LOADING STATE
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
@@ -184,11 +195,23 @@ const Account = memo(() => {
 
           if (data.status) {
             ToastAndroid.show(data.message, ToastAndroid.SHORT);
-            if (data.business) {
-              resetBusiness(data.business);
-            } else {
-              updateBusinessFields({logoUrl: data.logoUrl || data.logo || logoUrl});
-            }
+            const businessResponse = await businessService.getBusiness(token);
+            const latestBusiness = businessResponse?.status
+              ? businessResponse.data
+              : data?.business || data?.data?.business || {};
+            const uploadData = data?.data || data;
+            const updatedLogoUrl =
+              latestBusiness?.logoUrl ||
+              uploadData?.logoUrl ||
+              uploadData?.logo ||
+              data?.logoUrl ||
+              data?.logo ||
+              logoUrl;
+
+            await updateBusinessFields({
+              ...latestBusiness,
+              logoUrl: updatedLogoUrl,
+            });
             setNewImage(image);
           } else {
             ToastAndroid.show(
@@ -259,18 +282,21 @@ const Account = memo(() => {
       const businessPayload = {
         token: token,
         name: name,
+        email: email,
         phone: phone,
       };
-      await businessService.updateBusiness(businessPayload);
+      const businessUpdate = await businessService.updateBusiness(businessPayload);
 
       if (data.status) {
         ToastAndroid.show(data.message, ToastAndroid.SHORT, ToastAndroid.TOP);
         updateUserFields({name: name, email: email, phone: phone});
 
-        if (data.business) {
-          resetBusiness({...data.business, name: name, phone: phone});
+        if (businessUpdate?.business) {
+          resetBusiness({...businessUpdate.business, name, email, phone});
+        } else if (data.business) {
+          resetBusiness({...data.business, name, email, phone});
         } else {
-          updateBusinessFields({name: name, phone: phone});
+          updateBusinessFields({name, email, phone});
         }
 
         handleCloseModal();
@@ -304,7 +330,7 @@ const Account = memo(() => {
 
     try {
       setIsVerifyLoading(true);
-      const data = await authService.changePhone(userId, phone);
+      const data = await authService.changePhone(userId, phone, token);
       if (data.status) {
         setOtpSentMessage(data.message);
         setShowOtpFields(true);
@@ -331,12 +357,20 @@ const Account = memo(() => {
 
     try {
       setIsVerifyLoading(true);
-      const data = await authService.verifyPhone(userId, enteredOtp);
+      const data = await authService.verifyPhone(userId, enteredOtp, token);
       if (data.status) {
-        ToastAndroid.show(data.message, ToastAndroid.SHORT);
-        updateUserFields({phone: phone});
-        updateBusinessFields({phone: phone});
+        if (data.token) {
+          await updateAuthToken(data.token);
+        }
+        if (data.user) {
+          await setUserData(data.user);
+        } else {
+          updateUserFields({phone: phone});
+        }
+        await updateBusinessFields({phone: data.user?.phone || phone});
         handleCloseModal();
+        ToastAndroid.show(data.message || 'Phone number changed successfully', ToastAndroid.SHORT);
+        navigation.getParent()?.navigate('Home', {screen: 'Home'});
       } else {
         setPhoneError(data.message || 'OTP verification failed');
       }
@@ -468,17 +502,6 @@ const Account = memo(() => {
             }
           />
           <SettingItemsCard
-            onpress={() => handleNavigation({screen: 'Transaction'})}
-            mainIcon={
-              <Lucide
-                name="arrow-right-left"
-                size={icon(22)}
-                color={colors.primary}
-              />
-            }
-            title="Transaction"
-          />
-          <SettingItemsCard
             mainIcon={
               <MaterialIcons
                 name="settings"
@@ -509,18 +532,19 @@ const Account = memo(() => {
             title="About Billtrack"
             onpress={() => handleNavigation({screen: 'About'})}
           />
-           <SettingItemsCard
-            mainIcon={
-              // <AntDesign
-              //   name="invoice"
-              //   size={icon(22)}
-              //   color={colors.primary}
-              // />
-              <Ionicons name="close-circle-outline" size={icon(28)} color={colors.primary} />
-
-            }
+          {/* Keep this entry available in source for when cancelled invoice history is needed again.
+          <SettingItemsCard
+            mainIcon={<Ionicons name="close-circle-outline" size={icon(28)} color={colors.primary} />}
             title="Cancel Invoice List"
             onpress={() => handleNavigation({screen: 'CancelInvoiceList'})}
+          />
+          */}
+          <SettingItemsCard
+            mainIcon={
+              <MaterialIcons name="payment" size={icon(24)} color={colors.primary} />
+            }
+            title="Payment Details"
+            onpress={() => handleNavigation({screen: 'PaymentDetails'})}
           />
           <SettingItemsCard
             mainIcon={
@@ -548,7 +572,13 @@ const Account = memo(() => {
         visible={isModalVisible}
         handleClose={handleCloseModal}
         animationType="slide">
-        <View style={styles.modalContentContainer}>
+        <KeyboardAwareScrollView
+          style={[styles.modalContentContainer, {maxHeight: '95%'}]}
+          enableOnAndroid
+          extraScrollHeight={20}
+          keyboardOpeningTime={0}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.modalFormContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalHeaderTitleText}>
               Update Profile Details
@@ -595,7 +625,6 @@ const Account = memo(() => {
             value={name}
             setValue={setName}
             hasError={name.length > 0 && !validateName(name)}
-            disabled={isGstEnabled}
           />
           <View>
             <View style={{position: 'relative'}}>
@@ -716,7 +745,7 @@ const Account = memo(() => {
               <Text style={styles.updateBtnText}>UPDATE</Text>
             )}
           </Pressable>
-        </View>
+        </KeyboardAwareScrollView>
       </CommonModal>
     </Layout>
   );
@@ -801,7 +830,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: padding(16),
-    gap: gap(15),
+  },
+  modalFormContent: {
+    gap: gap(12),
+    paddingBottom: padding(8),
   },
   modalHeader: {
     flexDirection: 'row',

@@ -40,7 +40,17 @@ const ItemMaster = () => {
     try {
       setIsLoading(true);
       const data = await productService.getProductsSuggestions(token);
-      setProducts(data?.data || []);
+      const categories = Array.isArray(data?.data) ? data.data : [];
+      const suggestedProducts = categories.flatMap(category =>
+        Array.isArray(category?.products) ? category.products : [],
+      );
+
+      setProducts(categories);
+      setSelectedItems(
+        suggestedProducts.filter(
+          item => item?.isAdded === true && item?.productId != null,
+        ),
+      );
     } catch (error) {
     } finally {
       setIsLoading(false);
@@ -50,33 +60,6 @@ const ItemMaster = () => {
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
-
-  /** Sync selected items with already existing products */
-  useEffect(() => {
-    if (products.length > 0 && Products.length > 0) {
-      const existingNames = new Set(
-        Products.map(p => p.name?.toLowerCase().trim()),
-      );
-
-      const toSelect = [];
-      products.forEach(category => {
-        category.products.forEach(p => {
-          if (existingNames.has(p.name?.toLowerCase().trim())) {
-            toSelect.push(p);
-          }
-        });
-      });
-
-      if (toSelect.length > 0) {
-        setSelectedItems(prev => {
-          const currentIds = new Set(prev.map(item => item.id));
-          const newItems = toSelect.filter(item => !currentIds.has(item.id));
-          if (newItems.length === 0) return prev;
-          return [...prev, ...newItems];
-        });
-      }
-    }
-  }, [products, Products]);
 
   /** Handle Set Price */
   const handleSetPrice = useCallback(async () => {
@@ -108,6 +91,10 @@ const ItemMaster = () => {
 
     const finalPayload = selectedItems
       .filter(item => {
+        // Suggestions already linked to a business are shown checked but are
+        // not part of the bulk-create request.
+        if (item?.isAdded === true && item?.productId != null) return false;
+
         // Only send items that don't exist in the current product list yet
         const exists = Products.some(
           p => p.name?.toLowerCase().trim() === item.name?.toLowerCase().trim(),
@@ -164,7 +151,7 @@ const ItemMaster = () => {
     } finally {
       setIsSaveLoading(false);
     }
-  }, [navigation, selectedItems, token]);
+  }, [navigation, selectedItems, token, Products, isGstEnbaled]);
 
   const filterProducts = useMemo(() => {
     if (!query) return products;
@@ -205,10 +192,9 @@ const ItemMaster = () => {
         expandable={index === 0}
         selectedItems={selectedItems}
         setSelectedItem={setSelectedItems}
-        existingProductNames={existingProductNames}
       />
     ),
-    [selectedItems, existingProductNames],
+    [selectedItems],
   );
 
   /** Stable keyExtractor */

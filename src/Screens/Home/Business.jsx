@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import React, {useEffect, useMemo, useState, useRef} from 'react';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import LinearGradient from 'react-native-linear-gradient';
 import {
   CommonModal,
@@ -41,6 +42,7 @@ import {
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import ToastService from '../../Components/Toasts/ToastService';
 import {businessService} from '../../Services/BusinessService';
+import {stateService} from '../../Services/StateService';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -58,12 +60,17 @@ const Business = () => {
 
   // STATE VARIABLES
   const [mobileNumber, setMobileNumber] = useState(business?.phone || userPhone || '');
-  const [email, setEmail] = useState(userEmail || '');
+  const businessEmail = business?.email || business?.businessEmail || userEmail || '';
+  const [email, setEmail] = useState(businessEmail);
   const [gstNumber, setGstNumber] = useState(business?.gstNumber || '');
   const [street, setStreet] = useState(business?.street || '');
   const [city, setCity] = useState(business?.city || '');
   const [pincode, setPincode] = useState(business?.pinCode || '');
   const [state, setState] = useState(business?.state || '');
+  const [stateId, setStateId] = useState(business?.stateId || null);
+  const [states, setStates] = useState([]);
+  const [tempStateId, setTempStateId] = useState(business?.stateId || null);
+  const [showStateOptions, setShowStateOptions] = useState(false);
   const [prefix, setPrefix] = useState(business?.prefix || '');
   const [tempValue, setTempValue] = useState('');
 
@@ -72,6 +79,22 @@ const Business = () => {
 
   // LOADING STATE
   const [isSaveLoading, setIsSaveLoading] = useState(false);
+
+  useEffect(() => {
+    const loadStates = async () => {
+      const response = await stateService.getStates(token);
+      if (response?.status && Array.isArray(response.data)) {
+        setStates(response.data);
+        const currentState = response.data.find(
+          item => item.id === Number(business?.stateId) || item.name === business?.state,
+        );
+        if (currentState) {
+          setStateId(currentState.id);
+        }
+      }
+    };
+    if (token) loadStates();
+  }, [token, business?.stateId, business?.state]);
 
   const fetchBusinessCategory = async () => {
     try {
@@ -85,12 +108,22 @@ const Business = () => {
   }, []);
 
   useEffect(() => {
-    setEmail(userEmail || '');
-  }, [userEmail]);
+    setEmail(businessEmail);
+  }, [businessEmail]);
+
+  useEffect(() => {
+    console.log('[Business Settings] Business email on page:', {
+      businessEmail: business?.email,
+      businessEmailAlias: business?.businessEmail,
+      userEmail,
+      displayedEmail: email,
+    });
+  }, [business, businessEmail, email, userEmail]);
 
   const handleOpenModal = ({type}) => {
     setModalType(type);
     setIsModal(true);
+    setShowStateOptions(false);
     switch (type) {
       case 'Phone Number':
         setTempValue(mobileNumber);
@@ -103,6 +136,7 @@ const Business = () => {
         break;
       case 'State':
         setTempValue(state);
+        setTempStateId(stateId);
         break;
       case 'City':
         setTempValue(city);
@@ -123,6 +157,7 @@ const Business = () => {
 
   const handleCloseModal = () => {
     setIsModal(false);
+    setShowStateOptions(false);
   };
 
   useEffect(() => {
@@ -277,7 +312,7 @@ const Business = () => {
           gstNumber: updatedValues.gstNumber,
           street: updatedValues.street,
           city: updatedValues.city,
-          state: updatedValues.state,
+          stateId: modalType === 'State' ? tempStateId : stateId,
           pinCode: updatedValues.pincode,
           email: updatedValues.email,
           phone: updatedValues.phone,
@@ -300,6 +335,7 @@ const Business = () => {
           setCity(updatedValues.city);
           setPincode(updatedValues.pincode);
           setState(updatedValues.state);
+          if (modalType === 'State') setStateId(tempStateId);
           setPrefix(updatedValues.prefix);
 
           await resetBusiness(updatedBusiness);
@@ -392,12 +428,32 @@ Proceed only if you have completed the required steps and approvals.`,
         );
       case 'State':
         return (
-          <SimpleTextInput
-            label="Enter State"
-            value={tempValue}
-            setValue={setTempValue}
-            keyboardType="default"
-          />
+          <View style={styles.stateDropdownContainer}>
+            <TouchableOpacity
+              style={styles.stateDropdown}
+              onPress={() => setShowStateOptions(value => !value)}>
+              <Text style={styles.stateDropdownText}>{tempValue || 'Select state'}</Text>
+              <MaterialIcons name="arrow-drop-down" size={24} color="#777" />
+            </TouchableOpacity>
+            {showStateOptions && (
+              <ScrollView style={styles.stateOptions} nestedScrollEnabled>
+                {states.length ? states.map(item => (
+                    <TouchableOpacity
+                      key={String(item.id)}
+                      style={styles.stateOption}
+                      onPress={() => {
+                        setTempValue(item.name);
+                        setTempStateId(item.id);
+                        setShowStateOptions(false);
+                      }}>
+                      <Text style={styles.stateOptionText}>{item.name}</Text>
+                    </TouchableOpacity>
+                  )) : (
+                    <Text style={styles.stateOptionText}>No states available</Text>
+                  )}
+              </ScrollView>
+            )}
+          </View>
         );
       case 'City':
         return (
@@ -443,7 +499,7 @@ Proceed only if you have completed the required steps and approvals.`,
       default:
         return null;
     }
-  }, [modalType, tempValue]);
+  }, [modalType, tempValue, states, showStateOptions, tempStateId]);
 
   // Store original values for comparison
   const initialValues = useMemo(
@@ -487,15 +543,20 @@ Proceed only if you have completed the required steps and approvals.`,
   return (
     <KeyboardAvoidingView
       style={{flex: 1}}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       enabled={!isModal}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
       <GestureHandlerRootView style={{flex: 1}}>
         <Layout>
           <SecondaryHeader title="Business Setting" isSearch={false} />
-          <ScrollView
+          <KeyboardAwareScrollView
             style={{flex: 1}}
-            contentContainerStyle={styles.container}>
+            contentContainerStyle={styles.container}
+            enableOnAndroid
+            extraScrollHeight={20}
+            keyboardOpeningTime={0}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag">
             <View style={[styles.rowContainer, styles.profileContainer]}>
               <LinearGradient
                 colors={['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8']}
@@ -563,7 +624,7 @@ Proceed only if you have completed the required steps and approvals.`,
                   onpress={() => {}}
                   textFontSize={14}
                   disabled={true}
-                  value={userEmail || ''}
+                  value={email}
                   showIcon={false}
                 />
                 <NavigationCardWithValue
@@ -594,21 +655,21 @@ Proceed only if you have completed the required steps and approvals.`,
             </View>
             <View style={styles.rowContainer}>
               <Text>Business Information</Text>
-                  <NavigationCardWithValue
-                  mainIcon={
-                    <MaterialIcons
-                      name="label"
-                      size={icon(20)}
-                      color={colors.primary}
-                    />
-                  }
-                  title="Prefix"
-                  onpress={() => handleOpenModal({type: 'Prefix'})}
-                  textFontSize={14}
-                  disabled={false}
-                  value={prefix}
-                  isEdit={true}
-                />
+{/*                   <NavigationCardWithValue */}
+{/*                   mainIcon={ */}
+{/*                     <MaterialIcons */}
+{/*                       name="label" */}
+{/*                       size={icon(20)} */}
+{/*                       color={colors.primary} */}
+{/*                     /> */}
+{/*                   } */}
+{/*                   title="Prefix" */}
+{/*                   onpress={() => handleOpenModal({type: 'Prefix'})} */}
+{/*                   textFontSize={14} */}
+{/*                   disabled={false} */}
+{/*                   value={prefix} */}
+{/*                   isEdit={true} */}
+{/*                 /> */}
               <View style={styles.primaryInfoContainer}>
                 <NavigationCardWithValue
                   mainIcon={
@@ -697,7 +758,7 @@ Proceed only if you have completed the required steps and approvals.`,
                 />
               </View>
             </View>
-          </ScrollView>
+          </KeyboardAwareScrollView>
           {/* {!isModal && ( */}
           {/* <AnimatedPressable
             style={[styles.saveChangesContainer, {opacity: fadeAnim}]}
@@ -812,6 +873,7 @@ const styles = StyleSheet.create({
     padding: padding(16),
     backgroundColor: '#fff',
     borderRadius: 8,
+    width: '100%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -826,6 +888,41 @@ const styles = StyleSheet.create({
   inputContainer: {
     marginVertical: gap(16),
     gap: gap(16),
+  },
+  stateDropdown: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  stateDropdownContainer: {
+    position: 'relative',
+  },
+  stateDropdownText: {
+    color: '#222',
+    fontSize: font(14),
+  },
+  stateOptions: {
+    maxHeight: 220,
+    marginTop: 4,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+  },
+  stateOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ddd',
+  },
+  stateOptionText: {
+    color: '#222',
+    fontSize: font(14),
   },
   submitButton: {
     alignSelf: 'center',

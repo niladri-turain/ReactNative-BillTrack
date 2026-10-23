@@ -21,6 +21,7 @@ import {
   padding,
 } from '../../utils/responsive';
 import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
+import Lucide from '@react-native-vector-icons/lucide';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -35,6 +36,9 @@ const SecondaryHeader = ({
   isNotification = true,
   isApps = false,
   isRestart = false,
+  onSortPress,
+  isTransaction = false,
+  onTransactionPress = () => {},
   handleRestartClick = () => {},
   handleAppClick = () => {},
   handleBack: customHandleBack, // Added customHandleBack prop
@@ -95,11 +99,27 @@ const SecondaryHeader = ({
             </TouchableOpacity>
           </View>
         ) : (
-          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+            {title}
+          </Text>
         )}
       </View>
       {!isSearchActive && (
         <View style={styles.rightContainer}>
+          {isTransaction && (
+            <TouchableOpacity
+              style={styles.transactionButton}
+              onPress={onTransactionPress}
+              accessibilityRole="button"
+              accessibilityLabel="View transactions">
+              <MaterialDesignIcons
+                name="swap-horizontal"
+                size={icon(24)}
+                color={colors.primary}
+              />
+              <Text style={styles.transactionText}>Transaction</Text>
+            </TouchableOpacity>
+          )}
           {isApps && (
             <TouchableOpacity onPress={handleAppClick}>
               <Octicons name="apps" size={icon(22)} />
@@ -111,6 +131,16 @@ const SecondaryHeader = ({
             </TouchableOpacity>
           )}
           {isRestart && <RestartButton onPress={handleRestartClick} />}
+          {onSortPress && (
+            <TouchableOpacity
+              style={styles.sortButton}
+              onPress={onSortPress}
+              accessibilityRole="button"
+              accessibilityLabel="Sort invoices">
+              <Text style={styles.sortText}>Sort</Text>
+              <Lucide name="arrow-down-up" size={icon(14)} color={colors.primary} />
+            </TouchableOpacity>
+          )}
 
           {isQuestion && (
             <Pressable>
@@ -180,8 +210,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: gap(10),
   },
+  transactionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: gap(4),
+    paddingVertical: padding(6),
+  },
+  transactionText: {
+    color: colors.primary,
+    fontSize: font(14),
+    fontFamily: fonts.onMedium,
+  },
   title: {
     fontSize: font(16),
+    fontFamily: fonts.onMedium,
+    flexShrink: 1,
+  },
+  sortButton: {
+    minWidth: 64,
+    height: 30,
+    paddingHorizontal: padding(8),
+    backgroundColor: colors.primary + 20,
+    borderRadius: 5,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: gap(4),
+  },
+  sortText: {
+    color: colors.primary,
+    fontSize: font(12),
     fontFamily: fonts.onMedium,
   },
   searchContainer: {

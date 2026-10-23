@@ -11,7 +11,7 @@ class BusinessService {
     gstNumber = null,
     street,
     city,
-    state,
+    stateId,
     pincode,
     email,
     phone,
@@ -33,7 +33,7 @@ class BusinessService {
       }
       formData.append('street', street);
       formData.append('city', city);
-      formData.append('state', state);
+      formData.append('stateId', stateId);
       formData.append('pincode', pincode);
       if (email) {
         formData.append('email', email);
@@ -95,7 +95,7 @@ class BusinessService {
     gstNumber,
     street,
     city,
-    state,
+    stateId,
     pinCode,
     email,
     phone,
@@ -115,8 +115,8 @@ class BusinessService {
     if (city) {
       payload.city = city;
     }
-    if (state) {
-      payload.state = state;
+    if (stateId !== undefined && stateId !== null && stateId !== '') {
+      payload.stateId = stateId;
     }
     if (pinCode) {
       payload.pinCode = pinCode;

@@ -1,7 +1,8 @@
 import {
   ActivityIndicator,
-  Linking,
+  Modal,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -19,7 +20,6 @@ import React, {
 } from 'react';
 import {Layout} from '../Layout';
 import {
-  CommonModal,
   DottedDivider,
   HomeChartShimmer,
   SalesAreaChart,
@@ -38,17 +38,31 @@ import BottomSheet, {
 import AntDesign from '@react-native-vector-icons/ant-design';
 import {useAuthToken} from '../../Contexts/AuthContext';
 import {salesReportService} from '../../Services/SalesReportService';
-import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
+import DateTimePicker, {
+  DateTimePickerAndroid,
+} from '@react-native-community/datetimepicker';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import FileViewer from 'react-native-file-viewer';
 import ToastService from '../../Components/Toasts/ToastService';
 
 const SalesReport = memo(() => {
   const token = useAuthToken();
+  const today = new Date();
+  const todayDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
 
   const [selectedPriod, setSelectedPriod] = useState('Monthly');
-  const [selectedDownload, setSelectedDownload] = useState('Today');
-  const [selectedDownloadType, setSelectedDownloadType] = useState('PDF');
+  const [selectedDownload, setSelectedDownload] = useState(null);
+  const [fromDate, setFromDate] = useState(() => new Date(todayDate));
+  const [toDate, setToDate] = useState(() => new Date(todayDate));
+  const [isDateRangeSelected, setIsDateRangeSelected] = useState(false);
+  const [selectedDownloadType, setSelectedDownloadType] = useState(null);
+  const [isPeriodDropdownOpen, setIsPeriodDropdownOpen] = useState(false);
+  const [activeDateField, setActiveDateField] = useState(null);
+  const [pickerDate, setPickerDate] = useState(todayDate);
   const [chartData, setChartData] = useState(null);
   const [currentSalesPercentage, setCurrentSalesPercentage] = useState(0);
   const [previousSalesPercentage, setPreviousSalesPercentage] = useState(0);
@@ -60,11 +74,23 @@ const SalesReport = memo(() => {
 
   // bottomsheet contents
   const bottomSheetRef = useRef(null);
-  const snapPont = useMemo(() => ['30%'], []);
+  const snapPont = useMemo(() => ['62%'], []);
 
-  const handleOpenBottomSheet = useCallback(() => {
+  const handleOpenBottomSheet = () => {
+    const openedToday = new Date();
+    const currentDate = new Date(
+      openedToday.getFullYear(),
+      openedToday.getMonth(),
+      openedToday.getDate(),
+    );
+    setSelectedDownload(null);
+    setFromDate(currentDate);
+    setToDate(new Date(currentDate));
+    setIsDateRangeSelected(false);
+    setSelectedDownloadType(null);
+    setIsPeriodDropdownOpen(false);
     bottomSheetRef.current?.expand();
-  }, []);
+  };
 
   const handleCloseBottomSheet = useCallback(() => {
     bottomSheetRef.current?.close();
@@ -141,105 +167,167 @@ const SalesReport = memo(() => {
     setRefreshing(false);
   };
 
-  const handleDownload = () => {
-    let period = selectedDownload.toLowerCase();
-    if (period === 'year') {
-      period = '1year';
+  const formatDate = date =>
+    date
+      ? `${String(date.getDate()).padStart(2, '0')}/${String(
+          date.getMonth() + 1,
+        ).padStart(2, '0')}/${date.getFullYear()}`
+      : 'Select date';
+
+  const openDatePicker = field => {
+    setSelectedDownload(null);
+    setIsDateRangeSelected(true);
+    setIsPeriodDropdownOpen(false);
+    const isFromDate = field === 'from';
+    const value = isFromDate ? fromDate : toDate;
+    const pickerOptions = {
+      value,
+      mode: 'date',
+      maximumDate: isFromDate ? toDate : todayDate,
+      ...(isFromDate ? {} : {minimumDate: fromDate}),
+      onChange: (event, date) => {
+        if (event.type === 'set' && date) {
+          if (isFromDate) setFromDate(date);
+          else setToDate(date);
+        }
+      },
+    };
+
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open(pickerOptions);
+    } else {
+      setPickerDate(value);
+      setActiveDateField(field);
     }
-    handleDownloadReport(period);
   };
 
-  const handleDownloadReport = async period => {
+  const confirmIOSDate = () => {
+    if (activeDateField === 'from') setFromDate(pickerDate);
+    if (activeDateField === 'to') setToDate(pickerDate);
+    setActiveDateField(null);
+  };
+
+  const resetDownloadOptions = () => {
+    setSelectedDownload(null);
+    setFromDate(new Date(todayDate));
+    setToDate(new Date(todayDate));
+    setIsDateRangeSelected(false);
+    setSelectedDownloadType(null);
+    setIsPeriodDropdownOpen(false);
+  };
+
+  const toApiDate = date =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+      2,
+      '0',
+    )}-${String(date.getDate()).padStart(2, '0')}`;
+
+  const getDownloadDateRange = () => {
+    if (isDateRangeSelected) {
+      if (!fromDate || !toDate) return null;
+      return {from: fromDate, to: toDate};
+    }
+
+    if (selectedDownload === 'Yearly') {
+      // Financial year starts on April 1; before April, use the prior year.
+      const financialYearStart = new Date(
+        today.getFullYear() - (today.getMonth() < 3 ? 1 : 0),
+        3,
+        1,
+      );
+      return {from: financialYearStart, to: todayDate};
+    }
+
+    const from = new Date(todayDate);
+    switch (selectedDownload || 'Monthly') {
+      case 'Quarterly':
+        from.setDate(1);
+        from.setMonth(from.getMonth() - 2);
+        break;
+      case 'Monthly':
+      default:
+        from.setDate(1);
+        break;
+    }
+    return {from, to: todayDate};
+  };
+
+  const handleDownloadPress = async () => {
+    if (!selectedDownloadType || isDownloadLoading) return;
+
+    const dateRange = getDownloadDateRange();
+    if (!dateRange) {
+      ToastService.show({
+        message: 'Please select a From date',
+        type: 'error',
+      });
+      return;
+    }
+
+    const type = selectedDownloadType.toLowerCase();
+    const from = dateRange.from ? toApiDate(dateRange.from) : undefined;
+    const to = toApiDate(dateRange.to);
+    setIsDownloadLoading(true);
+
     try {
-      console.log('--- UI handleDownloadReport ---');
-      console.log('Period:', period);
-      console.log('Type:', selectedDownloadType);
-
-      setIsDownloadLoading(true);
-      const type = selectedDownloadType.toLowerCase();
-
       const configResult = await salesReportService.exportSalesReport({
         token,
-        period,
+        from,
+        to,
         type,
       });
-
-      console.log('Export Config Result:', configResult);
-
-      if (configResult?.status && configResult?.url) {
-        let extension = '';
-        if (type === 'excel') {
-          extension = '.xlsx';
-        } else if (type === 'pdf') {
-          extension = '.pdf';
-        } else {
-          extension = '.csv';
-        }
-
-        const fileName = `Sales_Report_${period}_${Date.now()}${extension}`;
-        const {fs, config} = ReactNativeBlobUtil;
-        const path = `${
-          Platform.OS === 'android' ? fs.dirs.DownloadDir : fs.dirs.DocumentDir
-        }/${fileName}`;
-
-        const response = await config({
-          fileCache: true,
-          path: path,
-          addAndroidDownloads: {
-            useDownloadManager: true,
-            notification: true,
-            path: path,
-            description: 'Downloading report...',
-            mime:
-              type === 'excel'
-                ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                : type === 'pdf'
-                ? 'application/pdf'
-                : 'text/csv',
-            mediaScannable: true,
-          },
-        }).fetch('GET', configResult.url, {
-          Authorization: `Bearer ${configResult.token}`,
-        });
-
-        const filePath = response.path();
-        console.log('Download path:', filePath);
-
-        ToastService.show({
-          message: 'Report downloaded successfully',
-          type: 'success',
-          duration: 2000,
-        });
-
-        // Automatically open the file
-        setTimeout(async () => {
-          try {
-            await FileViewer.open(filePath, {
-              showOpenWithDialog: true,
-            });
-          } catch (err) {
-            console.warn('Could not open file automatically:', err);
-            ToastService.show({
-              message: 'Report saved. You can open it from your downloads.',
-              type: 'info',
-            });
-          }
-        }, 500);
-      } else {
-        ToastService.show({
-          message: configResult?.message || 'Failed to initialize download',
-          type: 'error',
-        });
+      if (!configResult?.status || !configResult?.url) {
+        throw new Error(configResult?.message || 'Could not prepare report');
       }
-    } catch (error) {
-      console.error('Download error:', error);
+
+      const extension = type === 'excel' ? 'xlsx' : type;
+      const fileName = `Sales_Report_${from}_to_${to}.${extension}`;
+      const {fs, config} = ReactNativeBlobUtil;
+      const directory =
+        Platform.OS === 'android' ? fs.dirs.DownloadDir : fs.dirs.DocumentDir;
+      const filePath = `${directory}/${fileName}`;
+      const mime =
+        type === 'excel'
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          : type === 'pdf'
+          ? 'application/pdf'
+          : 'text/csv';
+
+      const response = await config({
+        fileCache: true,
+        path: filePath,
+        addAndroidDownloads: {
+          useDownloadManager: true,
+          notification: true,
+          path: filePath,
+          description: 'Downloading sales report...',
+          mime,
+          mediaScannable: true,
+        },
+      }).fetch('GET', configResult.url, {
+        Authorization: `Bearer ${token}`,
+      });
+
+      const status = response.info()?.status;
+      if (status < 200 || status >= 300) {
+        throw new Error(`Report download failed (${status})`);
+      }
+
       ToastService.show({
-        message: 'Something went wrong',
+        message: 'Report downloaded successfully',
+        type: 'success',
+        duration: 2000,
+      });
+      handleCloseBottomSheet();
+      await FileViewer.open(response.path(), {showOpenWithDialog: true});
+    } catch (error) {
+      console.error('Sales report download failed:', error);
+      ToastService.show({
+        message: 'Could not download or open the report',
         type: 'error',
       });
     } finally {
       setIsDownloadLoading(false);
-      handleCloseBottomSheet();
     }
   };
 
@@ -384,7 +472,10 @@ const SalesReport = memo(() => {
                 </ScrollView>
               </View>
               <View style={{paddingBottom: padding(5)}}>
-                <SalesAreaChart barData={chartData?.data} />
+                <SalesAreaChart
+                  barData={chartData?.data}
+                  referenceBarCount={6}
+                />
               </View>
             </View>
           )}
@@ -411,60 +502,172 @@ const SalesReport = memo(() => {
             </TouchableOpacity>
           </View>
           <DottedDivider marginVertical={0} borderWidth={0.8} />
-          <View style={styles.bottomSheetSelectedContainer}>
-            {['Today', 'Week', 'Month', 'Year'].map(item => (
-              <TouchableOpacity
-                key={item + 'first'}
+          <ScrollView
+            style={styles.downloadOptionsScroll}
+            contentContainerStyle={styles.downloadOptionsContent}
+            showsVerticalScrollIndicator={false}>
+            <Text style={styles.optionLabel}>Period</Text>
+            <TouchableOpacity
+              style={[
+                styles.dropdownButton,
+                isDateRangeSelected && styles.disabledOption,
+              ]}
+              disabled={isDateRangeSelected}
+              onPress={() => setIsPeriodDropdownOpen(open => !open)}>
+              <Text
                 style={[
-                  styles.bottomSheetSelectedButton,
-                  selectedDownload === item && {
-                    backgroundColor: colors.primary + 40,
-                  },
-                ]}
-                onPress={() => setSelectedDownload(item)}>
-                <Text
-                  style={[
-                    styles.bottomSheetSelectedText,
-                    selectedDownload === item && {color: colors.primary},
-                  ]}>
-                  {item}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <View style={styles.bottomSheetSelectedContainer}>
-            {['Excel', 'PDF', 'CSV'].map(item => (
-              <TouchableOpacity
-                key={item + 'first'}
-                style={[
-                  styles.bottomSheetSelectedButton,
-                  selectedDownloadType === item && {
-                    backgroundColor: colors.primary + 40,
-                  },
-                ]}
-                onPress={() => setSelectedDownloadType(item)}>
-                <Text
-                  style={[
-                    styles.bottomSheetSelectedText,
-                    selectedDownloadType === item && {color: colors.primary},
-                  ]}>
-                  {item}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <TouchableOpacity
-            style={styles.downloadButton}
-            onPress={handleDownload}
-            disabled={isDownloadLoading}>
-            {isDownloadLoading ? (
-              <ActivityIndicator size="small" color={'#fff'} />
-            ) : (
-              <Text style={styles.downloadButtonText}>Download</Text>
+                  styles.dropdownText,
+                  !selectedDownload && styles.hintText,
+                ]}>
+                {selectedDownload || 'Select'}
+              </Text>
+              <AntDesign
+                name={isPeriodDropdownOpen ? 'up' : 'down'}
+                size={icon(14)}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+            {isPeriodDropdownOpen && (
+              <View style={styles.dropdownOptions}>
+                {['Monthly', 'Quarterly', 'Yearly'].map(period => (
+                  <TouchableOpacity
+                    key={period}
+                    style={styles.dropdownOption}
+                    onPress={() => {
+                      setSelectedDownload(period);
+                      setIsDateRangeSelected(false);
+                      setIsPeriodDropdownOpen(false);
+                    }}>
+                    <Text style={styles.dropdownText}>{period}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             )}
-          </TouchableOpacity>
+
+            <Text style={[styles.optionLabel, styles.orLabel]}>OR</Text>
+            <View style={styles.dateRow}>
+              <View style={styles.dateColumn}>
+                <Text style={styles.optionLabel}>From date</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.dateButton,
+                    selectedDownload && styles.disabledOption,
+                  ]}
+                  disabled={!!selectedDownload}
+                    onPress={() => openDatePicker('from')}>
+                  <Text
+                    style={[
+                      styles.dateText,
+                      !fromDate && styles.hintText,
+                    ]}>
+                    {formatDate(fromDate)}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.dateColumn}>
+                <Text style={styles.optionLabel}>To date</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.dateButton,
+                    selectedDownload && styles.disabledOption,
+                  ]}
+                  disabled={!!selectedDownload}
+                  onPress={() => openDatePicker('to')}>
+                  <Text style={styles.dateText}>{formatDate(toDate)}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.resetButton}
+              onPress={resetDownloadOptions}>
+              <Text style={styles.resetButtonText}>Reset</Text>
+            </TouchableOpacity>
+
+            <Text style={[styles.optionLabel, styles.formatLabel]}>
+              File type
+            </Text>
+            <View style={styles.bottomSheetSelectedContainer}>
+              {['Excel', 'PDF', 'CSV'].map(item => (
+                <TouchableOpacity
+                  key={item}
+                  style={[
+                    styles.bottomSheetSelectedButton,
+                    selectedDownloadType === item && {
+                      backgroundColor: colors.primary + 40,
+                    },
+                  ]}
+                  onPress={() => setSelectedDownloadType(item)}>
+                  <Text
+                    style={[
+                      styles.bottomSheetSelectedText,
+                      selectedDownloadType === item && {
+                        color: colors.primary,
+                      },
+                    ]}>
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.downloadButton,
+                !selectedDownloadType && styles.downloadButtonDisabled,
+              ]}
+              onPress={handleDownloadPress}
+              disabled={!selectedDownloadType || isDownloadLoading}
+              accessibilityState={{
+                disabled: !selectedDownloadType || isDownloadLoading,
+              }}>
+              {isDownloadLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.downloadButtonText}>Download</Text>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
         </BottomSheetView>
       </BottomSheet>
+      <Modal
+        transparent
+        visible={!!activeDateField}
+        animationType="fade"
+        onRequestClose={() => setActiveDateField(null)}>
+        <Pressable
+          style={styles.datePickerBackdrop}
+          onPress={() => setActiveDateField(null)}>
+          <Pressable style={styles.datePickerModal} onPress={() => {}}>
+            <Text style={styles.datePickerTitle}>
+              Select {activeDateField === 'from' ? 'From' : 'To'} date
+            </Text>
+            <DateTimePicker
+              value={pickerDate}
+              mode="date"
+              display="spinner"
+              maximumDate={
+                activeDateField === 'from' ? toDate : todayDate
+              }
+              minimumDate={activeDateField === 'to' ? fromDate : undefined}
+              onChange={(_, date) => {
+                if (date) setPickerDate(date);
+              }}
+            />
+            <View style={styles.datePickerActions}>
+              <TouchableOpacity
+                onPress={() => setActiveDateField(null)}
+                style={styles.datePickerAction}>
+                <Text style={styles.datePickerCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmIOSDate}
+                style={styles.datePickerAction}>
+                <Text style={styles.datePickerConfirm}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </GestureHandlerRootView>
   );
 });
@@ -569,6 +772,134 @@ const styles = StyleSheet.create({
     paddingHorizontal: padding(16),
     paddingVertical: padding(16),
   },
+  downloadOptionsScroll: {
+    flex: 1,
+  },
+  downloadOptionsContent: {
+    paddingBottom: padding(12),
+  },
+  optionLabel: {
+    marginHorizontal: margin(16),
+    marginTop: padding(10),
+    marginBottom: padding(6),
+    fontSize: font(12),
+    fontFamily: fonts.inMedium,
+    color: '#00000090',
+  },
+  dropdownButton: {
+    minHeight: icon(44),
+    marginHorizontal: margin(16),
+    paddingHorizontal: padding(14),
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dropdownOptions: {
+    marginHorizontal: margin(16),
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 6,
+    backgroundColor: '#fff',
+  },
+  dropdownOption: {
+    paddingHorizontal: padding(14),
+    paddingVertical: padding(10),
+  },
+  dropdownText: {
+    fontSize: font(13),
+    fontFamily: fonts.inMedium,
+    color: '#000',
+  },
+  hintText: {
+    color: '#00000070',
+  },
+  orLabel: {
+    alignSelf: 'center',
+    marginTop: padding(14),
+    marginBottom: padding(4),
+  },
+  dateRow: {
+    flexDirection: 'row',
+    marginHorizontal: margin(16),
+    gap: gap(12),
+  },
+  dateColumn: {
+    flex: 1,
+  },
+  dateButton: {
+    minHeight: icon(44),
+    paddingHorizontal: padding(10),
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 6,
+    justifyContent: 'center',
+  },
+  dateText: {
+    fontSize: font(12),
+    fontFamily: fonts.inMedium,
+    color: '#000',
+  },
+  datePickerBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: padding(20),
+    backgroundColor: '#00000070',
+  },
+  datePickerModal: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingTop: padding(16),
+    paddingBottom: padding(8),
+  },
+  datePickerTitle: {
+    paddingHorizontal: padding(16),
+    fontFamily: fonts.inSemiBold,
+    fontSize: font(15),
+    color: '#000',
+  },
+  datePickerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: padding(12),
+  },
+  datePickerAction: {
+    paddingHorizontal: padding(12),
+    paddingVertical: padding(8),
+  },
+  datePickerCancel: {
+    color: '#666',
+    fontFamily: fonts.inMedium,
+    fontSize: font(13),
+  },
+  datePickerConfirm: {
+    color: colors.primary,
+    fontFamily: fonts.inSemiBold,
+    fontSize: font(13),
+  },
+  disabledOption: {
+    backgroundColor: '#F2F2F2',
+    opacity: 0.65,
+  },
+  resetButton: {
+    alignSelf: 'flex-end',
+    marginHorizontal: margin(16),
+    marginTop: padding(8),
+    paddingHorizontal: padding(12),
+    paddingVertical: padding(6),
+  },
+  resetButtonText: {
+    color: colors.primary,
+    fontSize: font(12),
+    fontFamily: fonts.inSemiBold,
+  },
+  formatLabel: {
+    marginTop: padding(2),
+  },
   bottomSheetSelectedContainer: {
     paddingHorizontal: padding(16),
     paddingVertical: padding(10),
@@ -598,6 +929,10 @@ const styles = StyleSheet.create({
     fontSize: font(16),
     fontFamily: fonts.inSemiBold,
     color: '#fff',
+  },
+  downloadButtonDisabled: {
+    backgroundColor: '#9B9B9B',
+    opacity: 0.7,
   },
   modalContainer: {
     backgroundColor: '#fff',

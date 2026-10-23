@@ -93,15 +93,58 @@ class InvoiceService {
   }
 
   // GET - INVOICE ITEMS
-  async getInvoiceItems(invoiceId) {
+  async getInvoiceItems(invoiceId, token) {
     try {
       const uri = `${this.baseUrl}/items/${invoiceId}`;
       console.log('--- getInvoiceItems ---');
       console.log('URL:', uri);
-      const response = await axios.get(uri);
-      console.log('Response:', response.data);
+      const response = await axios.get(uri, {
+        headers: token ? {Authorization: `Bearer ${token}`} : undefined,
+      });
+      const body = response.data || {};
+      const itemList =
+        (Array.isArray(body) && body) ||
+        (Array.isArray(body?.items) && body.items) ||
+        (Array.isArray(body?.data?.items) && body.data.items) ||
+        (Array.isArray(body?.invoiceItems) && body.invoiceItems) ||
+        (Array.isArray(body?.data?.invoiceItems) && body.data.invoiceItems) ||
+        (Array.isArray(body?.invoice?.items) && body.invoice.items) ||
+        (Array.isArray(body?.data?.invoice?.items) && body.data.invoice.items) ||
+        (Array.isArray(body?.data?.data?.items) && body.data.data.items) ||
+        (Array.isArray(body?.data) && body.data) ||
+        [];
+      const normalizedItems = itemList.map(item => {
+        const quantity = Number(
+          item?.quantity ?? item?.qty ?? item?.itemQuantity ?? 0,
+        );
+        const lineAmount = Number(item?.amount ?? item?.totalAmount ?? 0);
+        const unitPrice = Number(
+          item?.originalPrice ??
+            item?.unitPrice ??
+            item?.price ??
+            item?.rate ??
+            (quantity ? lineAmount / quantity : 0),
+        );
+
+        return {
+          ...item,
+          productName:
+            item?.productName ?? item?.itemName ?? item?.product?.name ?? item?.name,
+          quantity,
+          originalPrice: unitPrice,
+          gstPercentage:
+            item?.gstPercentage ?? item?.gstRate ?? item?.gst ?? 0,
+          hsnCode: item?.hsnCode ?? item?.hsn ?? item?.product?.hsnCode,
+        };
+      });
+      const normalizedResponse = {
+        ...body,
+        status: body?.status ?? body?.data?.status ?? body?.data?.data?.status,
+        items: normalizedItems,
+      };
+      console.log('Response:', normalizedResponse);
       console.log('Status Code:', response.status);
-      return response.data;
+      return normalizedResponse;
     } catch (error) {
       console.error('--- getInvoiceItems Error ---');
       console.error('Response Data:', error.response?.data);

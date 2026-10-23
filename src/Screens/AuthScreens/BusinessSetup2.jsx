@@ -1,16 +1,18 @@
 import {
   ActivityIndicator,
   Image,
+  FlatList,
   KeyboardAvoidingView,
+  Modal,
   PermissionsAndroid,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   ToastAndroid,
   TouchableOpacity,
   View,
 } from 'react-native';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import React, {useEffect, useState} from 'react';
 import {AuthLayout} from '../Layout';
 import {SimpleTextInput, StepGuide} from '../../Components';
@@ -21,7 +23,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import ImageCropPicker from 'react-native-image-crop-picker';
 import {font, gap, icon, margin, padding} from '../../utils/responsive';
 import {validateIndianPincode} from '../../utils/validator';
-import {thirdPartyApiService} from '../../Services/ThirdPartApiService';
 import ToastService from '../../Components/Toasts/ToastService';
 import {
   useFocusEffect,
@@ -35,6 +36,7 @@ import {requestPermission} from '../../utils/helper';
 import {getDeviceDetails} from '../../utils/DeviceInfo';
 
 import {userService} from '../../Services/UserService';
+import {stateService} from '../../Services/StateService';
 
 const BusinessSetup2 = () => {
   const navigation = useNavigation();
@@ -45,10 +47,40 @@ const BusinessSetup2 = () => {
   const [image, setImage] = useState(null);
   const [street, setStreet] = useState('');
   const [city, setCity] = useState('');
-  const [state, setState] = useState('');
+  const [states, setStates] = useState([]);
+  const [selectedState, setSelectedState] = useState(null);
+  const [isStateModalVisible, setIsStateModalVisible] = useState(false);
   const [pincode, setPincode] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isStatesLoading, setIsStatesLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchStates = async () => {
+      setIsStatesLoading(true);
+      try {
+        const response = await stateService.getStates(token);
+        if (response?.status && Array.isArray(response.data)) {
+          setStates(response.data);
+        } else {
+          ToastService.show({
+            message: response?.message || 'Unable to load states',
+            type: 'error',
+            position: 'top',
+          });
+        }
+      } catch (error) {
+        ToastService.show({
+          message: 'Unable to load states',
+          type: 'error',
+          position: 'top',
+        });
+      } finally {
+        setIsStatesLoading(false);
+      }
+    };
+    fetchStates();
+  }, [token]);
 
   // Step Guide
   const [guideVisible, setGuideVisible] = useState(false);
@@ -57,6 +89,7 @@ const BusinessSetup2 = () => {
 
   useEffect(() => {
     const checkGuide = async () => {
+      if (await AsyncStorage.getItem('skipAllStepGuides')) return;
       const hasSeen = await AsyncStorage.getItem('hasSeenBusinessSetup2Guide');
       if (!hasSeen) {
         setTimeout(() => {
@@ -92,19 +125,6 @@ const BusinessSetup2 = () => {
     });
   };
 
-  const fetchAddress = async () => {
-    try {
-      const data = await thirdPartyApiService.getStateByPincode(pincode);
-      setState(data);
-    } catch (error) {}
-  };
-
-  useEffect(() => {
-    if (pincode.length === 6) {
-      fetchAddress();
-    }
-  }, [pincode]);
-
   const handleProceed = async () => {
     if (!image) {
       ToastService.show({
@@ -134,7 +154,7 @@ const BusinessSetup2 = () => {
         position: 'top',
       });
       return;
-    } else if (state.length === 0) {
+    } else if (!selectedState) {
       ToastService.show({
         message: 'Enter State',
         type: 'error',
@@ -159,7 +179,7 @@ const BusinessSetup2 = () => {
         },
         phone: phone,
         pincode: pincode,
-        state: state,
+        stateId: selectedState.id,
         street: street,
         token: token,
         deviceInfo: deviceInfo,
@@ -210,11 +230,18 @@ const BusinessSetup2 = () => {
 
   return (
     <AuthLayout>
-      {/* <KeyboardAvoidingView
+      <KeyboardAvoidingView
         style={{flex: 1}}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}> */}
-      <ScrollView style={{flex: 1}} contentContainerStyle={styles.container}>
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}>
+      <KeyboardAwareScrollView
+        style={{flex: 1}}
+        contentContainerStyle={styles.container}
+        enableOnAndroid
+        extraScrollHeight={20}
+        keyboardOpeningTime={0}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag">
         <Image
           style={styles.image}
           source={require('./../../../asset/images/business.png')}
@@ -249,7 +276,7 @@ const BusinessSetup2 = () => {
 
            <SimpleTextInput
             placeholder="Street"
-            maxLength={50}
+            maxLength={250}
             value={street}
             setValue={setStreet}
             hasError={street.length > 0 && street.length < 3}
@@ -263,7 +290,7 @@ const BusinessSetup2 = () => {
             hasError={pincode.length > 0 && !validateIndianPincode(pincode)}
           />
 
-         
+
 
           <SimpleTextInput
             placeholder="City"
@@ -273,12 +300,15 @@ const BusinessSetup2 = () => {
             hasError={city.length > 0 && city.length < 3}
           />
 
-          <SimpleTextInput
-            placeholder="State"
-            maxLength={50}
-            value={state}
-            setValue={setState}
-          />
+          <TouchableOpacity
+            style={styles.stateSelect}
+            onPress={() => setIsStateModalVisible(true)}
+            disabled={isStatesLoading}>
+            <Text style={[styles.stateSelectText, !selectedState && styles.statePlaceholder]}>
+              {isStatesLoading ? 'Loading states...' : selectedState?.name || 'Select state'}
+            </Text>
+            <MaterialIcons name="arrow-drop-down" size={24} color="#777" />
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -291,7 +321,37 @@ const BusinessSetup2 = () => {
             <Text style={styles.buttonText}>PROCEED</Text>
           )}
         </TouchableOpacity>
-      </ScrollView>
+      </KeyboardAwareScrollView>
+
+      <Modal
+        visible={isStateModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsStateModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.stateModal}>
+            <Text style={styles.modalTitle}>Select state</Text>
+            <FlatList
+              data={states}
+              keyExtractor={item => String(item.id)}
+              renderItem={({item}) => (
+                <TouchableOpacity
+                  style={styles.stateOption}
+                  onPress={() => {
+                    setSelectedState(item);
+                    setIsStateModalVisible(false);
+                  }}>
+                  <Text style={styles.stateOptionText}>{item.name}</Text>
+                  {selectedState?.id === item.id && (
+                    <MaterialIcons name="check" size={20} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={<Text style={styles.emptyStates}>No states available</Text>}
+            />
+          </View>
+        </View>
+      </Modal>
 
       <StepGuide
         visible={guideVisible}
@@ -300,14 +360,14 @@ const BusinessSetup2 = () => {
         text="complete business setup"
         arrowPosition="bottom"
       />
-      {/* </KeyboardAvoidingView> */}
+      </KeyboardAvoidingView>
     </AuthLayout>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     gap: gap(10),
@@ -369,6 +429,54 @@ const styles = StyleSheet.create({
     fontFamily: fonts.onMedium,
     color: colors.primary,
   },
+  stateSelect: {
+    minHeight: icon(50),
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    backgroundColor: '#fff',
+    paddingHorizontal: padding(15),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  stateSelectText: {
+    flex: 1,
+    fontSize: font(16),
+    fontFamily: fonts.onRegular,
+    color: '#222',
+  },
+  statePlaceholder: {color: '#aaa'},
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  stateModal: {
+    maxHeight: '70%',
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: padding(20),
+    paddingTop: padding(18),
+    paddingBottom: padding(25),
+  },
+  modalTitle: {
+    fontSize: font(18),
+    fontFamily: fonts.onSemiBold,
+    color: '#111',
+    marginBottom: margin(10),
+  },
+  stateOption: {
+    minHeight: icon(48),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ddd',
+  },
+  stateOptionText: {fontSize: font(15), color: '#222'},
+  emptyStates: {paddingVertical: padding(20), color: '#777', textAlign: 'center'},
 });
 
 export default BusinessSetup2;

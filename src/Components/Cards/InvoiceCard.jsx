@@ -8,8 +8,10 @@ import {
   ToastAndroid,
   TouchableOpacity,
   View,
+  DeviceEventEmitter,
 } from 'react-native';
-import React, {memo, useState, useMemo, useRef, useCallback} from 'react';
+import React, {memo, useState, useMemo, useRef, useCallback, useEffect} from 'react';
+import {BluetoothManager} from 'react-native-bluetooth-escpos-printer';
 import {fonts} from '../../utils/fonts';
 import {colors} from '../../utils/colors';
 import DottedDivider from '../Dividers/DottedDivider';
@@ -48,6 +50,17 @@ const InvoiceCard = ({invoice, onRefresh}) => {
   const [devices, setDevices] = useState([]);
   const [isPendingPrint, setIsPendingPrint] = useState(false);
   const [isScannerModalVisible, setIsScannerModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (!isScannerModalVisible) return undefined;
+
+    const connectionListener = DeviceEventEmitter.addListener(
+      BluetoothManager.EVENT_CONNECTED,
+      () => setIsScannerModalVisible(false),
+    );
+
+    return () => connectionListener.remove();
+  }, [isScannerModalVisible]);
 
   const handleOpenScanner = useCallback(() => {
     setIsScannerModalVisible(true);
@@ -106,11 +119,19 @@ const InvoiceCard = ({invoice, onRefresh}) => {
       );
       return;
     }
+    const invoiceItems = await invoiceService.getInvoiceItems(invoice?.id, token);
+    const {breakdownTotalAmount, roundOffAmount} = calculateInvoiceData(
+      invoiceItems?.items || [],
+      invoice?.discountAmount,
+      invoice?.totalAmount,
+    );
     await sendToWhatsApp({
       businessName: business?.name,
       invoiceNumber: invoice?.invoiceNumber,
       createdAt: invoice?.createdAt,
       totalAmount: invoice?.totalAmount,
+      breakdownTotalAmount,
+      roundOffAmount,
       paymentMode: invoice?.paymentMode,
       customerNumber: invoice?.customerNumber,
       businessId: business?.id,
@@ -221,16 +242,29 @@ const InvoiceCard = ({invoice, onRefresh}) => {
     }
     try {
       setIsPrintingLoading(true);
-      const invoiceItems = await invoiceService.getInvoiceItems(invoice?.id);
-      const {gstListCalculate, items, subTotalAmount, totalQuantity} =
-        calculateInvoiceData(invoiceItems?.items, invoice?.discountAmount);
+      const invoiceItems = await invoiceService.getInvoiceItems(invoice?.id, token);
+      const {
+        gstListCalculate,
+        items,
+        subTotalAmount,
+        totalQuantity,
+        breakdownTotalAmount,
+        roundOffAmount,
+      } = calculateInvoiceData(
+        invoiceItems?.items,
+        invoice?.discountAmount,
+        invoice?.totalAmount,
+      );
       await printerService.printInvoice(
         invoice,
         items,
         gstListCalculate,
         totalQuantity,
         subTotalAmount,
+        breakdownTotalAmount,
+        roundOffAmount,
         business,
+        token,
       );
     } catch (error) {
       console.error(error);

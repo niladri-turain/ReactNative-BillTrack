@@ -5,6 +5,7 @@ import {
 import {Alert, PermissionsAndroid, Platform} from 'react-native';
 import {formatDate} from './helper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {businessUpiService} from '../Services/BusinessUpiService';
 
 class PrinterService {
   async requestPermission() {
@@ -90,15 +91,44 @@ class PrinterService {
     return parseFloat(cleaned).toFixed(2);
   };
 
+  async getDefaultUpiId(token) {
+    if (!token) return null;
+
+    try {
+      const response = await businessUpiService.getUpiIds(token);
+      if (!response?.status || !Array.isArray(response?.data)) return null;
+
+      const defaultUpi = response.data.find(
+        item => item?.isDefault === true && item?.upiId?.trim(),
+      );
+      return defaultUpi?.upiId?.trim() || null;
+    } catch (error) {
+      console.error('Error fetching default UPI ID for printing:', error);
+      return null;
+    }
+  }
+
   async printInvoice(
     invoice,
     invoiceItems,
     gstList,
     totalQuantity,
     subTotalAmount,
+    breakdownTotalAmount,
+    roundOffAmount,
     business,
+    token,
     printerSize = '58',
   ) {
+    const upiId = await this.getDefaultUpiId(token);
+    if (!upiId) {
+      Alert.alert(
+        'UPI ID required',
+        'Add a default UPI ID from Account > Payment Details before printing.',
+      );
+      return false;
+    }
+
     try {
       // 58mm printer usually 32 characters
       const lineLength = 32;
@@ -225,23 +255,97 @@ class PrinterService {
         );
       }
 
-      // GST Breakdown
-      if (gstList && gstList.length > 0) {
-        for (const gst of gstList) {
+      // Group GST components by full tax rate so taxable value prints once
+      // for CGST + SGST, or once for IGST.
+      const gstGroups = new Map();
+      for (const gst of gstList || []) {
+        const gstType = String(gst?.gstType || '').toUpperCase();
+        const componentRate = Number(gst?.gstPercentage) || 0;
+        const isIgst = gstType === 'IGST';
+        const totalRate = isIgst ? componentRate : componentRate * 2;
+        const key = `${totalRate}:${isIgst ? 'IGST' : 'GST'}`;
+        const group = gstGroups.get(key) || {
+          totalRate,
+          isIgst,
+          taxableAmount: 0,
+          hasTaxableAmount: false,
+          taxLines: [],
+        };
+
+        // calculateInvoiceData supplies the same taxable amount on CGST and
+        // SGST rows, so only take it from one component.
+        if ((isIgst || gstType === 'CGST') && !group.hasTaxableAmount) {
+          group.taxableAmount =
+            gst?.rate ?? gst?.taxableAmount ?? gst?.taxableValue ?? 0;
+          group.hasTaxableAmount = true;
+        }
+        group.taxLines.push({
+          label: `${gstType} ${componentRate}%`,
+          amount: gst?.gstAmount,
+        });
+        gstGroups.set(key, group);
+      }
+
+      if (gstGroups.size > 0) {
+        await BluetoothEscposPrinter.printText(dashLine, {});
+        for (const group of [...gstGroups.values()].sort(
+          (a, b) => a.totalRate - b.totalRate,
+        )) {
           await BluetoothEscposPrinter.printColumn(
             summaryWidths,
             [
               BluetoothEscposPrinter.ALIGN.LEFT,
               BluetoothEscposPrinter.ALIGN.RIGHT,
             ],
-            [
-              `${gst.gstType} ${gst.gstPercentage}% :`,
-              this.cleanAmount(gst.gstAmount),
-            ],
+            [`${group.totalRate.toFixed(2)}% GST Items`, ''],
             {},
           );
+          await BluetoothEscposPrinter.printColumn(
+            summaryWidths,
+            [
+              BluetoothEscposPrinter.ALIGN.LEFT,
+              BluetoothEscposPrinter.ALIGN.RIGHT,
+            ],
+            ['Taxable Value', this.cleanAmount(group.taxableAmount)],
+            {},
+          );
+          for (const taxLine of group.taxLines) {
+            await BluetoothEscposPrinter.printColumn(
+              summaryWidths,
+              [
+                BluetoothEscposPrinter.ALIGN.LEFT,
+                BluetoothEscposPrinter.ALIGN.RIGHT,
+              ],
+              [taxLine.label, this.cleanAmount(taxLine.amount)],
+              {},
+            );
+          }
+          await BluetoothEscposPrinter.printText('\n', {});
         }
       }
+
+      await BluetoothEscposPrinter.printColumn(
+        summaryWidths,
+        [
+          BluetoothEscposPrinter.ALIGN.LEFT,
+          BluetoothEscposPrinter.ALIGN.RIGHT,
+        ],
+        ['Total Amount :', this.cleanAmount(breakdownTotalAmount)],
+        {},
+      );
+
+      await BluetoothEscposPrinter.printColumn(
+        summaryWidths,
+        [
+          BluetoothEscposPrinter.ALIGN.LEFT,
+          BluetoothEscposPrinter.ALIGN.RIGHT,
+        ],
+        [
+          'Round Off :',
+            `${roundOffAmount > 0 ? '+' : roundOffAmount < 0 ? '-' : ''}${this.cleanAmount(Math.abs(roundOffAmount || 0))}`,
+        ],
+        {},
+      );
 
       await BluetoothEscposPrinter.printText(dashLine, {});
 
@@ -264,7 +368,7 @@ class PrinterService {
           BluetoothEscposPrinter.ALIGN.LEFT,
           BluetoothEscposPrinter.ALIGN.RIGHT,
         ],
-        ['Total Amount :', this.cleanAmount(invoice.totalAmount)],
+        ['Final Amount :', this.cleanAmount(invoice.totalAmount)],
         {},
       );
       await BluetoothEscposPrinter.setBlob(0);
@@ -293,7 +397,6 @@ class PrinterService {
 
       // UPI QR Code for Payment
       try {
-        const upiId = '7059238072@ybl';
         const totalAmount = this.cleanAmount(invoice.totalAmount);
         const businessName = business?.name || 'Payment';
         const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(businessName)}&am=${totalAmount}&cu=INR`;
