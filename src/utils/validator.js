@@ -13,7 +13,7 @@ function validateProductName(productName) {
     return false;
   }
 
-  return /^[\p{L} ]+$/u.test(productName.trim());
+  return /^[\p{L}\p{N}]+(?: [\p{L}\p{N}]+)*$/u.test(productName.trim());
 }
 
 function validateIndianPhone(phoneNumber) {
