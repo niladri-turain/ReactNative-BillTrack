@@ -4,6 +4,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
   PermissionsAndroid,
   Platform,
   StyleSheet,
@@ -43,14 +44,21 @@ const BusinessSetup2 = () => {
   const token = useAuthToken();
   const {setUserData, setBusinessData, user} = useAuth();
   const route = useRoute();
-  const {businessName, businessType, email, gstNumber, phone} = route.params;
-  const [image, setImage] = useState(null);
-  const [street, setStreet] = useState('');
-  const [city, setCity] = useState('');
+  const {businessName, businessType, email, gstNumber, phone, stepTwoDraft = {}} = route.params;
+  const [image, setImage] = useState(stepTwoDraft.image || null);
+  const [street, setStreet] = useState(stepTwoDraft.street || '');
+  const [city, setCity] = useState(stepTwoDraft.city || '');
   const [states, setStates] = useState([]);
-  const [selectedState, setSelectedState] = useState(null);
+  const [selectedState, setSelectedState] = useState(stepTwoDraft.selectedState || null);
   const [isStateModalVisible, setIsStateModalVisible] = useState(false);
-  const [pincode, setPincode] = useState('');
+  const [pincode, setPincode] = useState(stepTwoDraft.pincode || '');
+
+  const goToFirstStep = () => navigation.navigate('BusinessSetup', {
+    businessName, businessType, email, gstNumber, phone,
+    stepTwoDraft: {image, street, city, selectedState, pincode},
+  });
+  const goToFirstStepRef = React.useRef(goToFirstStep);
+  goToFirstStepRef.current = goToFirstStep;
 
   const [isLoading, setIsLoading] = useState(false);
   const [isStatesLoading, setIsStatesLoading] = useState(false);
@@ -86,6 +94,10 @@ const BusinessSetup2 = () => {
   const [guideVisible, setGuideVisible] = useState(false);
   const [targetLayout, setTargetLayout] = useState(null);
   const proceedButtonRef = React.useRef(null);
+  const pagerResponder = React.useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 40 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+    onPanResponderRelease: (_, gesture) => { if (gesture.dx > 60) goToFirstStepRef.current(); },
+  }));
 
   useEffect(() => {
     const checkGuide = async () => {
@@ -242,6 +254,7 @@ const BusinessSetup2 = () => {
         keyboardOpeningTime={0}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag">
+        <View {...pagerResponder.current.panHandlers} style={styles.swipeArea}>
         <Image
           style={styles.image}
           source={require('./../../../asset/images/business.png')}
@@ -261,7 +274,7 @@ const BusinessSetup2 = () => {
             resizeMode="contain"
           />
 
-          <TouchableOpacity
+      <TouchableOpacity
             style={styles.uploadButton}
             onPress={handleImagePickcker}>
             <MaterialIcons
@@ -311,6 +324,14 @@ const BusinessSetup2 = () => {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.pager}>
+          <TouchableOpacity accessibilityLabel="Go to setup step 1" onPress={goToFirstStep}>
+            <View style={styles.pageDot} />
+          </TouchableOpacity>
+          <TouchableOpacity accessibilityLabel="Current setup step 2">
+            <View style={[styles.pageDot, styles.activePageDot]} />
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity
           ref={proceedButtonRef}
           style={styles.button}
@@ -321,6 +342,7 @@ const BusinessSetup2 = () => {
             <Text style={styles.buttonText}>PROCEED</Text>
           )}
         </TouchableOpacity>
+        </View>
       </KeyboardAwareScrollView>
 
       <Modal
@@ -372,6 +394,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: gap(10),
   },
+  swipeArea: {flexGrow: 1, alignItems: 'center', justifyContent: 'center', width: '100%'},
   image: {
     width: icon(250),
     height: icon(120),
@@ -381,6 +404,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.onBold,
     color: '#000',
   },
+  pager: {flexDirection: 'row', alignItems: 'center', gap: 10},
+  pageDot: {width: 8, height: 8, borderRadius: 4, backgroundColor: '#D4D4D4'},
+  activePageDot: {width: 20, backgroundColor: colors.primary},
   inputContainer: {
     width: '100%',
     paddingHorizontal: padding(25),
@@ -394,7 +420,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: margin(5),
+    marginTop: margin(13),
+    marginBottom: margin(5),
   },
   logoContainer: {
     width: '100%',
