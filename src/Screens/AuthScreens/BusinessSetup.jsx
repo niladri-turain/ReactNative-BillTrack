@@ -72,7 +72,7 @@ const BusinessSetup = () => {
     if (params.businessName !== undefined) setBusinessName(params.businessName);
     if (params.gstNumber !== undefined) setGstNumber(params.gstNumber);
     if (params.businessType !== undefined) setBusinessType(params.businessType);
-    if (params.email !== undefined) setEmail(params.email);
+    if (params.email !== undefined) setEmail(params.email.toLowerCase());
     if (params.phone !== undefined) setPhone(params.phone);
     if (params.stepTwoDraft) setStepTwoDraft(params.stepTwoDraft);
   }, [route.params]);
@@ -187,7 +187,7 @@ const BusinessSetup = () => {
       businessName,
       gstNumber,
       businessType,
-      email,
+      email: email.trim().toLowerCase(),
       phone,
       stepTwoDraft,
     });
@@ -286,8 +286,9 @@ const BusinessSetup = () => {
               placeholder="Email"
               maxLength={100}
               keyboardType="email-address"
+              autoCapitalize="none"
               value={email}
-              setValue={setEmail}
+              setValue={value => setEmail(value.toLowerCase())}
               hasError={email.length > 0 && !validateEmail(email)}
             />
             <SimpleTextInput

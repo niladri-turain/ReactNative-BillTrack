@@ -24,7 +24,8 @@ const SimpleTextInput = ({
   placeholderTextColor = colors.border,
   fontSize = font(14),
   disabled = false,
-  multiline=false
+  multiline = false,
+  autoCapitalize = 'sentences',
 }) => {
   return (
     <View
@@ -40,6 +41,7 @@ const SimpleTextInput = ({
       <TextInput
         placeholder={placeholder}
         keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
         value={value}
         onChangeText={text => {
           if (upperCase) {

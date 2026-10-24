@@ -86,7 +86,7 @@ const Account = memo(() => {
   //STATE VARIABLES
   const [name, setName] = useState(userName);
   const [phone, setPhone] = useState(userPhone);
-  const [email, setEmail] = useState(userEmail);
+  const [email, setEmail] = useState((userEmail || '').toLowerCase());
   const [newImage, setNewImage] = useState(null);
   const [updateError, setUpdateError] = useState('');
 
@@ -237,7 +237,12 @@ const Account = memo(() => {
 
   const updateDetails = async () => {
     setUpdateError('');
-    if (name === userName && userEmail === email && userPhone === phone) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (
+      name === userName &&
+      (userEmail || '').toLowerCase() === normalizedEmail &&
+      userPhone === phone
+    ) {
       setUpdateError('No changes found');
       return;
     }
@@ -272,7 +277,7 @@ const Account = memo(() => {
       setIsUpdateLoading(true);
       const payload = {
         name: name,
-        email: email,
+        email: normalizedEmail,
         phone: phone,
         token: token,
       };
@@ -282,21 +287,21 @@ const Account = memo(() => {
       const businessPayload = {
         token: token,
         name: name,
-        email: email,
+        email: normalizedEmail,
         phone: phone,
       };
       const businessUpdate = await businessService.updateBusiness(businessPayload);
 
       if (data.status) {
         ToastAndroid.show(data.message, ToastAndroid.SHORT, ToastAndroid.TOP);
-        updateUserFields({name: name, email: email, phone: phone});
+        updateUserFields({name: name, email: normalizedEmail, phone: phone});
 
         if (businessUpdate?.business) {
-          resetBusiness({...businessUpdate.business, name, email, phone});
+          resetBusiness({...businessUpdate.business, name, email: normalizedEmail, phone});
         } else if (data.business) {
-          resetBusiness({...data.business, name, email, phone});
+          resetBusiness({...data.business, name, email: normalizedEmail, phone});
         } else {
-          updateBusinessFields({name, email, phone});
+          updateBusinessFields({name, email: normalizedEmail, phone});
         }
 
         handleCloseModal();
@@ -427,7 +432,7 @@ const Account = memo(() => {
           onpressEditBtn={() => {
             setName(userName);
             setPhone(userPhone);
-            setEmail(userEmail);
+            setEmail((userEmail || '').toLowerCase());
             setUpdateError('');
             setModalVisible(true);
           }}
@@ -726,7 +731,9 @@ const Account = memo(() => {
           <SimpleTextInput
             placeholder="Email(optional)"
             value={email}
-            setValue={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            setValue={value => setEmail(value.toLowerCase())}
             hasError={email && !validateEmail(email)}
           />
           {updateError ? (
