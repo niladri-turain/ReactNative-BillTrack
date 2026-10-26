@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   Platform,
@@ -51,6 +52,7 @@ import {useAppSettings} from '../../Contexts/AppSettingContexts';
 import {useInvoice} from '../../Contexts/InvoiceContext';
 import {API_URL} from '../../utils/config';
 import ImageCropPicker from 'react-native-image-crop-picker';
+import DeviceInfo from 'react-native-device-info';
 
 const Account = memo(() => {
   const businessName = useBusiness('name');
@@ -150,6 +152,30 @@ const Account = memo(() => {
     } finally {
       setLogoutLoading(false);
     }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            // TODO: Implement account deletion logic
+            ToastAndroid.show(
+              'Account deletion request submitted',
+              ToastAndroid.SHORT,
+            );
+          },
+        },
+      ],
+    );
   };
 
   const handleNavigation = ({screen, data = {}}) => {
@@ -421,6 +447,7 @@ const Account = memo(() => {
         style={{flex: 1}}
         contentContainerStyle={{
           backgroundColor: '#fff',
+          flexGrow: 1,
           paddingBottom: 50,
         }}>
         <ProfileCard
@@ -537,16 +564,13 @@ const Account = memo(() => {
             title="About Billtrack"
             onpress={() => handleNavigation({screen: 'About'})}
           />
-          {/* Keep this entry available in source for when cancelled invoice history is needed again.
-          <SettingItemsCard
-            mainIcon={<Ionicons name="close-circle-outline" size={icon(28)} color={colors.primary} />}
-            title="Cancel Invoice List"
-            onpress={() => handleNavigation({screen: 'CancelInvoiceList'})}
-          />
-          */}
           <SettingItemsCard
             mainIcon={
-              <MaterialIcons name="payment" size={icon(24)} color={colors.primary} />
+              <MaterialIcons
+                name="payment"
+                size={icon(24)}
+                color={colors.primary}
+              />
             }
             title="Payment Details"
             onpress={() => handleNavigation({screen: 'PaymentDetails'})}
@@ -563,15 +587,22 @@ const Account = memo(() => {
             onpress={handleLogout}
             disabled={logoutLoading}
           />
-        </View>
-        {/* <View style={styles.deleteContainer}>
-          <MaterialIcons
-            name="delete-outline"
-            size={icon(22)}
-            color={colors.error}
+          <SettingItemsCard
+            mainIcon={
+              <MaterialIcons
+                name="delete-outline"
+                size={icon(22)}
+                color={colors.error}
+              />
+            }
+            title="Delete Account"
+            titleStyle={{color: colors.error}}
+            onpress={handleDeleteAccount}
           />
-          <Text style={styles.deleteText}>Delete Account</Text>
-        </View> */}
+        </View>
+        <Text style={styles.appVersionText}>
+          Version: {DeviceInfo.getVersion()}
+        </Text>
       </ScrollView>
       <CommonModal
         visible={isModalVisible}
@@ -796,6 +827,14 @@ const styles = StyleSheet.create({
     fontSize: font(16),
     fontFamily: fonts.popRegular,
     color: '#6C6C6C',
+  },
+  appVersionText: {
+    alignSelf: 'center',
+    marginTop: 'auto',
+    paddingTop: padding(14),
+    color: '#8A8A8A',
+    fontFamily: fonts.popRegular,
+    fontSize: font(11),
   },
   endDateRow: {
     flexDirection: 'row',

@@ -2,7 +2,7 @@ import {ScrollView, StyleSheet, Text, View} from 'react-native';
 import React, {memo} from 'react';
 import {Layout} from '../Layout';
 import {NavigationCard, SecondaryHeader} from '../../Components';
-import {margin, padding} from '../../utils/responsive';
+import {padding} from '../../utils/responsive';
 import {colors} from '../../utils/colors';
 import {aboutScreenNavigations} from '../../utils/data';
 import {useNavigation} from '@react-navigation/native';
@@ -35,8 +35,8 @@ const About = memo(() => {
 
 const styles = StyleSheet.create({
   container: {
+    flexGrow: 1,
     paddingTop: padding(10),
-    marginBottom: margin(10),
   },
   contentContainer: {
     paddingHorizontal: padding(16),

@@ -14,6 +14,7 @@ const SettingItemsCard = ({
   textFontSize = 14,
   disabled = false,
   rightComponent,
+  titleStyle = {},
 }) => {
   return (
     <TouchableOpacity
@@ -22,7 +23,12 @@ const SettingItemsCard = ({
       disabled={disabled}>
       <View style={styles.leftContainer}>
         {mainIcon}
-        <Text style={[styles.itemText, {fontSize: font(textFontSize)}]}>
+        <Text
+          style={[
+            styles.itemText,
+            {fontSize: font(textFontSize)},
+            titleStyle,
+          ]}>
           {title}
         </Text>
         {tag && <Text style={styles.newText}>{tagText}</Text>}
