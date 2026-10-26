@@ -68,10 +68,7 @@ import AntDesign from '@react-native-vector-icons/ant-design';
 import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
 import Lucide from '@react-native-vector-icons/lucide';
 import Animated, {
-  FadeIn,
-  FadeOut,
   interpolateColor,
-  LinearTransition,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -224,14 +221,6 @@ const CreateBill = () => {
       stiffness: 100,
     });
   }, [isDiscountOpen]);
-
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        restartClickOfHeader();
-      };
-    }, []),
-  );
 
   const floatingButtonAnimStyle = useAnimatedStyle(() => {
     return {
@@ -710,16 +699,35 @@ const CreateBill = () => {
     );
   }, [searchQuery, Products]);
 
-  const restartClickOfHeader = () => {
+  const restartClickOfHeader = useCallback(() => {
+    Keyboard.dismiss();
+    discountInputRef.current?.clear();
+    discountAnim.value = withSpring(0, {
+      damping: 15,
+      stiffness: 100,
+    });
     setPhoneNumber('');
     setQuantity(0);
     setDiscount(0);
     setTotalPrice(0);
     setIsDiscountOpen(false);
+    discountInvalidToastShown.current = false;
     resetProductCount();
     setProductsWithHsnError([]);
     handleCloseBottomSheet();
-  };
+  }, [discountAnim, handleCloseBottomSheet, resetProductCount]);
+
+  useFocusEffect(
+    useCallback(() => {
+      restartClickOfHeader();
+      return restartClickOfHeader;
+    }, [restartClickOfHeader]),
+  );
+
+  const handleCreateBillBack = useCallback(() => {
+    restartClickOfHeader();
+    navigation.goBack();
+  }, [navigation, restartClickOfHeader]);
 
   return (
     <KeyboardAvoidingView
@@ -731,6 +739,7 @@ const CreateBill = () => {
         <Layout>
           <SecondaryHeader
             title="Create Bill"
+            handleBack={handleCreateBillBack}
             query={searchQuery}
             isRestart={true}
             isQuestion={false}
@@ -774,8 +783,7 @@ const CreateBill = () => {
           />
           {quantity > 0 && (
             <Animated.View
-              // This automatically animates width/height changes smoothly
-              layout={LinearTransition.springify().damping(15).stiffness(120)}
+              key="discount-control"
               style={[
                 styles.floatingButton,
                 floatingButtonAnimStyle,
@@ -783,9 +791,7 @@ const CreateBill = () => {
               ]}>
               {isDiscountOpen ? (
                 <Animated.View
-                  key="discount-open" // Key is required for entering/exiting to work reliably
-                  entering={FadeIn.duration(300)}
-                  exiting={FadeOut.duration(200)}
+                  key="discount-open"
                   style={styles.opendDiscountContainer}>
                   <Lucide
                     name="indian-rupee"
@@ -859,9 +865,7 @@ const CreateBill = () => {
                 </Animated.View>
               ) : (
                 <Animated.View
-                  key="discount-closed"
-                  entering={FadeIn.duration(300)}
-                  exiting={FadeOut.duration(200)}>
+                  key="discount-closed">
                   <Pressable
                     style={styles.floatingButtonContainer}
                     onPress={() => setIsDiscountOpen(true)}>

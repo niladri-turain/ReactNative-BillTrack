@@ -1,4 +1,4 @@
-import {createContext, useState, useEffect, useContext} from 'react';
+import {createContext, useState, useEffect, useContext, useCallback} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useAuthToken} from './AuthContext';
 import {productService} from '../Services/ProductService';
@@ -62,9 +62,9 @@ const ProductProvider = ({children}) => {
     setProducts(productList);
   };
 
-  const resetProductCount = () => {
+  const resetProductCount = useCallback(() => {
     setProducts(prev => prev.map(p => ({...p, count: 0})));
-  };
+  }, []);
 
   const clearAllProducts = async () => {
     setProducts([]);

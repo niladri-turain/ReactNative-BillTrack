@@ -1,5 +1,6 @@
-import { Image, StyleSheet, TouchableWithoutFeedback, View } from 'react-native';
+import { Appearance, Image, StyleSheet, TouchableWithoutFeedback, View } from 'react-native';
 import {
+  DefaultTheme,
   getFocusedRouteNameFromRoute,
   NavigationContainer,
 } from '@react-navigation/native';
@@ -50,6 +51,10 @@ import InvoiceProvider from './Contexts/InvoiceContext';
 import SocketProvider from './Contexts/SocketContext';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+// Keep native controls and system-derived text colors consistent with the app's
+// existing light interface, even when the device is set to dark mode.
+Appearance.setColorScheme('light');
 
 // import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -373,7 +378,7 @@ const App = () => {
                 <PrinterProvider>
                   <SocketProvider>
                     <SafeAreaProvider>
-                      <NavigationContainer>
+                      <NavigationContainer theme={DefaultTheme}>
                         <AppNav />
                         <ToastContainer />
                         <AppUpdateModal />
