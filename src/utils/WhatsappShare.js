@@ -31,7 +31,7 @@ const sendToWhatsApp = async ({
   }
 
   // Shorten URL logic using sttn.in POST API
-  const longUrl = `https://bill.billtrack.co.in/invoice-details/${invoiceNumber}9876543210/${businessId}1234567890`;
+  const longUrl = `https://dev.billtrack.co.in/invoice-details/${invoiceNumber}9876543210/${businessId}1234567890`;
   let invoiceUrl = longUrl;
 
   try {
