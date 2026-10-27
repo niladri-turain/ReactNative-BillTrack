@@ -982,6 +982,7 @@ const CreateBill = () => {
                     placeholder="Customer GST Number"
                     borderColor="#D7D9DE"
                     borderRadius={10}
+                    height={icon(50)}
                     placeholderTextColor="#858991"
                     autoCapitalize="characters"
                   />
@@ -992,6 +993,7 @@ const CreateBill = () => {
                     placeholder="Customer Company Name"
                     borderColor="#D7D9DE"
                     borderRadius={10}
+                    height={icon(50)}
                     placeholderTextColor="#858991"
                   />
                   <SimpleTextInput
@@ -1001,6 +1003,7 @@ const CreateBill = () => {
                     placeholder="Customer Address"
                     borderColor="#D7D9DE"
                     borderRadius={10}
+                    height={icon(50)}
                     placeholderTextColor="#858991"
                   />
                   <TouchableOpacity
@@ -1044,6 +1047,7 @@ const CreateBill = () => {
                   placeholder="Customer Phone Number"
                   borderColor="#D7D9DE"
                   borderRadius={10}
+                  height={icon(50)}
                   placeholderTextColor="#858991"
                 />
               </View>
@@ -1294,19 +1298,20 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   customerFieldsContainer: {
-    gap: gap(8),
-    marginTop: margin(12),
+    gap: gap(16),
+    marginTop: margin(16),
   },
   customerPhoneField: {
-    gap: gap(6),
+    gap: gap(12),
   },
   customerPhoneLabel: {
     fontSize: 12,
     fontFamily: fonts.popMedium,
     color: '#000',
+    marginBottom: margin(4),
   },
   customerStateSelect: {
-    height: icon(45),
+    height: icon(50),
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
@@ -1369,8 +1374,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: gap(8),
-    marginTop: margin(10),
-    marginBottom: margin(2),
+    marginTop: margin(20),
+    marginBottom: margin(10),
   },
   bottomSheetButton: {
     flex: 1,
