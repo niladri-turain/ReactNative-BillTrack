@@ -73,6 +73,7 @@ const Account = memo(() => {
   const currentPlan = mapCurrentSubscription(subscription);
   const {
     logout,
+    clearAuthData,
     resetBusiness,
     refreshSubscription,
     updateAuthToken,
@@ -132,6 +133,7 @@ const Account = memo(() => {
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
   const [isImageUploading, setIsImageUploading] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
 
   // MODAL STATES
   const [isModalVisible, setModalVisible] = useState(false);
@@ -164,14 +166,35 @@ const Account = memo(() => {
           style: 'cancel',
         },
         {
-          text: 'Delete',
+          text: 'Yes',
           style: 'destructive',
-          onPress: () => {
-            // TODO: Implement account deletion logic
-            ToastAndroid.show(
-              'Account deletion request submitted',
-              ToastAndroid.SHORT,
-            );
+          onPress: async () => {
+            try {
+              setDeleteAccountLoading(true);
+              const result = await userService.deleteAccount({token});
+              if (result?.status === true) {
+                await clearAllProducts();
+                await clearPrinter();
+                await resetSettings();
+                clearInvoice();
+                await clearAuthData();
+              } else {
+                ToastService.show({
+                  message: result?.message || 'Unable to delete account',
+                  type: 'error',
+                  position: 'top',
+                });
+              }
+            } catch (error) {
+              console.error('Account deletion failed:', error);
+              ToastService.show({
+                message: 'Unable to delete account. Please try again.',
+                type: 'error',
+                position: 'top',
+              });
+            } finally {
+              setDeleteAccountLoading(false);
+            }
           },
         },
       ],
@@ -595,9 +618,10 @@ const Account = memo(() => {
                 color={colors.error}
               />
             }
-            title="Delete Account"
+            title={deleteAccountLoading ? 'Deleting Account...' : 'Delete Account'}
             titleStyle={{color: colors.error}}
             onpress={handleDeleteAccount}
+            disabled={deleteAccountLoading}
           />
         </View>
         <Text style={styles.appVersionText}>

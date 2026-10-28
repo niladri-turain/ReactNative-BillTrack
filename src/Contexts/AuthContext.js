@@ -120,6 +120,20 @@ const AuthProvider = ({children}) => {
     } catch (error) {}
   };
 
+  const clearAuthData = async () => {
+    try {
+      await AsyncStorage.clear();
+      setIsLoggedOut(true);
+      setAuthToken(null);
+      setUser(null);
+      setSubscription(null);
+      setBusiness(null);
+    } catch (error) {
+      console.error('[AuthContext] Failed to clear local auth data:', error);
+      throw error;
+    }
+  };
+
   const check = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
@@ -263,6 +277,7 @@ const AuthProvider = ({children}) => {
       login,
       updateAuthToken,
       logout,
+      clearAuthData,
       user,
       setUserData,
       setBusinessData,
