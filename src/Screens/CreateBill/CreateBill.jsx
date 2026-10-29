@@ -342,14 +342,17 @@ const CreateBill = () => {
 
   useEffect(() => {
     const gstStatePrefix = customerGstNumber.slice(0, 2);
-    if (gstStatePrefix.length < 2) return;
+    if (gstStatePrefix.length < 2) {
+      setCustomerState(currentState => (currentState ? null : currentState));
+      return;
+    }
     const matchingState = states.find(
       state => String(state.gstCode || '').padStart(2, '0') === gstStatePrefix,
     );
     if (matchingState?.id !== customerState?.id) {
       setCustomerState(matchingState || null);
     }
-  }, [customerGstNumber, states, customerState?.id]);
+  }, [customerGstNumber, states]);
 
   useEffect(() => {
     if (!isScannerModalVisible) return undefined;
