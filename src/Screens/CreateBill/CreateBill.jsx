@@ -59,7 +59,6 @@ import {
   useAuthToken,
   useBusiness,
   useSubscription,
-  useGstEnabled,
   useUser,
 } from '../../Contexts/AuthContext';
 import {useAppSettingsValue} from '../../Contexts/AppSettingContexts';
@@ -81,6 +80,7 @@ import {useBottomTabBarHeight} from '@react-navigation/bottom-tabs';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import {stateService} from '../../Services/StateService';
+import {businessService} from '../../Services/BusinessService';
 
 const {width: screenWidth} = Dimensions.get('window');
 const NUM_COLUMNS = isTabletDevice ? 4 : 3;
@@ -107,6 +107,7 @@ const CreateBill = () => {
   const addInvoices = useInvoice('addInvoice');
   const {printer, setSelectedPrinter} = usePrinter();
   const business = useBusiness();
+  const {setBusinessData} = useAuth();
   const userName = useUser('name');
   const businessName = userName || business?.name;
   const userPhone = useUser('phone');
@@ -246,7 +247,29 @@ const CreateBill = () => {
   const sendToSmsEnabled = useAppSettingsValue('SEND_TO_SMS');
   const printOnCreateBill = useAppSettingsValue('PRINT_ON_CREATE_BILL');
   const isPremiumPlanAndActive = useSubscription('isPremiumPlanAndActive');
-  const isGstEnabled = useGstEnabled();
+  const [isGstEnabled, setIsGstEnabled] = useState(
+    Boolean(business?.gstNumber?.trim()),
+  );
+
+  const refreshBusinessGstStatus = useCallback(async () => {
+    if (!token) return Boolean(business?.gstNumber?.trim());
+    try {
+      const response = await businessService.getBusiness(token);
+      if (response?.status && response?.data) {
+        await setBusinessData(response.data);
+        const gstEnabled = Boolean(response.data.gstNumber?.trim());
+        setIsGstEnabled(gstEnabled);
+        return gstEnabled;
+      }
+    } catch (error) {
+      console.error('Unable to refresh business GST status:', error);
+    }
+    return Boolean(business?.gstNumber?.trim());
+  }, [token, business?.gstNumber]);
+
+  useEffect(() => {
+    setIsGstEnabled(Boolean(business?.gstNumber?.trim()));
+  }, [business?.gstNumber]);
 
   // STATE VARIABLES
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -383,7 +406,7 @@ const CreateBill = () => {
     [],
   );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setProductsWithHsnError([]);
     if (!quantity) {
       ToastService.show({
@@ -413,6 +436,7 @@ const CreateBill = () => {
       }
     }
     
+    await refreshBusinessGstStatus();
     handleOpenBottomSheet();
   };
 
@@ -768,8 +792,9 @@ const CreateBill = () => {
   useFocusEffect(
     useCallback(() => {
       restartClickOfHeader();
+      refreshBusinessGstStatus();
       return restartClickOfHeader;
-    }, [restartClickOfHeader]),
+    }, [restartClickOfHeader, refreshBusinessGstStatus]),
   );
 
   const handleCreateBillBack = useCallback(() => {
