@@ -309,6 +309,16 @@ const CreateBill = () => {
   const [isPendingPrint, setIsPendingPrint] = useState(false);
   const [isScannerModalVisible, setIsScannerModalVisible] = useState(false);
 
+  const resetCustomerDetails = useCallback(() => {
+    setPhoneNumber('');
+    setIsCustomerDetailsEnabled(false);
+    setHasAttemptedB2BSubmit(false);
+    setCustomerGstNumber('');
+    setCustomerCompanyName('');
+    setCustomerAddress('');
+    setCustomerState(null);
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
     const fetchStates = async () => {
@@ -329,6 +339,17 @@ const CreateBill = () => {
       isMounted = false;
     };
   }, [token]);
+
+  useEffect(() => {
+    const gstStatePrefix = customerGstNumber.slice(0, 2);
+    if (gstStatePrefix.length < 2) return;
+    const matchingState = states.find(
+      state => String(state.gstCode || '').padStart(2, '0') === gstStatePrefix,
+    );
+    if (matchingState?.id !== customerState?.id) {
+      setCustomerState(matchingState || null);
+    }
+  }, [customerGstNumber, states, customerState?.id]);
 
   useEffect(() => {
     if (!isScannerModalVisible) return undefined;
@@ -471,7 +492,8 @@ const CreateBill = () => {
         return;
       }
     }
-    
+
+    resetCustomerDetails();
     await refreshBusinessGstStatus();
     handleOpenBottomSheet();
   };
@@ -764,7 +786,7 @@ const CreateBill = () => {
           type: 'success',
           position: 'top',
         });
-        setPhoneNumber('');
+        resetCustomerDetails();
         setQuantity(0);
         setDiscount(0);
         setTotalPrice(0);
@@ -838,7 +860,7 @@ const CreateBill = () => {
       damping: 15,
       stiffness: 100,
     });
-    setPhoneNumber('');
+    resetCustomerDetails();
     setQuantity(0);
     setDiscount(0);
     setTotalPrice(0);
@@ -847,7 +869,12 @@ const CreateBill = () => {
     resetProductCount();
     setProductsWithHsnError([]);
     handleCloseBottomSheet();
-  }, [discountAnim, handleCloseBottomSheet, resetProductCount]);
+  }, [
+    discountAnim,
+    handleCloseBottomSheet,
+    resetCustomerDetails,
+    resetProductCount,
+  ]);
 
   useFocusEffect(
     useCallback(() => {
@@ -1065,18 +1092,11 @@ const CreateBill = () => {
                 <>
                   <SimpleTextInput
                     value={customerGstNumber}
-                    setValue={value => {
-                      const entered = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-                      const prefix = String(customerState?.gstCode || '').padStart(2, '0');
-                      if (!customerState?.gstCode) {
-                        setCustomerGstNumber(entered.slice(0, 15));
-                        return;
-                      }
-                      const remaining = entered.startsWith(prefix)
-                        ? entered.slice(2)
-                        : entered.replace(/^\d{1,2}/, '');
-                      setCustomerGstNumber(`${prefix}${remaining.slice(0, 13)}`);
-                    }}
+                    setValue={value =>
+                      setCustomerGstNumber(
+                        value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15),
+                      )
+                    }
                     hasError={
                       hasAttemptedB2BSubmit &&
                       (!validateIndianGST(customerGstNumber) ||
@@ -1231,14 +1251,6 @@ const CreateBill = () => {
                     style={styles.stateOption}
                     onPress={() => {
                       setCustomerState(item);
-                      const prefix = String(item.gstCode || '').padStart(2, '0');
-                      setCustomerGstNumber(current => {
-                        const currentPrefix = String(customerState?.gstCode || '').padStart(2, '0');
-                        const remaining = currentPrefix && current.startsWith(currentPrefix)
-                          ? current.slice(2)
-                          : current.replace(/^\d{1,2}/, '');
-                        return `${prefix}${remaining.slice(0, 13)}`;
-                      });
                       setIsStateModalVisible(false);
                     }}>
                     <Text style={styles.stateOptionText}>{item.name}</Text>
