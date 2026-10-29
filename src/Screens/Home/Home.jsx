@@ -32,7 +32,7 @@ import {
   padding,
 } from '../../utils/responsive';
 import {invoiceService} from '../../Services/InvoiceService';
-import {useAuthToken, useSubscription} from '../../Contexts/AuthContext';
+import {useAuth, useAuthToken, useSubscription} from '../../Contexts/AuthContext';
 import {useInvoice} from '../../Contexts/InvoiceContext';
 import LinearGradient from 'react-native-linear-gradient';
 
@@ -42,6 +42,7 @@ let isSubscriptionModalShown = false;
 const Home = () => {
   const {invoices, resetInvoices} = useInvoice();
   const navigation = useNavigation();
+  const {clearAuthData} = useAuth();
   const token = useAuthToken();
   const subscription = useSubscription();
   const latestInvoices = invoices.slice(0, 10);
@@ -128,6 +129,7 @@ const Home = () => {
         ) : (
           <HomeChartComponent
             refreshTrigger={refreshTrigger}
+            onInvalidToken={clearAuthData}
             onSubscriptionRequired={(msg) => {
               setModalMessage(msg);
               setShowSubscriptionModal(true);

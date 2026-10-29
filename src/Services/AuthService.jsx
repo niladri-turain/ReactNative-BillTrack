@@ -73,6 +73,8 @@ class AuthService {
     deviceName,
     deviceUniqueKey,
     phone,
+    otp,
+    token,
   }) {
     try {
       const uri = this.baseUrl + 'remove-device-login';
@@ -83,13 +85,15 @@ class AuthService {
         deviceName,
         deviceUniqueKey,
         phone,
+        otp,
       };
       
       console.log('--- AuthService: removeDeviceAndRelogin ---');
       console.log('URL:', uri);
       console.log('Payload/Body:', payload);
       
-      const response = await axios.post(uri, payload);
+      const headers = token ? {Authorization: `Bearer ${token}`} : {};
+      const response = await axios.post(uri, payload, {headers});
       
       console.log('Status Code:', response.status);
       

@@ -31,7 +31,7 @@ import {
 } from '../../utils/OtpSmsRetriever';
 
 const OtpVerify = () => {
-  const {login, setBusinessData} = useAuth();
+  const {login, setBusinessData, authToken} = useAuth();
   const navigation = useNavigation();
   const route = useRoute();
   const [otp, setOtp] = useState(['', '', '', '']);
@@ -129,6 +129,8 @@ const OtpVerify = () => {
         deviceName: deviceDetails?.deviceName,
         deviceUniqueKey: deviceDetails?.deviceUniqueKey,
         phone: mobile,
+        otp: otp.join(''),
+        token: authToken,
       });
       if (data?.status) {
         await login(data?.token, data?.user);

@@ -62,8 +62,10 @@ const HomeChartComponent = memo(
           }
           setSalesPercentage(percentage);
         } else if (data?.status === false && data?.message) {
-          // If response says subscription is required, can trigger callback or handled by Home
-          if (props?.onSubscriptionRequired) {
+          if (String(data.message).toLowerCase().includes('invalid token')) {
+            props?.onInvalidToken?.();
+          } else if (props?.onSubscriptionRequired) {
+            // Other failed reports can indicate that a subscription is required.
             props.onSubscriptionRequired(data.message);
           }
         }
