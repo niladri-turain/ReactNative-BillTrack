@@ -21,8 +21,10 @@ import {
   calculateInvoiceData,
   formatDate,
   formatTime12Hour,
+  normalizeInvoiceItemsTaxType,
 } from '../../utils/helper';
 import {colors} from '../../utils/colors';
+import {stateService} from '../../Services/StateService';
 
 function convertTo12Hour(datetime) {
   const date = new Date(datetime.replace(' ', 'T'));
@@ -38,6 +40,62 @@ function convertTo12Hour(datetime) {
 
   return `${hours}:${mins} ${ampm}`;
 }
+
+const getInvoiceCustomerDetails = invoiceData => {
+  const record =
+    invoiceData?.invoice ||
+    invoiceData?.data?.invoice ||
+    invoiceData?.data ||
+    invoiceData;
+  const nestedCustomer =
+    record?.customer ||
+    invoiceData?.customer ||
+    invoiceData?.data?.customer;
+  if (nestedCustomer) {
+    const customer = {
+      type: nestedCustomer.type || record?.supplyType || invoiceData?.supplyType,
+      gstin: nestedCustomer.gstin || nestedCustomer.customerGstin,
+      companyName:
+        nestedCustomer.companyName ||
+        nestedCustomer.name ||
+        nestedCustomer.customerName,
+      address: nestedCustomer.address || nestedCustomer.customerAddress,
+      stateId: nestedCustomer.stateId || nestedCustomer.customerStateId,
+      stateName:
+        nestedCustomer.stateName ||
+        nestedCustomer.state?.name ||
+        nestedCustomer.customerStateName,
+    };
+    return [
+      customer.gstin,
+      customer.companyName,
+      customer.address,
+      customer.stateId,
+      customer.stateName,
+    ].some(Boolean)
+      ? customer
+      : null;
+  }
+
+  if (record?.supplyType?.toUpperCase() !== 'B2B') return null;
+  const customer = {
+    type: 'B2B',
+    gstin: record?.customerGstin,
+    companyName: record?.customerName,
+    address: record?.customerAddress,
+    stateId: record?.customerStateId,
+    stateName: record?.customerStateName,
+  };
+  return [
+    customer.gstin,
+    customer.companyName,
+    customer.address,
+    customer.stateId,
+    customer.stateName,
+  ].some(Boolean)
+    ? customer
+    : null;
+};
 
 const InvoiceDetails = () => {
   // ROUTE - NAVIGATION
@@ -83,6 +141,22 @@ const InvoiceDetails = () => {
   const [fetchedUserPhone, setFetchedUserPhone] = useState(
     invoice?.userPhone || '',
   );
+  const [invoiceCustomer, setInvoiceCustomer] = useState(
+    () => getInvoiceCustomerDetails(invoice),
+  );
+  const [states, setStates] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    stateService.getStates(token).then(response => {
+      if (isMounted && response?.status && Array.isArray(response.data)) {
+        setStates(response.data);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
 
   // LOADING STATE
   const [isLoading, setIsLoading] = useState(true);
@@ -137,6 +211,8 @@ const InvoiceDetails = () => {
       setIsLoading(true);
       const data = await invoiceService.getInvoiceItems(invoice.id, token);
       if (data?.status) {
+        const customer = getInvoiceCustomerDetails(data);
+        setInvoiceCustomer(customer || getInvoiceCustomerDetails(invoice));
         const bName =
           data?.businessName ||
           data?.data?.businessName ||
@@ -152,8 +228,14 @@ const InvoiceDetails = () => {
           setFetchedUserPhone(uPhone);
         }
         // Call the calculation function with discount
+        const invoiceForTax = data?.invoice || invoice;
         const result = calculateInvoiceData(
-          data?.items,
+          normalizeInvoiceItemsTaxType(
+            data?.items,
+            invoiceForTax,
+            business?.stateId,
+            invoiceForTax?.customerStateId ?? invoiceCustomer?.stateId,
+          ),
           invoice?.discountAmount || 0,
           invoice?.totalAmount,
         );
@@ -354,17 +436,60 @@ const InvoiceDetails = () => {
               </View>
             </View>
             
-            {invoice?.customerNumber && <DottedDivider borderWidth={0.8} />}
+            {(invoice?.customerNumber || invoiceCustomer?.type === 'B2B') && (
+              <DottedDivider borderWidth={0.8} />
+            )}
             
             <View
               style={[
                 styles.secondContainer,
-                {paddingHorizontal: sizes.secondContainerPaddingHorizontal},
+                {
+                  paddingHorizontal: sizes.secondContainerPaddingHorizontal,
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                },
               ]}>
-              {invoice.customerNumber && (
-                <View style={styles.subSecondContainer}>
+              {invoiceCustomer?.type === 'B2B' && (
+                <View style={{width: '100%', marginTop: margin(6), alignItems: 'flex-start'}}>
+                  <Text style={{fontSize: font(10), fontFamily: fonts.onSemiBold, color: '#555'}}>
+                    BILL TO
+                  </Text>
+                  {!!invoiceCustomer.companyName && (
+                    <Text style={{fontSize: font(13), fontFamily: fonts.onBold, color: '#000'}}>
+                      {invoiceCustomer.companyName}
+                    </Text>
+                  )}
+                  {!!invoiceCustomer.address && (
+                    <Text style={[styles.invoiceText, {fontSize: font(12)}]}>
+                      {invoiceCustomer.address}
+                    </Text>
+                  )}
+                  {!!invoiceCustomer.gstin && (
+                    <Text style={[styles.invoiceText, {fontSize: font(12)}]}>
+                      GSTIN : {invoiceCustomer.gstin}
+                    </Text>
+                  )}
+                  {!!(invoiceCustomer.state?.name || invoiceCustomer.stateName ||
+                    (typeof invoiceCustomer.state === 'string' ? invoiceCustomer.state : '') ||
+                    states.find(state => Number(state.id) === Number(invoiceCustomer.stateId))?.name) && (
+                    <Text style={[styles.invoiceText, {fontSize: font(12)}]}>
+                      State : {invoiceCustomer.state?.name ||
+                        invoiceCustomer.stateName ||
+                        (typeof invoiceCustomer.state === 'string' ? invoiceCustomer.state : '') ||
+                        states.find(state => Number(state.id) === Number(invoiceCustomer.stateId))?.name}
+                    </Text>
+                  )}
+                  {!!invoice.customerNumber && (
+                    <Text style={[styles.invoiceText, {fontSize: font(12)}]}>
+                      Phone : +91 {invoice.customerNumber}
+                    </Text>
+                  )}
+                </View>
+              )}
+              {invoiceCustomer?.type !== 'B2B' && invoice.customerNumber && (
+                <View style={[styles.subSecondContainer, {width: '100%'}]}>
                   <Text style={[styles.invoiceText, {fontSize: font(14)}]}>
-                    Customer : +91 {invoice?.customerNumber}
+                    Customer Number : +91 {invoice.customerNumber}
                   </Text>
                 </View>
               )}

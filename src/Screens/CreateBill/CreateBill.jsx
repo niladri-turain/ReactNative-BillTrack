@@ -39,7 +39,7 @@ import BottomSheet, {
 import Ionicons from '@react-native-vector-icons/ionicons';
 import MaterialIcons from '@react-native-vector-icons/material-icons';
 import {fonts} from '../../utils/fonts';
-import {validateIndianPhone} from '../../utils/validator';
+import {validateIndianGST, validateIndianPhone} from '../../utils/validator';
 import {colors} from '../../utils/colors';
 import {
   font,
@@ -63,7 +63,11 @@ import {
 } from '../../Contexts/AuthContext';
 import {useAppSettingsValue} from '../../Contexts/AppSettingContexts';
 import {usePrinter} from '../../Contexts/PrinterContext';
-import {calculateInvoiceData, generateInvoices} from '../../utils/helper';
+import {
+  calculateInvoiceData,
+  generateInvoices,
+  normalizeInvoiceItemsTaxType,
+} from '../../utils/helper';
 import printerService from '../../utils/PrinterService';
 import {sendToWhatsApp} from '../../utils/WhatsappShare';
 import AntDesign from '@react-native-vector-icons/ant-design';
@@ -274,12 +278,19 @@ const CreateBill = () => {
   // STATE VARIABLES
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isCustomerDetailsEnabled, setIsCustomerDetailsEnabled] = useState(false);
+  const [hasAttemptedB2BSubmit, setHasAttemptedB2BSubmit] = useState(false);
   const [customerGstNumber, setCustomerGstNumber] = useState('');
   const [customerCompanyName, setCustomerCompanyName] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerState, setCustomerState] = useState(null);
   const [states, setStates] = useState([]);
   const [isStateModalVisible, setIsStateModalVisible] = useState(false);
+  const isInterStateCustomer = Boolean(
+    isCustomerDetailsEnabled &&
+      customerState?.id != null &&
+      business?.stateId != null &&
+      String(customerState.id) !== String(business.stateId),
+  );
   const [isStatesLoading, setIsStatesLoading] = useState(false);
   const snapPoints = useMemo(
     () => [isGstEnabled && isCustomerDetailsEnabled ? '70%' : '40%'],
@@ -334,6 +345,31 @@ const CreateBill = () => {
     bottomSheetRef.current?.close();
     Keyboard.dismiss();
   }, []);
+
+  const getB2BCustomer = () => {
+    if (!isCustomerDetailsEnabled) return undefined;
+    setHasAttemptedB2BSubmit(true);
+    const stateGstCode = String(customerState?.gstCode || '').padStart(2, '0');
+    if (
+      !validateIndianGST(customerGstNumber) ||
+      !customerState?.gstCode ||
+      !customerGstNumber.startsWith(stateGstCode)
+    ) {
+      ToastService.show({message: 'Enter a valid GST number for the selected state', type: 'error', position: 'top'});
+      return null;
+    }
+    if (!customerCompanyName.trim() || !customerAddress.trim() || !customerState?.id) {
+      ToastService.show({message: 'Complete all customer business details', type: 'error', position: 'top'});
+      return null;
+    }
+    return {
+      type: 'B2B',
+      gstin: customerGstNumber.trim().toUpperCase(),
+      companyName: customerCompanyName.trim(),
+      address: customerAddress.trim(),
+      stateId: customerState.id,
+    };
+  };
 
   const handleOpenScanner = useCallback(() => {
     setIsScannerModalVisible(true);
@@ -471,6 +507,8 @@ const CreateBill = () => {
       });
       return;
     }
+    const customer = getB2BCustomer();
+    if (isCustomerDetailsEnabled && !customer) return;
 
     if (!printer) {
       setIsPendingPrint(true);
@@ -495,7 +533,7 @@ const CreateBill = () => {
             hsnCode: item?.hsn?.hsnCode || "",
             rate: Number(item?.price).toFixed(2),
             originalPrice: item?.price,
-            gstType: hasHSN ? 'cgst/sgst' : null,
+            gstType: hasHSN ? (isInterStateCustomer ? 'IGST' : 'CGST/SGST') : null,
             gstPercentage: hasHSN
               ? (
                   Number(item.hsn?.cGst || 0) + Number(item.hsn?.sGst || 0)
@@ -512,10 +550,7 @@ const CreateBill = () => {
         items: selectedItems,
         paymentMode: paymentMethod,
         customerNumber: phoneNumber,
-        customerGstNumber: isCustomerDetailsEnabled ? customerGstNumber : '',
-        customerCompanyName: isCustomerDetailsEnabled ? customerCompanyName : '',
-        customerAddress: isCustomerDetailsEnabled ? customerAddress : '',
-        customerState: isCustomerDetailsEnabled ? customerState?.name || '' : '',
+        customer,
         discount,
         invoiceNumber: invoiceNo,
         businessName: businessName,
@@ -531,10 +566,19 @@ const CreateBill = () => {
         });
 
         const invoice = data?.invoice;
-        const invoiceItems = await invoiceService.getInvoiceItems(
+        const invoiceItemsResponse = await invoiceService.getInvoiceItems(
           invoice?.id,
           token,
         );
+        const invoiceItems = {
+          ...invoiceItemsResponse,
+          items: normalizeInvoiceItemsTaxType(
+            invoiceItemsResponse?.items,
+            invoice,
+            business?.stateId,
+            customerState?.id,
+          ),
+        };
         const {
           gstListCalculate,
           items,
@@ -551,7 +595,17 @@ const CreateBill = () => {
 
         if (printer) {
           await printerService.printInvoice(
-            invoice,
+            {
+              ...invoice,
+              ...(customer
+                ? {
+                    customer: {
+                      ...customer,
+                      stateName: customerState?.name,
+                    },
+                  }
+                : {}),
+            },
             items,
             gstListCalculate,
             totalQuantity,
@@ -583,6 +637,8 @@ const CreateBill = () => {
       });
       return;
     }
+    const customer = getB2BCustomer();
+    if (isCustomerDetailsEnabled && !customer) return;
     try {
       setIsSaveLoading(true);
       const selectedItems = product
@@ -599,7 +655,7 @@ const CreateBill = () => {
             hsnId: item?.hsnId || null,
             hsnCode: item?.hsn?.hsnCode || '',
             rate: Number(item?.price).toFixed(2),
-            gstType: hasHSN ? 'cgst/sgst' : null,
+            gstType: hasHSN ? (isInterStateCustomer ? 'IGST' : 'CGST/SGST') : null,
             gstPercentage: hasHSN
               ? (
                   Number(item.hsn?.cGst || 0) + Number(item.hsn?.sGst || 0)
@@ -614,10 +670,7 @@ const CreateBill = () => {
       const data = await invoiceService.createInvoice({
         token,
         customerNumber: phoneNumber,
-        customerGstNumber: isCustomerDetailsEnabled ? customerGstNumber : '',
-        customerCompanyName: isCustomerDetailsEnabled ? customerCompanyName : '',
-        customerAddress: isCustomerDetailsEnabled ? customerAddress : '',
-        customerState: isCustomerDetailsEnabled ? customerState?.name || '' : '',
+        customer,
         items: selectedItems,
         paymentMode: paymentMethod,
         discount,
@@ -652,6 +705,8 @@ const CreateBill = () => {
       });
       return;
     }
+    const customer = getB2BCustomer();
+    if (isCustomerDetailsEnabled && !customer) return;
     try {
       setIsSendLoading(true);
       const selectedItems = product
@@ -668,7 +723,7 @@ const CreateBill = () => {
             hsnId: item?.hsnId || null,
             hsnCode: item?.hsn?.hsnCode || "",
             rate: Number(item?.price).toFixed(2),
-            gstType: hasHSN ? 'cgst/sgst' : null,
+            gstType: hasHSN ? (isInterStateCustomer ? 'IGST' : 'CGST/SGST') : null,
             gstPercentage: hasHSN
               ? (
                   Number(item.hsn?.cGst || 0) + Number(item.hsn?.sGst || 0)
@@ -684,10 +739,7 @@ const CreateBill = () => {
       const data = await invoiceService.createInvoice({
         token,
         customerNumber: phoneNumber,
-        customerGstNumber: isCustomerDetailsEnabled ? customerGstNumber : '',
-        customerCompanyName: isCustomerDetailsEnabled ? customerCompanyName : '',
-        customerAddress: isCustomerDetailsEnabled ? customerAddress : '',
-        customerState: isCustomerDetailsEnabled ? customerState?.name || '' : '',
+        customer,
         items: selectedItems,
         paymentMode: paymentMethod,
         discount,
@@ -698,7 +750,12 @@ const CreateBill = () => {
       if (data?.status) {
         addInvoices(data?.invoice);
         const whatsappAmounts = calculateInvoiceData(
-          selectedItems,
+          normalizeInvoiceItemsTaxType(
+            selectedItems,
+            data?.invoice,
+            business?.stateId,
+            customerState?.id,
+          ),
           discount,
           data?.invoice?.totalAmount,
         );
@@ -727,6 +784,9 @@ const CreateBill = () => {
             roundOffAmount: whatsappAmounts.roundOffAmount,
             paymentMode: data?.invoice?.paymentMode,
             businessId: business?.id,
+            customerDetails: customer,
+            gstBreakdown: whatsappAmounts.gstListCalculate,
+            customerStateName: customerState?.name,
           });
 
           // Only once WhatsApp goes through do we also send the SMS —
@@ -991,7 +1051,10 @@ const CreateBill = () => {
                 <Text style={styles.customerDetailsToggleText}>Business Details(B2B)</Text>
                 <Switch
                   value={isCustomerDetailsEnabled}
-                  onValueChange={setIsCustomerDetailsEnabled}
+                  onValueChange={enabled => {
+                    setIsCustomerDetailsEnabled(enabled);
+                    if (enabled) setHasAttemptedB2BSubmit(false);
+                  }}
                   trackColor={{false: '#00000030', true: colors.sucess}}
                   thumbColor="#fff"
                 />
@@ -1002,7 +1065,27 @@ const CreateBill = () => {
                 <>
                   <SimpleTextInput
                     value={customerGstNumber}
-                    setValue={setCustomerGstNumber}
+                    setValue={value => {
+                      const entered = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                      const prefix = String(customerState?.gstCode || '').padStart(2, '0');
+                      if (!customerState?.gstCode) {
+                        setCustomerGstNumber(entered.slice(0, 15));
+                        return;
+                      }
+                      const remaining = entered.startsWith(prefix)
+                        ? entered.slice(2)
+                        : entered.replace(/^\d{1,2}/, '');
+                      setCustomerGstNumber(`${prefix}${remaining.slice(0, 13)}`);
+                    }}
+                    hasError={
+                      hasAttemptedB2BSubmit &&
+                      (!validateIndianGST(customerGstNumber) ||
+                        !customerState?.gstCode ||
+                        !customerGstNumber.startsWith(
+                          String(customerState?.gstCode || '').padStart(2, '0'),
+                        ))
+                    }
+                    maxLength={15}
                     leadingIcon="description"
                     placeholder="Customer GST Number"
                     borderColor="#D7D9DE"
@@ -1014,6 +1097,7 @@ const CreateBill = () => {
                   <SimpleTextInput
                     value={customerCompanyName}
                     setValue={setCustomerCompanyName}
+                    hasError={hasAttemptedB2BSubmit && !customerCompanyName.trim()}
                     leadingIcon="business"
                     placeholder="Customer Company Name"
                     borderColor="#D7D9DE"
@@ -1024,15 +1108,19 @@ const CreateBill = () => {
                   <SimpleTextInput
                     value={customerAddress}
                     setValue={setCustomerAddress}
+                    hasError={hasAttemptedB2BSubmit && !customerAddress.trim()}
                     leadingIcon="place"
-                    placeholder="Customer Address"
+                    placeholder="Company Address"
                     borderColor="#D7D9DE"
                     borderRadius={10}
                     height={icon(50)}
                     placeholderTextColor="#858991"
                   />
                   <TouchableOpacity
-                    style={styles.customerStateSelect}
+                    style={[
+                      styles.customerStateSelect,
+                      hasAttemptedB2BSubmit && !customerState?.id && {borderColor: colors.error},
+                    ]}
                     onPress={() => setIsStateModalVisible(true)}
                     disabled={isStatesLoading}>
                     <MaterialIcons name="map" size={18} color="#777B83" />
@@ -1069,7 +1157,7 @@ const CreateBill = () => {
                   setValue={val => setPhoneNumber(val.replace(/[^0-9]/g, ''))}
                   leadingIcon="call"
                   keyboardType="phone-pad"
-                  placeholder="Customer Phone Number"
+                  placeholder="Customer Number"
                   borderColor="#D7D9DE"
                   borderRadius={10}
                   height={icon(50)}
@@ -1143,6 +1231,14 @@ const CreateBill = () => {
                     style={styles.stateOption}
                     onPress={() => {
                       setCustomerState(item);
+                      const prefix = String(item.gstCode || '').padStart(2, '0');
+                      setCustomerGstNumber(current => {
+                        const currentPrefix = String(customerState?.gstCode || '').padStart(2, '0');
+                        const remaining = currentPrefix && current.startsWith(currentPrefix)
+                          ? current.slice(2)
+                          : current.replace(/^\d{1,2}/, '');
+                        return `${prefix}${remaining.slice(0, 13)}`;
+                      });
                       setIsStateModalVisible(false);
                     }}>
                     <Text style={styles.stateOptionText}>{item.name}</Text>

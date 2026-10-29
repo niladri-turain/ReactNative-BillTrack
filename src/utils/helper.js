@@ -208,6 +208,53 @@ const calculateInvoiceData = (items = [], totalDiscount = 0, authoritativeTotal 
   };
 };
 
+const getInterStateTaxStatus = (
+  invoice = {},
+  sellerStateId = null,
+  customerStateId = null,
+) => {
+  const taxType = String(invoice?.taxType || '').toUpperCase();
+  if (taxType.startsWith('INTER') || taxType === 'IGST') return true;
+  if (taxType.startsWith('INTRA') || taxType === 'CGST/SGST') return false;
+
+  const sellerStateCode =
+    invoice?.sellerStateCode || invoice?.businessStateCode;
+  const customerStateCode =
+    invoice?.placeOfSupplyStateCode || invoice?.customerStateCode;
+  if (sellerStateCode && customerStateCode) {
+    return String(sellerStateCode) !== String(customerStateCode);
+  }
+
+  const invoiceSellerStateId = invoice?.sellerStateId ?? sellerStateId;
+  const invoiceCustomerStateId =
+    invoice?.customerStateId ?? invoice?.placeOfSupplyStateId ?? customerStateId;
+  if (invoiceSellerStateId != null && invoiceCustomerStateId != null) {
+    return String(invoiceSellerStateId) !== String(invoiceCustomerStateId);
+  }
+  return null;
+};
+
+const normalizeInvoiceItemsTaxType = (
+  items = [],
+  invoice = {},
+  sellerStateId = null,
+  customerStateId = null,
+) => {
+  if (!Array.isArray(items)) return [];
+  const isInterState = getInterStateTaxStatus(
+    invoice,
+    sellerStateId,
+    customerStateId,
+  );
+  if (isInterState === null) return items;
+  return items.map(item => {
+    if (Number(item?.gstPercentage || item?.gstRate || item?.gst || 0) <= 0) {
+      return item;
+    }
+    return {...item, gstType: isInterState ? 'IGST' : 'CGST/SGST'};
+  });
+};
+
 function generateInvoices(prefix = 'INV/', count = 1) {
   const now = new Date();
   const year = now.getFullYear();
@@ -229,5 +276,7 @@ export {
   formatDate,
   formatTime12Hour,
   calculateInvoiceData,
+  getInterStateTaxStatus,
+  normalizeInvoiceItemsTaxType,
   generateInvoices,
 };

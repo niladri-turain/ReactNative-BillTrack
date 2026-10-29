@@ -15,7 +15,8 @@ class InvoiceService {
     discount,
     invoiceNumber,
     businessName,
-    userPhone
+    userPhone,
+    customer,
   }) {
     try {
       const uri = this.baseUrl;
@@ -27,7 +28,8 @@ class InvoiceService {
         discount,
         invoiceNumber,
         businessName,
-        userPhone
+        userPhone,
+        ...(customer ? {customer} : {}),
       };
       const headers = {
         Authorization: `Bearer ${token}`,
