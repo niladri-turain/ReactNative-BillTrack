@@ -507,7 +507,7 @@ const CreateBill = () => {
     await updateNumberOfInvoices(safeNumber);
   };
 
-  const showSubscriptionError = data => {
+  const showInvoiceError = data => {
     const message = data?.message || '';
     if (
       data?.statusCode === 403 ||
@@ -520,6 +520,11 @@ const CreateBill = () => {
       );
       return true;
     }
+    ToastService.show({
+      message: message || 'Failed to create bill. Please try again.',
+      type: 'error',
+      position: 'top',
+    });
     return false;
   };
 
@@ -599,7 +604,7 @@ const CreateBill = () => {
         userPhone: userPhone
       };
       const data = await invoiceService.createInvoice(payload);
-      if (!data?.status) showSubscriptionError(data);
+      if (!data?.status) showInvoiceError(data);
       if (data?.status) {
         addInvoices(data?.invoice);
         ToastService.show({
@@ -722,7 +727,7 @@ const CreateBill = () => {
         userPhone: userPhone,
       });
 
-      if (!data?.status) showSubscriptionError(data);
+      if (!data?.status) showInvoiceError(data);
 
       if (data?.status) {
         addInvoices(data?.invoice);
@@ -792,7 +797,7 @@ const CreateBill = () => {
         businessName: businessName,
         userPhone: userPhone,
       });
-      if (!data?.status) showSubscriptionError(data);
+      if (!data?.status) showInvoiceError(data);
       if (data?.status) {
         addInvoices(data?.invoice);
         const whatsappAmounts = calculateInvoiceData(
