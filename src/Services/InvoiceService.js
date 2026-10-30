@@ -46,7 +46,10 @@ class InvoiceService {
       console.error('--- createInvoice Error ---');
       console.error('Response Data:', error.response?.data);
       console.error('Status Code:', error.response?.status);
-      return error.response?.data;
+      return {
+        ...error.response?.data,
+        statusCode: error.response?.status,
+      };
     }
   }
 

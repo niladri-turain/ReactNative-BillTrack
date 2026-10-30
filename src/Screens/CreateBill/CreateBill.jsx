@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   DeviceEventEmitter,
   FlatList,
@@ -506,6 +507,22 @@ const CreateBill = () => {
     await updateNumberOfInvoices(safeNumber);
   };
 
+  const showSubscriptionError = data => {
+    const message = data?.message || '';
+    if (
+      data?.statusCode === 403 ||
+      /subscription|subscribe to a plan/i.test(message)
+    ) {
+      Alert.alert(
+        'Subscription Required',
+        message || 'Your plan has expired. Please subscribe to a plan to create bills.',
+        [{text: 'OK'}],
+      );
+      return true;
+    }
+    return false;
+  };
+
   const getBusinessInvoiceNumber = async () => {
     try {
       const safeNumber = Number(business?.numberOfInvoices);
@@ -582,6 +599,7 @@ const CreateBill = () => {
         userPhone: userPhone
       };
       const data = await invoiceService.createInvoice(payload);
+      if (!data?.status) showSubscriptionError(data);
       if (data?.status) {
         addInvoices(data?.invoice);
         ToastService.show({
@@ -704,6 +722,8 @@ const CreateBill = () => {
         userPhone: userPhone,
       });
 
+      if (!data?.status) showSubscriptionError(data);
+
       if (data?.status) {
         addInvoices(data?.invoice);
         ToastService.show({
@@ -772,6 +792,7 @@ const CreateBill = () => {
         businessName: businessName,
         userPhone: userPhone,
       });
+      if (!data?.status) showSubscriptionError(data);
       if (data?.status) {
         addInvoices(data?.invoice);
         const whatsappAmounts = calculateInvoiceData(
