@@ -25,10 +25,10 @@ import {businessService} from '../../Services/BusinessService';
 import {getDeviceDetails} from '../../utils/DeviceInfo';
 import {CommonModal} from '../../Components';
 import {
-  startOtpSmsRetriever,
-  stopOtpSmsRetriever,
+  startOtpSmsConsent,
+  stopOtpSmsConsent,
   subscribeToOtp,
-} from '../../utils/OtpSmsRetriever';
+} from '../../utils/OtpSmsConsent';
 
 const OtpVerify = () => {
   const {login, setBusinessData, authToken} = useAuth();
@@ -84,7 +84,7 @@ const OtpVerify = () => {
   const handleResendOtp = async () => {
     try {
       if (timer > 0) return;
-      if (Platform.OS === 'android') await startOtpSmsRetriever();
+      if (Platform.OS === 'android') await startOtpSmsConsent();
       const data = await authService.login(mobile);
       if (data?.status) {
         setTimer(90);
@@ -156,7 +156,7 @@ const OtpVerify = () => {
 
     return () => {
       unsubscribe();
-      stopOtpSmsRetriever();
+      stopOtpSmsConsent();
     };
   }, []);
 
