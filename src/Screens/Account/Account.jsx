@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   Platform,
@@ -51,6 +52,7 @@ import {useAppSettings} from '../../Contexts/AppSettingContexts';
 import {useInvoice} from '../../Contexts/InvoiceContext';
 import {API_URL} from '../../utils/config';
 import ImageCropPicker from 'react-native-image-crop-picker';
+import DeviceInfo from 'react-native-device-info';
 
 const Account = memo(() => {
   const businessName = useBusiness('name');
@@ -71,6 +73,7 @@ const Account = memo(() => {
   const currentPlan = mapCurrentSubscription(subscription);
   const {
     logout,
+    clearAuthData,
     resetBusiness,
     refreshSubscription,
     updateAuthToken,
@@ -86,7 +89,7 @@ const Account = memo(() => {
   //STATE VARIABLES
   const [name, setName] = useState(userName);
   const [phone, setPhone] = useState(userPhone);
-  const [email, setEmail] = useState(userEmail);
+  const [email, setEmail] = useState((userEmail || '').toLowerCase());
   const [newImage, setNewImage] = useState(null);
   const [updateError, setUpdateError] = useState('');
 
@@ -130,6 +133,7 @@ const Account = memo(() => {
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
   const [isImageUploading, setIsImageUploading] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
 
   // MODAL STATES
   const [isModalVisible, setModalVisible] = useState(false);
@@ -150,6 +154,51 @@ const Account = memo(() => {
     } finally {
       setLogoutLoading(false);
     }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeleteAccountLoading(true);
+              const result = await userService.deleteAccount({token});
+              if (result?.status === true) {
+                await clearAllProducts();
+                await clearPrinter();
+                await resetSettings();
+                clearInvoice();
+                await clearAuthData();
+              } else {
+                ToastService.show({
+                  message: result?.message || 'Unable to delete account',
+                  type: 'error',
+                  position: 'top',
+                });
+              }
+            } catch (error) {
+              console.error('Account deletion failed:', error);
+              ToastService.show({
+                message: 'Unable to delete account. Please try again.',
+                type: 'error',
+                position: 'top',
+              });
+            } finally {
+              setDeleteAccountLoading(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const handleNavigation = ({screen, data = {}}) => {
@@ -237,7 +286,12 @@ const Account = memo(() => {
 
   const updateDetails = async () => {
     setUpdateError('');
-    if (name === userName && userEmail === email && userPhone === phone) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (
+      name === userName &&
+      (userEmail || '').toLowerCase() === normalizedEmail &&
+      userPhone === phone
+    ) {
       setUpdateError('No changes found');
       return;
     }
@@ -272,7 +326,7 @@ const Account = memo(() => {
       setIsUpdateLoading(true);
       const payload = {
         name: name,
-        email: email,
+        email: normalizedEmail,
         phone: phone,
         token: token,
       };
@@ -282,21 +336,21 @@ const Account = memo(() => {
       const businessPayload = {
         token: token,
         name: name,
-        email: email,
+        email: normalizedEmail,
         phone: phone,
       };
       const businessUpdate = await businessService.updateBusiness(businessPayload);
 
       if (data.status) {
         ToastAndroid.show(data.message, ToastAndroid.SHORT, ToastAndroid.TOP);
-        updateUserFields({name: name, email: email, phone: phone});
+        updateUserFields({name: name, email: normalizedEmail, phone: phone});
 
         if (businessUpdate?.business) {
-          resetBusiness({...businessUpdate.business, name, email, phone});
+          resetBusiness({...businessUpdate.business, name, email: normalizedEmail, phone});
         } else if (data.business) {
-          resetBusiness({...data.business, name, email, phone});
+          resetBusiness({...data.business, name, email: normalizedEmail, phone});
         } else {
-          updateBusinessFields({name, email, phone});
+          updateBusinessFields({name, email: normalizedEmail, phone});
         }
 
         handleCloseModal();
@@ -416,6 +470,7 @@ const Account = memo(() => {
         style={{flex: 1}}
         contentContainerStyle={{
           backgroundColor: '#fff',
+          flexGrow: 1,
           paddingBottom: 50,
         }}>
         <ProfileCard
@@ -427,7 +482,7 @@ const Account = memo(() => {
           onpressEditBtn={() => {
             setName(userName);
             setPhone(userPhone);
-            setEmail(userEmail);
+            setEmail((userEmail || '').toLowerCase());
             setUpdateError('');
             setModalVisible(true);
           }}
@@ -532,16 +587,13 @@ const Account = memo(() => {
             title="About Billtrack"
             onpress={() => handleNavigation({screen: 'About'})}
           />
-          {/* Keep this entry available in source for when cancelled invoice history is needed again.
-          <SettingItemsCard
-            mainIcon={<Ionicons name="close-circle-outline" size={icon(28)} color={colors.primary} />}
-            title="Cancel Invoice List"
-            onpress={() => handleNavigation({screen: 'CancelInvoiceList'})}
-          />
-          */}
           <SettingItemsCard
             mainIcon={
-              <MaterialIcons name="payment" size={icon(24)} color={colors.primary} />
+              <MaterialIcons
+                name="payment"
+                size={icon(24)}
+                color={colors.primary}
+              />
             }
             title="Payment Details"
             onpress={() => handleNavigation({screen: 'PaymentDetails'})}
@@ -558,15 +610,23 @@ const Account = memo(() => {
             onpress={handleLogout}
             disabled={logoutLoading}
           />
-        </View>
-        {/* <View style={styles.deleteContainer}>
-          <MaterialIcons
-            name="delete-outline"
-            size={icon(22)}
-            color={colors.error}
+          <SettingItemsCard
+            mainIcon={
+              <MaterialIcons
+                name="delete-outline"
+                size={icon(22)}
+                color={colors.error}
+              />
+            }
+            title={deleteAccountLoading ? 'Deleting Account...' : 'Delete Account'}
+            titleStyle={{color: colors.error}}
+            onpress={handleDeleteAccount}
+            disabled={deleteAccountLoading}
           />
-          <Text style={styles.deleteText}>Delete Account</Text>
-        </View> */}
+        </View>
+        <Text style={styles.appVersionText}>
+          Version: {DeviceInfo.getVersion()}
+        </Text>
       </ScrollView>
       <CommonModal
         visible={isModalVisible}
@@ -726,7 +786,9 @@ const Account = memo(() => {
           <SimpleTextInput
             placeholder="Email(optional)"
             value={email}
-            setValue={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            setValue={value => setEmail(value.toLowerCase())}
             hasError={email && !validateEmail(email)}
           />
           {updateError ? (
@@ -789,6 +851,14 @@ const styles = StyleSheet.create({
     fontSize: font(16),
     fontFamily: fonts.popRegular,
     color: '#6C6C6C',
+  },
+  appVersionText: {
+    alignSelf: 'center',
+    marginTop: 'auto',
+    paddingTop: padding(14),
+    color: '#8A8A8A',
+    fontFamily: fonts.popRegular,
+    fontSize: font(11),
   },
   endDateRow: {
     flexDirection: 'row',

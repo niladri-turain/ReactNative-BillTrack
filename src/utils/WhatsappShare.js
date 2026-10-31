@@ -11,6 +11,9 @@ const sendToWhatsApp = async ({
   paymentMode,
   businessName,
   businessId,
+  customerDetails,
+  customerStateName,
+  gstBreakdown = [],
 }) => {
   // Safety check
   if (!customerNumber) {
@@ -56,6 +59,27 @@ const sendToWhatsApp = async ({
   }
 
   // Your beautiful WhatsApp message
+  const customerLines = customerDetails
+    ? [
+        'BILL TO',
+        customerDetails.companyName,
+        customerDetails.address,
+        customerDetails.gstin ? `GSTIN: ${customerDetails.gstin}` : '',
+        customerStateName || customerDetails.stateName
+          ? `State: ${customerStateName || customerDetails.stateName}`
+          : '',
+        customerNumber ? `Phone: ${customerNumber}` : '',
+      ].filter(line => !line.endsWith(': '))
+    : [];
+  const customerSection = customerDetails
+    ? customerLines.join('\n')
+    : `Customer Number: ${customerNumber}`;
+  const gstLines = (gstBreakdown || []).map(
+    item =>
+      `${item.gstType} ${Number(item.gstPercentage || 0)}%: ₹${Number(
+        item.gstAmount || 0,
+      ).toFixed(2)}`,
+  );
   const message = `Invoice Paid – Thank You!
 
 *${businessName}*
@@ -63,7 +87,8 @@ const sendToWhatsApp = async ({
 ━━━━━━━━━━━━━━━━━
 Invoice No.:   ${invoiceNumber}
 Date:              ${formatDate(createdAt)}
-Customer:      ${customerNumber}
+${customerSection}
+${gstLines.length ? `\n${gstLines.join('\n')}\n` : ''}
 Total Amount:  ₹${Number(breakdownTotalAmount || 0).toFixed(2)}
 Round Off:     ${roundOffAmount > 0 ? '+' : roundOffAmount < 0 ? '-' : ''}₹${Math.abs(Number(roundOffAmount) || 0).toFixed(2)}
 Final Amount:  ₹${Number(totalAmount || 0).toFixed(2)}

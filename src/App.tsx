@@ -1,5 +1,6 @@
-import { Image, StyleSheet, TouchableWithoutFeedback, View } from 'react-native';
+import { Appearance, Image, StyleSheet, TouchableWithoutFeedback, View } from 'react-native';
 import {
+  DefaultTheme,
   getFocusedRouteNameFromRoute,
   NavigationContainer,
 } from '@react-navigation/native';
@@ -51,6 +52,10 @@ import SocketProvider from './Contexts/SocketContext';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+// Keep native controls and system-derived text colors consistent with the app's
+// existing light interface, even when the device is set to dark mode.
+Appearance.setColorScheme('light');
+
 // import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const icons = {
@@ -64,21 +69,23 @@ const icons = {
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const AuthStack = memo(({initialRouteName = 'Onboarding'}) => {
-  return (
-    <Stack.Navigator
-      initialRouteName={initialRouteName}
-      screenOptions={{
-        headerShown: false,
-        animation: 'slide_from_right',
-      }}>
-      <Stack.Screen name="Onboarding" component={Onboarding} />
-      <Stack.Screen name="AuthHome" component={AuthHome} />
-      <Stack.Screen name="Login" component={Login} />
-      <Stack.Screen name="Otp" component={OtpVerify} />
-    </Stack.Navigator>
-  );
-});
+const AuthStack = memo(
+  ({initialRouteName = 'Onboarding'}: {initialRouteName?: string}) => {
+    return (
+      <Stack.Navigator
+        initialRouteName={initialRouteName}
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+        }}>
+        <Stack.Screen name="Onboarding" component={Onboarding} />
+        <Stack.Screen name="AuthHome" component={AuthHome} />
+        <Stack.Screen name="Login" component={Login} />
+        <Stack.Screen name="Otp" component={OtpVerify} />
+      </Stack.Navigator>
+    );
+  },
+);
 
 const BusinessStack = () => {
   return <Stack.Navigator initialRouteName='BusinessSetup' screenOptions={{
@@ -273,7 +280,7 @@ const AppStack = memo(() => {
           tabBarStyle: {
             display: 'none',
           },
-          tabBarIcon: ({ focused, color }) => (
+          tabBarIcon: () => (
             <View style={styles.createTabParent}>
               <Image
                 source={icons.CreateBill}
@@ -289,12 +296,10 @@ const AppStack = memo(() => {
       <Tab.Screen
         name="Invoice"
         component={InvoiceStack}
-        options={({ route }) => {
-          return {
-            tabBarIcon: renderTabIcon(icons.Invoice),
-            tabBarStyle: defaultTabBarStyle,
-            unmountOnBlur: true,
-          };
+        options={{
+          tabBarIcon: renderTabIcon(icons.Invoice),
+          tabBarStyle: defaultTabBarStyle,
+          unmountOnBlur: true,
         }}
         listeners={({ navigation }) => ({
           tabPress: (e) => {
@@ -373,7 +378,7 @@ const App = () => {
                 <PrinterProvider>
                   <SocketProvider>
                     <SafeAreaProvider>
-                      <NavigationContainer>
+                      <NavigationContainer theme={DefaultTheme}>
                         <AppNav />
                         <ToastContainer />
                         <AppUpdateModal />

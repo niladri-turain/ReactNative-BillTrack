@@ -13,7 +13,7 @@ function validateProductName(productName) {
     return false;
   }
 
-  return /^[\p{L} ]+$/u.test(productName.trim());
+  return /^[\p{L}\p{N}]+(?: [\p{L}\p{N}]+)*$/u.test(productName.trim());
 }
 
 function validateIndianPhone(phoneNumber) {
@@ -96,11 +96,12 @@ function validateBusinessName(businessName) {
     return false;
   }
 
-  if (!/[a-zA-Z]/.test(trimmedName)) {
+  // Business names can be written in any language (for example Bengali or Hindi).
+  if (!/\p{L}/u.test(trimmedName)) {
     return false;
   }
 
-  const validCharactersRegex = /^[a-zA-Z0-9\s&\-'.,()]+$/;
+  const validCharactersRegex = /^[\p{L}\p{N}\s&\-'.,()]+$/u;
   if (!validCharactersRegex.test(trimmedName)) {
     return false;
   }
@@ -109,7 +110,7 @@ function validateBusinessName(businessName) {
     return false;
   }
 
-  if (/^[^a-zA-Z0-9]|[^a-zA-Z0-9)]$/.test(trimmedName)) {
+  if (/^[^\p{L}\p{N}]|[^\p{L}\p{N})]$/u.test(trimmedName)) {
     return false;
   }
 

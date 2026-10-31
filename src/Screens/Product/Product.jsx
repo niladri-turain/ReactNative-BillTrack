@@ -307,7 +307,8 @@ const Product = () => {
       return;
     }
 
-    const trimmedName = productName?.trim().toLowerCase();
+    const normalizedName = productName.trim();
+    const trimmedName = normalizedName.toLowerCase();
     const isDuplicate = Products.some(product => {
       if (!isNewProduct && product.id === productId) {
         return false;
@@ -339,7 +340,7 @@ const Product = () => {
       try {
         setIsSaveLoading(true);
         const payload = {
-          name: productName,
+          name: normalizedName,
           price: productPrice,
           unit: productUnit,
           token: token,
@@ -377,7 +378,7 @@ const Product = () => {
     try {
       setIsSaveLoading(true);
       const data = await productService.updateproduct(token, {
-        name: productName,
+        name: normalizedName,
         id: productId,
         price: productPrice,
         unit: productUnit,
@@ -603,7 +604,12 @@ const Product = () => {
                   placeholder={''}
                   value={productName}
                   setValue={(val) => {
-                    setProductName(val.replace(/[^\p{L} ]/gu, '').replace(/^ +/, ''));
+                    setProductName(
+                      val
+                        .replace(/[^\p{L}\p{N} ]/gu, '')
+                        .replace(/ {2,}/g, ' ')
+                        .replace(/^ /, ''),
+                    );
                     setProductNameError('');
                   }}
                   hasError={(productName && !validateProductName(productName)) || !!productNameError}

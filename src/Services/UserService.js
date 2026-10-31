@@ -40,6 +40,44 @@ class UserService {
     }
   }
 
+  async deleteAccount({token, reason}) {
+    const uri = `${this.baseUrl}account/delete`;
+    const payload = {confirm: true};
+    if (reason) payload.reason = reason;
+    const headers = {
+      Authorization: `Bearer ${token}`,
+    };
+
+    console.log('--- deleteAccount ---');
+    console.log('Method:', 'POST');
+    console.log('URL:', uri);
+    console.log('Headers:', {Authorization: 'Bearer [REDACTED]'});
+    console.log('Body:', payload);
+
+    try {
+      const response = await axios.post(uri, payload, {headers});
+      console.log('Response:', response.data);
+      console.log('Status Code:', response.status);
+      if (response.status === 200 && response.data?.status === true) {
+        return response.data;
+      }
+      return {
+        ...response.data,
+        status: false,
+        message: response.data?.message || 'Account deletion was not confirmed',
+      };
+    } catch (error) {
+      console.error('--- deleteAccount Error ---');
+      console.error('Response Data:', error.response?.data);
+      console.error('Status Code:', error.response?.status);
+      console.error('Error Message:', error.message);
+      return error.response?.data || {
+        status: false,
+        message: error.message || 'Unable to delete account',
+      };
+    }
+  }
+
   async updateUserProfileImage({profileImage, token}) {
     try {
       const uri = `${API_URL}business/update-logo`;

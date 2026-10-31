@@ -58,7 +58,7 @@ const SalesAreaChart = memo(({barData = [], referenceBarCount}) => {
         showValuesAsTopLabel={true}
         topLabelTextStyle={topLabelStyle}
         scrollToEnd={false}
-        isAnimated={true}
+        isAnimated={false}
         hideRules={true}
       />
     </View>

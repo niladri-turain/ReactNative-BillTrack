@@ -1,6 +1,7 @@
 import {StyleSheet, Text, TextInput, View} from 'react-native';
 import React, {memo} from 'react';
 import Octicons from '@react-native-vector-icons/octicons';
+import MaterialIcons from '@react-native-vector-icons/material-icons';
 import {colors} from '../../utils/colors';
 import {fonts} from '../../utils/fonts';
 import {font, heightResponsive, icon} from '../../utils/responsive';
@@ -24,7 +25,9 @@ const SimpleTextInput = ({
   placeholderTextColor = colors.border,
   fontSize = font(14),
   disabled = false,
-  multiline=false
+  multiline = false,
+  autoCapitalize = 'sentences',
+  leadingIcon,
 }) => {
   return (
     <View
@@ -37,9 +40,18 @@ const SimpleTextInput = ({
           borderRadius: borderRadius,
         },
       ]}>
+      {leadingIcon && (
+        <MaterialIcons
+          name={leadingIcon}
+          size={icon(18)}
+          color="#777B83"
+          style={styles.leadingIcon}
+        />
+      )}
       <TextInput
         placeholder={placeholder}
         keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
         value={value}
         onChangeText={text => {
           if (upperCase) {
@@ -81,6 +93,9 @@ const styles = StyleSheet.create({
     flex: 1,
     // fontSize: 14,
     fontFamily: fonts.onMedium,
+  },
+  leadingIcon: {
+    marginRight: 12,
   },
 });
 

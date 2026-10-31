@@ -3,6 +3,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  PanResponder,
   StyleSheet,
   Text,
   TextInput,
@@ -30,7 +31,7 @@ import {
   validateIndianPhone,
 } from '../../utils/validator';
 import {colors} from '../../utils/colors';
-import {useFocusEffect, useNavigation} from '@react-navigation/native';
+import {useFocusEffect, useNavigation, useRoute} from '@react-navigation/native';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import BottomSheet, {
   BottomSheetBackdrop,
@@ -51,6 +52,7 @@ import {useUser} from '../../Contexts/AuthContext';
 
 const BusinessSetup = () => {
   const navigation = useNavigation();
+  const route = useRoute();
   const userPhone = useUser('phone');
 
   const bottomSheetRef = useRef(null);
@@ -63,11 +65,27 @@ const BusinessSetup = () => {
   const [phone, setPhone] = useState(userPhone || '');
 
   const [suggestions, setSuggestions] = useState([]);
+  const [stepTwoDraft, setStepTwoDraft] = useState({});
+
+  useEffect(() => {
+    const params = route.params || {};
+    if (params.businessName !== undefined) setBusinessName(params.businessName);
+    if (params.gstNumber !== undefined) setGstNumber(params.gstNumber);
+    if (params.businessType !== undefined) setBusinessType(params.businessType);
+    if (params.email !== undefined) setEmail(params.email.toLowerCase());
+    if (params.phone !== undefined) setPhone(params.phone);
+    if (params.stepTwoDraft) setStepTwoDraft(params.stepTwoDraft);
+  }, [route.params]);
 
   // Step Guide
   const [guideVisible, setGuideVisible] = useState(false);
   const [targetLayout, setTargetLayout] = useState(null);
   const continueButtonRef = useRef(null);
+  const handleContinueRef = useRef(() => {});
+  const pagerResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 40 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+    onPanResponderRelease: (_, gesture) => { if (gesture.dx < -60) handleContinueRef.current(); },
+  }));
 
   useEffect(() => {
     const checkGuide = async () => {
@@ -169,10 +187,12 @@ const BusinessSetup = () => {
       businessName,
       gstNumber,
       businessType,
-      email,
+      email: email.trim().toLowerCase(),
       phone,
+      stepTwoDraft,
     });
   };
+  handleContinueRef.current = handleContinue;
 
   const getBusinessCategory = async () => {
     try {
@@ -229,6 +249,7 @@ const BusinessSetup = () => {
           keyboardOpeningTime={0}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag">
+          <View {...pagerResponder.current.panHandlers} style={styles.swipeArea}>
           <Image
             style={styles.image}
             source={require('./../../../asset/images/business.png')}
@@ -256,7 +277,7 @@ const BusinessSetup = () => {
             <BottomSheetInput
               label={
                 businessType
-                  ? businessTypes.find(item => item.id === businessType).name
+                  ? businessTypes.find(item => item.id === businessType)?.name || 'Business Type'
                   : 'Business Type'
               }
               onPress={() => handleOpenBottomSheet('businessType')}
@@ -265,8 +286,9 @@ const BusinessSetup = () => {
               placeholder="Email"
               maxLength={100}
               keyboardType="email-address"
+              autoCapitalize="none"
               value={email}
-              setValue={setEmail}
+              setValue={value => setEmail(value.toLowerCase())}
               hasError={email.length > 0 && !validateEmail(email)}
             />
             <SimpleTextInput
@@ -279,12 +301,23 @@ const BusinessSetup = () => {
               hasError={phone.length > 0 && !validateIndianPhone(phone)}
             />
           </View>
+          <View style={styles.pager}>
+            {[0, 1].map(step => (
+              <TouchableOpacity
+                key={step}
+                accessibilityLabel={`Go to setup step ${step + 1}`}
+                onPress={() => step === 1 && handleContinue()}>
+                <View style={[styles.pageDot, step === 0 && styles.activePageDot]} />
+              </TouchableOpacity>
+            ))}
+          </View>
           <TouchableOpacity
             ref={continueButtonRef}
             style={styles.button}
             onPress={handleContinue}>
             <Text style={styles.buttonText}>CONTINUE</Text>
           </TouchableOpacity>
+          </View>
         </KeyboardAwareScrollView>
 
         <StepGuide
@@ -381,6 +414,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: gap(10),
   },
+  swipeArea: {flexGrow: 1, alignItems: 'center', justifyContent: 'center', width: '100%'},
   image: {
     width: icon(250),
     height: icon(120),
@@ -403,13 +437,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: margin(10),
+    marginTop: margin(18),
+    marginBottom: margin(10),
   },
   buttonText: {
     fontSize: font(16),
     fontFamily: fonts.onSemiBold,
     color: '#fff',
   },
+  pager: {flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: margin(2)},
+  pageDot: {width: 8, height: 8, borderRadius: 4, backgroundColor: '#D4D4D4'},
+  activePageDot: {width: 20, backgroundColor: colors.primary},
   bottomSheetHeader: {
     height: icon(50),
     backgroundColor: colors.primary + 10,

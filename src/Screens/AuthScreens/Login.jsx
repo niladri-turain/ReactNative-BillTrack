@@ -29,7 +29,7 @@ import {
 import {validateIndianPhone} from '../../utils/validator';
 import {authService} from '../../Services/AuthService';
 import {showPhoneNumberHint} from '@shayrn/react-native-android-phone-number-hint';
-import {startOtpSmsRetriever, stopOtpSmsRetriever} from '../../utils/OtpSmsRetriever';
+import {startOtpSmsConsent, stopOtpSmsConsent} from '../../utils/OtpSmsConsent';
 
 const Login = () => {
   const navigation = useNavigation();
@@ -69,7 +69,7 @@ const Login = () => {
       setIsLoading(true);
       if (Platform.OS === 'android') {
         try {
-          await startOtpSmsRetriever();
+          await startOtpSmsConsent();
         } catch (error) {
           // Keep OTP login available when SMS Retriever cannot start.
         }
@@ -80,11 +80,11 @@ const Login = () => {
           mobile: number,
         });
       } else {
-        await stopOtpSmsRetriever();
+        await stopOtpSmsConsent();
         ToastAndroid.show(data?.message, ToastAndroid.SHORT);
       }
     } catch (error) {
-      await stopOtpSmsRetriever();
+      await stopOtpSmsConsent();
       ToastAndroid.show('Something went wrong', ToastAndroid.SHORT);
     } finally {
       setIsLoading(false);

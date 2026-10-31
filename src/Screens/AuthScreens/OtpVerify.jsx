@@ -25,13 +25,13 @@ import {businessService} from '../../Services/BusinessService';
 import {getDeviceDetails} from '../../utils/DeviceInfo';
 import {CommonModal} from '../../Components';
 import {
-  startOtpSmsRetriever,
-  stopOtpSmsRetriever,
+  startOtpSmsConsent,
+  stopOtpSmsConsent,
   subscribeToOtp,
-} from '../../utils/OtpSmsRetriever';
+} from '../../utils/OtpSmsConsent';
 
 const OtpVerify = () => {
-  const {login, setBusinessData} = useAuth();
+  const {login, setBusinessData, authToken} = useAuth();
   const navigation = useNavigation();
   const route = useRoute();
   const [otp, setOtp] = useState(['', '', '', '']);
@@ -84,7 +84,7 @@ const OtpVerify = () => {
   const handleResendOtp = async () => {
     try {
       if (timer > 0) return;
-      if (Platform.OS === 'android') await startOtpSmsRetriever();
+      if (Platform.OS === 'android') await startOtpSmsConsent();
       const data = await authService.login(mobile);
       if (data?.status) {
         setTimer(90);
@@ -129,6 +129,8 @@ const OtpVerify = () => {
         deviceName: deviceDetails?.deviceName,
         deviceUniqueKey: deviceDetails?.deviceUniqueKey,
         phone: mobile,
+        otp: otp.join(''),
+        token: authToken,
       });
       if (data?.status) {
         await login(data?.token, data?.user);
@@ -154,7 +156,7 @@ const OtpVerify = () => {
 
     return () => {
       unsubscribe();
-      stopOtpSmsRetriever();
+      stopOtpSmsConsent();
     };
   }, []);
 

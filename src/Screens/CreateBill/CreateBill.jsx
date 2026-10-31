@@ -1,13 +1,16 @@
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   DeviceEventEmitter,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   ToastAndroid,
@@ -35,8 +38,9 @@ import BottomSheet, {
   BottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import MaterialIcons from '@react-native-vector-icons/material-icons';
 import {fonts} from '../../utils/fonts';
-import {validateIndianPhone} from '../../utils/validator';
+import {validateIndianGST, validateIndianPhone} from '../../utils/validator';
 import {colors} from '../../utils/colors';
 import {
   font,
@@ -56,22 +60,22 @@ import {
   useAuthToken,
   useBusiness,
   useSubscription,
-  useGstEnabled,
   useUser,
 } from '../../Contexts/AuthContext';
 import {useAppSettingsValue} from '../../Contexts/AppSettingContexts';
 import {usePrinter} from '../../Contexts/PrinterContext';
-import {calculateInvoiceData, generateInvoices} from '../../utils/helper';
+import {
+  calculateInvoiceData,
+  generateInvoices,
+  normalizeInvoiceItemsTaxType,
+} from '../../utils/helper';
 import printerService from '../../utils/PrinterService';
 import {sendToWhatsApp} from '../../utils/WhatsappShare';
 import AntDesign from '@react-native-vector-icons/ant-design';
 import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
 import Lucide from '@react-native-vector-icons/lucide';
 import Animated, {
-  FadeIn,
-  FadeOut,
   interpolateColor,
-  LinearTransition,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -80,6 +84,8 @@ import {useInvoice} from '../../Contexts/InvoiceContext';
 import {useBottomTabBarHeight} from '@react-navigation/bottom-tabs';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
+import {stateService} from '../../Services/StateService';
+import {businessService} from '../../Services/BusinessService';
 
 const {width: screenWidth} = Dimensions.get('window');
 const NUM_COLUMNS = isTabletDevice ? 4 : 3;
@@ -106,6 +112,7 @@ const CreateBill = () => {
   const addInvoices = useInvoice('addInvoice');
   const {printer, setSelectedPrinter} = usePrinter();
   const business = useBusiness();
+  const {setBusinessData} = useAuth();
   const userName = useUser('name');
   const businessName = userName || business?.name;
   const userPhone = useUser('phone');
@@ -137,7 +144,6 @@ const CreateBill = () => {
   const phoneNumberRef = useRef(null);
   const sendButtonRef = useRef(null);
   const bottomSheetRef = useRef(null);
-  const snapPoints = useMemo(() => ['40%'], []);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -225,14 +231,6 @@ const CreateBill = () => {
     });
   }, [isDiscountOpen]);
 
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        restartClickOfHeader();
-      };
-    }, []),
-  );
-
   const floatingButtonAnimStyle = useAnimatedStyle(() => {
     return {
       backgroundColor: interpolateColor(
@@ -254,10 +252,51 @@ const CreateBill = () => {
   const sendToSmsEnabled = useAppSettingsValue('SEND_TO_SMS');
   const printOnCreateBill = useAppSettingsValue('PRINT_ON_CREATE_BILL');
   const isPremiumPlanAndActive = useSubscription('isPremiumPlanAndActive');
-  const isGstEnabled = useGstEnabled();
+  const [isGstEnabled, setIsGstEnabled] = useState(
+    Boolean(business?.gstNumber?.trim()),
+  );
+
+  const refreshBusinessGstStatus = useCallback(async () => {
+    if (!token) return Boolean(business?.gstNumber?.trim());
+    try {
+      const response = await businessService.getBusiness(token);
+      if (response?.status && response?.data) {
+        await setBusinessData(response.data);
+        const gstEnabled = Boolean(response.data.gstNumber?.trim());
+        setIsGstEnabled(gstEnabled);
+        return gstEnabled;
+      }
+    } catch (error) {
+      console.error('Unable to refresh business GST status:', error);
+    }
+    return Boolean(business?.gstNumber?.trim());
+  }, [token, business?.gstNumber]);
+
+  useEffect(() => {
+    setIsGstEnabled(Boolean(business?.gstNumber?.trim()));
+  }, [business?.gstNumber]);
 
   // STATE VARIABLES
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [isCustomerDetailsEnabled, setIsCustomerDetailsEnabled] = useState(false);
+  const [hasAttemptedB2BSubmit, setHasAttemptedB2BSubmit] = useState(false);
+  const [customerGstNumber, setCustomerGstNumber] = useState('');
+  const [customerCompanyName, setCustomerCompanyName] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [customerState, setCustomerState] = useState(null);
+  const [states, setStates] = useState([]);
+  const [isStateModalVisible, setIsStateModalVisible] = useState(false);
+  const isInterStateCustomer = Boolean(
+    isCustomerDetailsEnabled &&
+      customerState?.id != null &&
+      business?.stateId != null &&
+      String(customerState.id) !== String(business.stateId),
+  );
+  const [isStatesLoading, setIsStatesLoading] = useState(false);
+  const snapPoints = useMemo(
+    () => [isGstEnabled && isCustomerDetailsEnabled ? '70%' : '40%'],
+    [isGstEnabled, isCustomerDetailsEnabled],
+  );
 
   // HSN Error State
   const [productsWithHsnError, setProductsWithHsnError] = useState([]);
@@ -270,6 +309,51 @@ const CreateBill = () => {
   const [devices, setDevices] = useState([]);
   const [isPendingPrint, setIsPendingPrint] = useState(false);
   const [isScannerModalVisible, setIsScannerModalVisible] = useState(false);
+
+  const resetCustomerDetails = useCallback(() => {
+    setPhoneNumber('');
+    setIsCustomerDetailsEnabled(false);
+    setHasAttemptedB2BSubmit(false);
+    setCustomerGstNumber('');
+    setCustomerCompanyName('');
+    setCustomerAddress('');
+    setCustomerState(null);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchStates = async () => {
+      setIsStatesLoading(true);
+      try {
+        const response = await stateService.getStates(token);
+        if (isMounted && response?.status && Array.isArray(response.data)) {
+          setStates(response.data);
+        }
+      } catch (error) {
+        console.error('Unable to load customer states:', error);
+      } finally {
+        if (isMounted) setIsStatesLoading(false);
+      }
+    };
+    fetchStates();
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
+
+  useEffect(() => {
+    const gstStatePrefix = customerGstNumber.slice(0, 2);
+    if (gstStatePrefix.length < 2) {
+      setCustomerState(currentState => (currentState ? null : currentState));
+      return;
+    }
+    const matchingState = states.find(
+      state => String(state.gstCode || '').padStart(2, '0') === gstStatePrefix,
+    );
+    if (matchingState?.id !== customerState?.id) {
+      setCustomerState(matchingState || null);
+    }
+  }, [customerGstNumber, states]);
 
   useEffect(() => {
     if (!isScannerModalVisible) return undefined;
@@ -286,6 +370,31 @@ const CreateBill = () => {
     bottomSheetRef.current?.close();
     Keyboard.dismiss();
   }, []);
+
+  const getB2BCustomer = () => {
+    if (!isCustomerDetailsEnabled) return undefined;
+    setHasAttemptedB2BSubmit(true);
+    const stateGstCode = String(customerState?.gstCode || '').padStart(2, '0');
+    if (
+      !validateIndianGST(customerGstNumber) ||
+      !customerState?.gstCode ||
+      !customerGstNumber.startsWith(stateGstCode)
+    ) {
+      ToastService.show({message: 'Enter a valid GST number for the selected state', type: 'error', position: 'top'});
+      return null;
+    }
+    if (!customerCompanyName.trim() || !customerAddress.trim() || !customerState?.id) {
+      ToastService.show({message: 'Complete all customer business details', type: 'error', position: 'top'});
+      return null;
+    }
+    return {
+      type: 'B2B',
+      gstin: customerGstNumber.trim().toUpperCase(),
+      companyName: customerCompanyName.trim(),
+      address: customerAddress.trim(),
+      stateId: customerState.id,
+    };
+  };
 
   const handleOpenScanner = useCallback(() => {
     setIsScannerModalVisible(true);
@@ -358,7 +467,7 @@ const CreateBill = () => {
     [],
   );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setProductsWithHsnError([]);
     if (!quantity) {
       ToastService.show({
@@ -387,13 +496,36 @@ const CreateBill = () => {
         return;
       }
     }
-    
+
+    resetCustomerDetails();
+    await refreshBusinessGstStatus();
     handleOpenBottomSheet();
   };
 
   const updateInvoiceNumber = async numberOfInvoices => {
     const safeNumber = Number(numberOfInvoices) + 1;
     await updateNumberOfInvoices(safeNumber);
+  };
+
+  const showInvoiceError = data => {
+    const message = data?.message || '';
+    if (
+      data?.statusCode === 403 ||
+      /subscription|subscribe to a plan/i.test(message)
+    ) {
+      Alert.alert(
+        'Subscription Required',
+        message || 'Your plan has expired. Please subscribe to a plan to create bills.',
+        [{text: 'OK'}],
+      );
+      return true;
+    }
+    ToastService.show({
+      message: message || 'Failed to create bill. Please try again.',
+      type: 'error',
+      position: 'top',
+    });
+    return false;
   };
 
   const getBusinessInvoiceNumber = async () => {
@@ -422,6 +554,8 @@ const CreateBill = () => {
       });
       return;
     }
+    const customer = getB2BCustomer();
+    if (isCustomerDetailsEnabled && !customer) return;
 
     if (!printer) {
       setIsPendingPrint(true);
@@ -446,7 +580,7 @@ const CreateBill = () => {
             hsnCode: item?.hsn?.hsnCode || "",
             rate: Number(item?.price).toFixed(2),
             originalPrice: item?.price,
-            gstType: hasHSN ? 'cgst/sgst' : null,
+            gstType: hasHSN ? (isInterStateCustomer ? 'IGST' : 'CGST/SGST') : null,
             gstPercentage: hasHSN
               ? (
                   Number(item.hsn?.cGst || 0) + Number(item.hsn?.sGst || 0)
@@ -463,12 +597,14 @@ const CreateBill = () => {
         items: selectedItems,
         paymentMode: paymentMethod,
         customerNumber: phoneNumber,
+        customer,
         discount,
         invoiceNumber: invoiceNo,
         businessName: businessName,
         userPhone: userPhone
       };
       const data = await invoiceService.createInvoice(payload);
+      if (!data?.status) showInvoiceError(data);
       if (data?.status) {
         addInvoices(data?.invoice);
         ToastService.show({
@@ -478,10 +614,19 @@ const CreateBill = () => {
         });
 
         const invoice = data?.invoice;
-        const invoiceItems = await invoiceService.getInvoiceItems(
+        const invoiceItemsResponse = await invoiceService.getInvoiceItems(
           invoice?.id,
           token,
         );
+        const invoiceItems = {
+          ...invoiceItemsResponse,
+          items: normalizeInvoiceItemsTaxType(
+            invoiceItemsResponse?.items,
+            invoice,
+            business?.stateId,
+            customerState?.id,
+          ),
+        };
         const {
           gstListCalculate,
           items,
@@ -498,7 +643,17 @@ const CreateBill = () => {
 
         if (printer) {
           await printerService.printInvoice(
-            invoice,
+            {
+              ...invoice,
+              ...(customer
+                ? {
+                    customer: {
+                      ...customer,
+                      stateName: customerState?.name,
+                    },
+                  }
+                : {}),
+            },
             items,
             gstListCalculate,
             totalQuantity,
@@ -530,6 +685,8 @@ const CreateBill = () => {
       });
       return;
     }
+    const customer = getB2BCustomer();
+    if (isCustomerDetailsEnabled && !customer) return;
     try {
       setIsSaveLoading(true);
       const selectedItems = product
@@ -546,7 +703,7 @@ const CreateBill = () => {
             hsnId: item?.hsnId || null,
             hsnCode: item?.hsn?.hsnCode || '',
             rate: Number(item?.price).toFixed(2),
-            gstType: hasHSN ? 'cgst/sgst' : null,
+            gstType: hasHSN ? (isInterStateCustomer ? 'IGST' : 'CGST/SGST') : null,
             gstPercentage: hasHSN
               ? (
                   Number(item.hsn?.cGst || 0) + Number(item.hsn?.sGst || 0)
@@ -561,6 +718,7 @@ const CreateBill = () => {
       const data = await invoiceService.createInvoice({
         token,
         customerNumber: phoneNumber,
+        customer,
         items: selectedItems,
         paymentMode: paymentMethod,
         discount,
@@ -568,6 +726,8 @@ const CreateBill = () => {
         businessName: businessName,
         userPhone: userPhone,
       });
+
+      if (!data?.status) showInvoiceError(data);
 
       if (data?.status) {
         addInvoices(data?.invoice);
@@ -595,6 +755,8 @@ const CreateBill = () => {
       });
       return;
     }
+    const customer = getB2BCustomer();
+    if (isCustomerDetailsEnabled && !customer) return;
     try {
       setIsSendLoading(true);
       const selectedItems = product
@@ -611,7 +773,7 @@ const CreateBill = () => {
             hsnId: item?.hsnId || null,
             hsnCode: item?.hsn?.hsnCode || "",
             rate: Number(item?.price).toFixed(2),
-            gstType: hasHSN ? 'cgst/sgst' : null,
+            gstType: hasHSN ? (isInterStateCustomer ? 'IGST' : 'CGST/SGST') : null,
             gstPercentage: hasHSN
               ? (
                   Number(item.hsn?.cGst || 0) + Number(item.hsn?.sGst || 0)
@@ -627,6 +789,7 @@ const CreateBill = () => {
       const data = await invoiceService.createInvoice({
         token,
         customerNumber: phoneNumber,
+        customer,
         items: selectedItems,
         paymentMode: paymentMethod,
         discount,
@@ -634,10 +797,16 @@ const CreateBill = () => {
         businessName: businessName,
         userPhone: userPhone,
       });
+      if (!data?.status) showInvoiceError(data);
       if (data?.status) {
         addInvoices(data?.invoice);
         const whatsappAmounts = calculateInvoiceData(
-          selectedItems,
+          normalizeInvoiceItemsTaxType(
+            selectedItems,
+            data?.invoice,
+            business?.stateId,
+            customerState?.id,
+          ),
           discount,
           data?.invoice?.totalAmount,
         );
@@ -646,7 +815,7 @@ const CreateBill = () => {
           type: 'success',
           position: 'top',
         });
-        setPhoneNumber('');
+        resetCustomerDetails();
         setQuantity(0);
         setDiscount(0);
         setTotalPrice(0);
@@ -666,6 +835,9 @@ const CreateBill = () => {
             roundOffAmount: whatsappAmounts.roundOffAmount,
             paymentMode: data?.invoice?.paymentMode,
             businessId: business?.id,
+            customerDetails: customer,
+            gstBreakdown: whatsappAmounts.gstListCalculate,
+            customerStateName: customerState?.name,
           });
 
           // Only once WhatsApp goes through do we also send the SMS —
@@ -710,16 +882,41 @@ const CreateBill = () => {
     );
   }, [searchQuery, Products]);
 
-  const restartClickOfHeader = () => {
-    setPhoneNumber('');
+  const restartClickOfHeader = useCallback(() => {
+    Keyboard.dismiss();
+    discountInputRef.current?.clear();
+    discountAnim.value = withSpring(0, {
+      damping: 15,
+      stiffness: 100,
+    });
+    resetCustomerDetails();
     setQuantity(0);
     setDiscount(0);
     setTotalPrice(0);
     setIsDiscountOpen(false);
+    discountInvalidToastShown.current = false;
     resetProductCount();
     setProductsWithHsnError([]);
     handleCloseBottomSheet();
-  };
+  }, [
+    discountAnim,
+    handleCloseBottomSheet,
+    resetCustomerDetails,
+    resetProductCount,
+  ]);
+
+  useFocusEffect(
+    useCallback(() => {
+      restartClickOfHeader();
+      refreshBusinessGstStatus();
+      return restartClickOfHeader;
+    }, [restartClickOfHeader, refreshBusinessGstStatus]),
+  );
+
+  const handleCreateBillBack = useCallback(() => {
+    restartClickOfHeader();
+    navigation.goBack();
+  }, [navigation, restartClickOfHeader]);
 
   return (
     <KeyboardAvoidingView
@@ -731,6 +928,7 @@ const CreateBill = () => {
         <Layout>
           <SecondaryHeader
             title="Create Bill"
+            handleBack={handleCreateBillBack}
             query={searchQuery}
             isRestart={true}
             isQuestion={false}
@@ -774,8 +972,7 @@ const CreateBill = () => {
           />
           {quantity > 0 && (
             <Animated.View
-              // This automatically animates width/height changes smoothly
-              layout={LinearTransition.springify().damping(15).stiffness(120)}
+              key="discount-control"
               style={[
                 styles.floatingButton,
                 floatingButtonAnimStyle,
@@ -783,9 +980,7 @@ const CreateBill = () => {
               ]}>
               {isDiscountOpen ? (
                 <Animated.View
-                  key="discount-open" // Key is required for entering/exiting to work reliably
-                  entering={FadeIn.duration(300)}
-                  exiting={FadeOut.duration(200)}
+                  key="discount-open"
                   style={styles.opendDiscountContainer}>
                   <Lucide
                     name="indian-rupee"
@@ -859,9 +1054,7 @@ const CreateBill = () => {
                 </Animated.View>
               ) : (
                 <Animated.View
-                  key="discount-closed"
-                  entering={FadeIn.duration(300)}
-                  exiting={FadeOut.duration(200)}>
+                  key="discount-closed">
                   <Pressable
                     style={styles.floatingButtonContainer}
                     onPress={() => setIsDiscountOpen(true)}>
@@ -881,7 +1074,11 @@ const CreateBill = () => {
           keyboardBlurBehavior="restore"
           android_keyboardInputMode="adjustResize"
           handleComponent={() => null}
-          backgroundStyle={{borderRadius: 0}}
+          backgroundStyle={{
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            backgroundColor: '#fff',
+          }}
           backdropComponent={renderBackdrop}
           animationConfigs={{
             duration: 250,
@@ -889,46 +1086,133 @@ const CreateBill = () => {
           enableHandlePanningGesture={false}>
           <BottomSheetScrollView
             style={{flex: 1}}
-            contentContainerStyle={{padding: padding(15)}}
+            contentContainerStyle={styles.customerSheetContent}
             keyboardShouldPersistTaps="handled">
+            <View style={styles.customerSheetHandle} />
             <View style={styles.bottomSheetContaienr}>
               <Text style={styles.bottomSheetTitleText}>
-                Enter customer phone number
+                Customer Details
               </Text>
-              <TouchableOpacity onPress={handleCloseBottomSheet}>
-                <Ionicons name="close" size={20} color={'#000'} />
+              <TouchableOpacity
+                style={styles.customerSheetCloseButton}
+                onPress={handleCloseBottomSheet}>
+                <Ionicons name="close" size={18} color={'#555B63'} />
               </TouchableOpacity>
             </View>
             <Text style={styles.bottomSheetSubTitleText}>
               For sending sms & reminders
             </Text>
-            <View
-              ref={phoneNumberRef}
-              onLayout={() => measureRef('phone', phoneNumberRef)}
-              style={styles.bottomSheetPhoneContainer}>
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontFamily: fonts.popMedium,
-                  color: '#000',
-                }}>
-                Phone number(Optional for Printing)
-              </Text>
-              <SimpleTextInput
-                maxLength={10}
-                hasError={
-                  phoneNumber.length > 0 && !validateIndianPhone(phoneNumber)
-                }
-                value={phoneNumber}
-                setValue={val => {
-                  const cleaned = val.replace(/[^0-9]/g, '');
-                  setPhoneNumber(cleaned);
-                }}
-                keyboardType="phone-pad"
-                placeholder="Customer Phone Number"
-                borderColor="#00000090"
-                placeholderTextColor="#00000095"
-              />
+            {isGstEnabled && (
+              <View style={styles.customerDetailsToggleRow}>
+                <Text style={styles.customerDetailsToggleText}>Business Details(B2B)</Text>
+                <Switch
+                  value={isCustomerDetailsEnabled}
+                  onValueChange={enabled => {
+                    setIsCustomerDetailsEnabled(enabled);
+                    if (enabled) setHasAttemptedB2BSubmit(false);
+                  }}
+                  trackColor={{false: '#00000030', true: colors.sucess}}
+                  thumbColor="#fff"
+                />
+              </View>
+            )}
+            <View style={styles.customerFieldsContainer}>
+              {isGstEnabled && isCustomerDetailsEnabled && (
+                <>
+                  <SimpleTextInput
+                    value={customerGstNumber}
+                    setValue={value =>
+                      setCustomerGstNumber(
+                        value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15),
+                      )
+                    }
+                    hasError={
+                      hasAttemptedB2BSubmit &&
+                      (!validateIndianGST(customerGstNumber) ||
+                        !customerState?.gstCode ||
+                        !customerGstNumber.startsWith(
+                          String(customerState?.gstCode || '').padStart(2, '0'),
+                        ))
+                    }
+                    maxLength={15}
+                    leadingIcon="description"
+                    placeholder="Customer GST Number"
+                    borderColor="#D7D9DE"
+                    borderRadius={10}
+                    height={icon(50)}
+                    placeholderTextColor="#858991"
+                    autoCapitalize="characters"
+                  />
+                  <SimpleTextInput
+                    value={customerCompanyName}
+                    setValue={setCustomerCompanyName}
+                    hasError={hasAttemptedB2BSubmit && !customerCompanyName.trim()}
+                    leadingIcon="business"
+                    placeholder="Customer Company Name"
+                    borderColor="#D7D9DE"
+                    borderRadius={10}
+                    height={icon(50)}
+                    placeholderTextColor="#858991"
+                  />
+                  <SimpleTextInput
+                    value={customerAddress}
+                    setValue={setCustomerAddress}
+                    hasError={hasAttemptedB2BSubmit && !customerAddress.trim()}
+                    leadingIcon="place"
+                    placeholder="Company Address"
+                    borderColor="#D7D9DE"
+                    borderRadius={10}
+                    height={icon(50)}
+                    placeholderTextColor="#858991"
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.customerStateSelect,
+                      hasAttemptedB2BSubmit && !customerState?.id && {borderColor: colors.error},
+                    ]}
+                    onPress={() => setIsStateModalVisible(true)}
+                    disabled={isStatesLoading}>
+                    <MaterialIcons name="map" size={18} color="#777B83" />
+                    <Text
+                      style={[
+                        styles.customerStateSelectText,
+                        !customerState && styles.customerStatePlaceholder,
+                      ]}>
+                      {isStatesLoading
+                        ? 'Loading states...'
+                        : customerState?.name || 'Select state'}
+                    </Text>
+                    <MaterialIcons
+                      name="arrow-drop-down"
+                      size={24}
+                      color="#777"
+                    />
+                  </TouchableOpacity>
+                </>
+              )}
+              <View
+                ref={phoneNumberRef}
+                onLayout={() => measureRef('phone', phoneNumberRef)}
+                style={styles.customerPhoneField}>
+                <Text style={styles.customerPhoneLabel}>
+                  Phone number(Optional for Printing)
+                </Text>
+                <SimpleTextInput
+                  maxLength={10}
+                  hasError={
+                    phoneNumber.length > 0 && !validateIndianPhone(phoneNumber)
+                  }
+                  value={phoneNumber}
+                  setValue={val => setPhoneNumber(val.replace(/[^0-9]/g, ''))}
+                  leadingIcon="call"
+                  keyboardType="phone-pad"
+                  placeholder="Customer Number"
+                  borderColor="#D7D9DE"
+                  borderRadius={10}
+                  height={icon(50)}
+                  placeholderTextColor="#858991"
+                />
+              </View>
             </View>
             <View style={styles.bottomSheetButtonContaienr}>
               <TouchableOpacity
@@ -979,6 +1263,40 @@ const CreateBill = () => {
             </View>
           </BottomSheetScrollView>
         </BottomSheet>
+
+        <Modal
+          visible={isStateModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setIsStateModalVisible(false)}>
+          <View style={styles.stateModalOverlay}>
+            <View style={styles.stateModal}>
+              <Text style={styles.stateModalTitle}>Select state</Text>
+              <FlatList
+                data={states}
+                keyExtractor={item => String(item.id)}
+                renderItem={({item}) => (
+                  <TouchableOpacity
+                    style={styles.stateOption}
+                    onPress={() => {
+                      setCustomerState(item);
+                      setIsStateModalVisible(false);
+                    }}>
+                    <Text style={styles.stateOptionText}>{item.name}</Text>
+                    {customerState?.id === item.id && (
+                      <MaterialIcons name="check" size={20} color={colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={(
+                  <Text style={styles.emptyStates}>
+                    {isStatesLoading ? 'Loading states...' : 'No states available'}
+                  </Text>
+                )}
+              />
+            </View>
+          </View>
+        </Modal>
 
         {/* Bluetooth Scanner Modal */}
         <CommonModal
@@ -1081,6 +1399,27 @@ const CreateBill = () => {
 };
 
 const styles = StyleSheet.create({
+  customerSheetContent: {
+    paddingHorizontal: padding(16),
+    paddingTop: padding(8),
+    paddingBottom: padding(10),
+  },
+  customerSheetHandle: {
+    alignSelf: 'center',
+    width: widthResponsive(38),
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: '#D9DADD',
+    marginBottom: margin(12),
+  },
+  customerSheetCloseButton: {
+    width: icon(32),
+    height: icon(32),
+    borderRadius: icon(16),
+    backgroundColor: '#F1F2F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   container: {
     paddingHorizontal: padding(16),
     marginTop: margin(10),
@@ -1096,32 +1435,117 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bottomSheetTitleText: {
-    fontSize: font(16),
-    fontFamily: fonts.popMedium,
+    fontSize: font(15),
+    fontFamily: fonts.popSemiBold,
     color: '#000',
   },
   bottomSheetSubTitleText: {
-    fontSize: font(11),
+    fontSize: font(10),
     fontFamily: fonts.popRegular,
     color: '#00000080',
   },
-  bottomSheetPhoneContainer: {
-    gap: gap(8),
-    marginVertical: margin(20),
+  customerDetailsToggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: margin(12),
+    paddingHorizontal: padding(12),
+    minHeight: icon(44),
+    borderRadius: 10,
+    backgroundColor: '#FFF3E8',
+  },
+  customerDetailsToggleText: {
+    fontSize: font(13),
+    fontFamily: fonts.popMedium,
+    color: '#000',
+  },
+  customerFieldsContainer: {
+    gap: gap(16),
+    marginTop: margin(16),
+  },
+  customerPhoneField: {
+    gap: gap(12),
+  },
+  customerPhoneLabel: {
+    fontSize: 12,
+    fontFamily: fonts.popMedium,
+    color: '#000',
+    marginBottom: margin(4),
+  },
+  customerStateSelect: {
+    height: icon(50),
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: padding(16),
+    borderWidth: 1,
+    borderColor: '#D7D9DE',
+    borderRadius: 10,
+    backgroundColor: '#fff',
+  },
+  customerStateSelectText: {
+    fontSize: font(12),
+    fontFamily: fonts.onMedium,
+    color: '#222',
+    flex: 1,
+    marginLeft: 10,
+  },
+  customerStatePlaceholder: {
+    color: '#858991',
+  },
+  stateModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: padding(24),
+    backgroundColor: '#00000070',
+  },
+  stateModal: {
+    maxHeight: '70%',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    paddingHorizontal: padding(16),
+    paddingTop: padding(16),
+  },
+  stateModalTitle: {
+    fontSize: font(16),
+    fontFamily: fonts.popSemiBold,
+    color: '#000',
+    paddingBottom: padding(10),
+  },
+  stateOption: {
+    minHeight: icon(44),
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#00000020',
+    paddingVertical: padding(8),
+  },
+  stateOptionText: {
+    fontSize: font(14),
+    fontFamily: fonts.popRegular,
+    color: '#222',
+  },
+  emptyStates: {
+    paddingVertical: padding(20),
+    color: '#777',
+    textAlign: 'center',
   },
   bottomSheetButtonContaienr: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: gap(15),
-    marginBottom: margin(20),
+    gap: gap(8),
+    marginTop: margin(20),
+    marginBottom: margin(10),
   },
   bottomSheetButton: {
-    paddingVertical: padding(6),
-    paddingHorizontal: padding(20),
+    flex: 1,
+    minHeight: icon(42),
+    paddingHorizontal: padding(6),
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 5,
+    borderRadius: 7,
   },
   bottomSheetButtonText: {
     fontSize: font(14),

@@ -160,8 +160,36 @@ class PrinterService {
       await BluetoothEscposPrinter.printText(`Invoice No : ${invoice.invoiceNumber}\n`, {});
       await BluetoothEscposPrinter.printText(`Date : ${formatDate(invoice.createdAt)}\n`, {});
       await BluetoothEscposPrinter.printText(`Time : ${this.convertTo12Hour(invoice.createdAt)}\n`, {});
-      if (invoice.customerNumber) {
-        await BluetoothEscposPrinter.printText(`Customer : ${invoice.customerNumber}\n`, {});
+      const customer = invoice.customer || {};
+      const customerGstin = invoice.customerGstin || customer.gstin;
+      const customerName = invoice.customerName || customer.companyName;
+      const customerAddress = invoice.customerAddress || customer.address;
+      const customerState = invoice.customerStateName || customer.stateName || customer.state?.name;
+      const hasBillToDetails =
+        String(invoice.supplyType || customer.type || '').toUpperCase() === 'B2B' ||
+        Boolean(customerName || customerGstin || customerAddress || customerState);
+      if (hasBillToDetails) {
+        await BluetoothEscposPrinter.printText('BILL TO\n', {fonttype: 1});
+        if (customerName) {
+          await BluetoothEscposPrinter.printText(`${customerName}\n`, {fonttype: 1});
+        }
+        if (customerAddress) {
+          await BluetoothEscposPrinter.printText(`${customerAddress}\n`, {});
+        }
+        if (customerGstin) {
+          await BluetoothEscposPrinter.printText(`GSTIN : ${customerGstin}\n`, {});
+        }
+        if (customerState) {
+          await BluetoothEscposPrinter.printText(`State : ${customerState}\n`, {});
+        }
+        if (invoice.customerNumber) {
+          await BluetoothEscposPrinter.printText(`Phone : ${invoice.customerNumber}\n`, {});
+        }
+      } else if (invoice.customerNumber) {
+        await BluetoothEscposPrinter.printText(
+          `Customer Number : ${invoice.customerNumber}\n`,
+          {},
+        );
       }
       await BluetoothEscposPrinter.printText(dashLine, {});
 

@@ -15,7 +15,8 @@ class InvoiceService {
     discount,
     invoiceNumber,
     businessName,
-    userPhone
+    userPhone,
+    customer,
   }) {
     try {
       const uri = this.baseUrl;
@@ -27,7 +28,8 @@ class InvoiceService {
         discount,
         invoiceNumber,
         businessName,
-        userPhone
+        userPhone,
+        ...(customer ? {customer} : {}),
       };
       const headers = {
         Authorization: `Bearer ${token}`,
@@ -44,7 +46,10 @@ class InvoiceService {
       console.error('--- createInvoice Error ---');
       console.error('Response Data:', error.response?.data);
       console.error('Status Code:', error.response?.status);
-      return error.response?.data;
+      return {
+        ...error.response?.data,
+        statusCode: error.response?.status,
+      };
     }
   }
 
